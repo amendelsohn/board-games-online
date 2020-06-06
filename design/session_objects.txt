@@ -1,0 +1,22 @@
+Table
+    1. id: string
+    2. player_ids: PlayerId[]
+    3. game_state_id: string
+    4. password?: string (encrypted?)
+    5. owner_id?: PlayerId
+    6. time_to_live?: number | timestamp
+
+Player
+    1. id: PlayerId
+    2. display_name
+
+Game state
+    1. turn
+        1. player_to_act: PlayerId
+        2. turn_order?: PlayerId[]
+    2. actions
+        1. available_actions
+            1. by player: Map<PlayerId, Action[]>
+    3. game_specific_state
+        1. public: Game.State
+        2. private: Map<PlayerId, Game.State>
