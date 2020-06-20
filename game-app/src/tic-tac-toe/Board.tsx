@@ -24,9 +24,13 @@ const Board: React.FC<BoardProps> = (props: BoardProps) => {
     <div className="board">
         {
           board_state.map((row, x) => {
-            return <div className='row'>
+            return <div className='row' key={`row-${x}`}>
               {row.map((letter, y) => {
-                return <Square letter={letter} setLetter={setLetter(x, y)} />;
+                return <Square 
+                  letter={letter}
+                  setLetter={setLetter(x, y)}
+                  key={`col-${x}-${y}`}
+                   />;
               })}
             </div>
           })

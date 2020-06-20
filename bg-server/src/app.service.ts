@@ -15,8 +15,8 @@ export class AppService {
   getTable(): Table {
     let testTable : Table = {
       id: "0",
-      player_ids: ["1", "2"],
-      game_state_id: "Test_State"
+      player_ids: ["player_1", "player_2"],
+      game_state_id: "tic_tac_toe_state"
     };
     return testTable;
   }
