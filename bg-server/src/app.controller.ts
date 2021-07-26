@@ -8,13 +8,18 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get("table")
-  getTable(): Table {
+  async getTable(): Promise<Table> {
     return this.appService.getTable();
   }
 
   @Get("player")
   getPlayer(): Player {
     return this.appService.getPlayer();
+  }
+
+  @Get("initTable")
+  initTable(): Table {
+    return this.appService.initTable();
   }
 
 }

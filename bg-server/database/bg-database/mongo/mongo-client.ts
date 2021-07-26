@@ -1,11 +1,34 @@
-const MongoClient = require('mongodb').MongoClient;
 const username = 'bg-server-dev';
 const password = 'kYPOlqM7s6r1iwNd';
-const uri = `mongodb+srv://${username}:${password}@bg-cluster.7rn20.mongodb.net/<dbname>?retryWrites=true&w=majority`;
 
-export const client = new MongoClient(uri, { useNewUrlParser: true });
-// client.connect(err => {
-//   const collection = client.db("test").collection("devices");
-//   // perform actions on the collection object
-//   client.close();
-// });
+import * as Mongoose from "mongoose";
+
+let database: Mongoose.Connection;
+
+export const connect = () => {
+  // add your own uri below
+  const uri = `mongodb+srv://${username}:${password}@cluster0-v6q0g.mongodb.net/test?retryWrites=true&w=majority`;
+  if (database) {
+    return;
+  }
+  Mongoose.connect(uri, {
+    useNewUrlParser: true,
+    useFindAndModify: true,
+    useUnifiedTopology: true,
+    useCreateIndex: true,
+  });
+  database = Mongoose.connection;
+  database.once("open", async () => {
+    console.log("Connected to database");
+  });
+  database.on("error", () => {
+    console.log("Error connecting to database");
+  });
+};
+
+export const disconnect = () => {
+  if (!database) {
+    return;
+  }
+  Mongoose.disconnect();
+};
