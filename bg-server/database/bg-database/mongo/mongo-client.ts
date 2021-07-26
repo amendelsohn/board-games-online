@@ -7,7 +7,7 @@ let database: Mongoose.Connection;
 
 export const connect = () => {
   // add your own uri below
-  const uri = `mongodb+srv://${username}:${password}@cluster0-v6q0g.mongodb.net/test?retryWrites=true&w=majority`;
+  const uri = `mongodb+srv://${username}:${password}@bg-cluster.7rn20.mongodb.net/myFirstDatabase?retryWrites=true;`
   if (database) {
     return;
   }

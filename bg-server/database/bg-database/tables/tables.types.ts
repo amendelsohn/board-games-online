@@ -7,12 +7,7 @@ export interface ITable {
     game_state_id: string;
 }
 
-export interface ITableDocument extends ITable, Document {
-    findOne: (
-        this: ITableModel,
-        tableId: string,
-      ) => Promise<ITableDocument>;
-}
+export interface ITableDocument extends ITable, Document {}
 
 export interface ITableModel extends Model<ITableDocument> {
     setPlayerIds: (

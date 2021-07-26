@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import Table from './table/Table';
 import Player from './player/Player';
 import { TableModel } from 'database/bg-database/tables/tables.model';
@@ -14,24 +14,19 @@ export class AppService {
   }
   
   async getTable(): Promise<Table> {
-    let testTable : Table = {
-      table_id: "0",
-      player_ids: ["player_1", "player_2"],
-      game_state_id: "tic_tac_toe_state"
-    };
-
-    return await TableModel.findOne({id: 0});
+    return await TableModel.findOne({table_id: "0"}).exec();
   }
-    
-  initTable(): Table {
+
+  async initTable(): Promise<Table> {
     let testTable : Table = {
       table_id: "0",
       player_ids: ["player_1", "player_2"],
       game_state_id: "test_tic_tac_toe_state"
     };
 
-    TableModel.create(testTable);
+    const tableToCreate = new TableModel(testTable);
+    const result = await tableToCreate.save();
 
-    return testTable;
+    return result as Table;
   }
 }

@@ -10,7 +10,7 @@ export class AppController {
   @Get("table")
   async getTable(): Promise<Table> {
     return this.appService.getTable();
-  }
+  } 
 
   @Get("player")
   getPlayer(): Player {
@@ -18,7 +18,7 @@ export class AppController {
   }
 
   @Get("initTable")
-  initTable(): Table {
+  async initTable(): Promise<Table> {
     return this.appService.initTable();
   }
 
