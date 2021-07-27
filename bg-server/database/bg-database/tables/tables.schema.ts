@@ -3,7 +3,10 @@ import { setPlayerIds } from "./tables.methods";
 // import { findOne } from "./tables.statics";
 import { create } from "domain";
 const TableSchema = new Schema({
-    table_id: String,
+    table_id: {
+        type: String,
+        required: true
+    },
     player_ids: [String],
     game_state_id: String,
 });
