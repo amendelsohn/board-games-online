@@ -1,7 +1,7 @@
 export type PlayerId = string;
 
 type Player = {
-    id: PlayerId;
+    player_id: PlayerId;
     name: string;
 }
 
