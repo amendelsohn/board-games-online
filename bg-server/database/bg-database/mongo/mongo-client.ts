@@ -1,13 +1,13 @@
+// TODO: don't store the creds in text :)
 const username = 'bg-server-dev';
-const password = 'kYPOlqM7s6r1iwNd';
+const password = '9rScxm4IRq4jnL9D';
 
 import * as Mongoose from "mongoose";
 
 let database: Mongoose.Connection;
 
 export const connect = () => {
-  // add your own uri below
-  const uri = `mongodb+srv://${username}:${password}@bg-cluster.7rn20.mongodb.net/myFirstDatabase?retryWrites=true;`
+  const uri = `mongodb+srv://${username}:${password}@bg-cluster.7rn20.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`
   if (database) {
     return;
   }
