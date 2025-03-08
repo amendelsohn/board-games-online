@@ -1,0 +1,30 @@
+{
+  "name": "board-games-next",
+  "version": "1.0.0",
+  "description": "A modern Next.js implementation of board games online",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest"
+  },
+  "keywords": [
+    "board games",
+    "next.js",
+    "typescript",
+    "tic-tac-toe"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "@types/react-dom": "19.0.4",
+    "next": "15.2.1",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "typescript": "5.8.2"
+  }
+}
