@@ -1,0 +1,188 @@
+.createGameContainer,
+.joinGameContainer,
+.playerProfileContainer,
+.gameLobbyContainer {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 500px;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.input,
+.select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.2);
+}
+
+.button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.button:hover {
+  background-color: #0058c7;
+}
+
+.button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.secondaryButton:hover {
+  background-color: #e0e0e0;
+}
+
+.error {
+  color: #e53e3e;
+  margin-top: 0.5rem;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.editButton {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin-left: 0.5rem;
+  text-decoration: underline;
+}
+
+.playerInfo {
+  margin-top: 1rem;
+}
+
+.playerInfo p {
+  margin-bottom: 0.5rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.lobbyInfo {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+.playersContainer {
+  margin-bottom: 1.5rem;
+}
+
+.playersList {
+  list-style: none;
+  padding: 0;
+}
+
+.playerItem {
+  padding: 0.75rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+}
+
+.playerItem:last-child {
+  border-bottom: none;
+}
+
+.hostBadge,
+.youBadge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  margin-left: 0.5rem;
+}
+
+.hostBadge {
+  background-color: #f6e05e;
+  color: #744210;
+}
+
+.youBadge {
+  background-color: #c6f6d5;
+  color: #22543d;
+}
+
+.hostControls {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.hint {
+  font-size: 0.875rem;
+  color: #666;
+  margin-top: 0.5rem;
+}
+
+.waitingMessage {
+  text-align: center;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  margin: 1.5rem 0;
+}
+
+.shareInfo {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #ebf8ff;
+  border-radius: 4px;
+}
+
+.backLink {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.link {
+  color: var(--primary-color);
+  text-decoration: underline;
+}

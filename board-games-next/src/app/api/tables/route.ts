@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // Define types based on the backend
 interface Table {
@@ -10,7 +10,7 @@ interface Table {
 // This is a proxy to the backend server
 const API_URL = process.env.API_URL || "http://localhost:8080";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const response = await fetch(`${API_URL}/table`);
 
@@ -32,7 +32,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 

@@ -1,0 +1,25 @@
+{
+  "name": "board-games-online",
+  "version": "1.0.0",
+  "description": "Monorepo for board games online application",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "cd board-games-next && pnpm dev",
+    "dev:backend": "cd bg-server && pnpm start:dev",
+    "dev": "concurrently \"pnpm dev:frontend\" \"pnpm dev:backend\"",
+    "build": "pnpm --filter board-games-next build && pnpm --filter bg-server build",
+    "test": "pnpm --filter board-games-next test && pnpm --filter bg-server test",
+    "start:all": "concurrently \"pnpm dev:frontend\" \"pnpm dev:backend\""
+  },
+  "keywords": [
+    "board games",
+    "monorepo",
+    "next.js",
+    "nestjs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,11 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // This is a proxy to the backend server
 const API_URL = process.env.API_URL || "http://localhost:8080";
 
+type RouteSegmentConfig = {
+  params: {
+    id: string;
+  };
+};
+
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: RouteSegmentConfig
 ) {
   try {
     const id = params.id;
@@ -31,8 +37,8 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: RouteSegmentConfig
 ) {
   try {
     const id = params.id;
