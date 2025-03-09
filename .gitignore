@@ -2,6 +2,12 @@
 /dist
 /node_modules
 
+# SQLite database files
+*.sqlite
+*.sqlite3
+*.db
+database.sqlite
+
 # Logs
 logs
 *.log

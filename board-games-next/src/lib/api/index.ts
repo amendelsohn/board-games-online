@@ -1,4 +1,4 @@
-import { Player, PlayerId, Table } from "@/types";
+import { Player, PlayerId, Table, GameState } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -48,7 +48,7 @@ export const updatePlayerName = async (
   name: string
 ): Promise<Player> => {
   const response = await fetch(`${API_URL}/player/${playerId}/name`, {
-    method: "PUT",
+    method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
@@ -73,7 +73,10 @@ export const createTable = async (
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ game_type: gameType, host_player_id: hostPlayerId }),
+    body: JSON.stringify({
+      game_type: gameType,
+      host_player_id: hostPlayerId,
+    }),
   });
 
   if (!response.ok) {
@@ -85,21 +88,17 @@ export const createTable = async (
 };
 
 export const getTable = async (tableIdOrJoinCode: string): Promise<Table> => {
-  // If the input is 4 characters, assume it's a join code
-  if (tableIdOrJoinCode.length === 4 && /^[A-Z]+$/.test(tableIdOrJoinCode)) {
-    console.log("Using getTableByJoinCode for:", tableIdOrJoinCode);
-    return getTableByJoinCode(tableIdOrJoinCode);
+  // Try to get by ID first
+  try {
+    const response = await fetch(`${API_URL}/table/${tableIdOrJoinCode}`);
+    if (response.ok) {
+      return response.json();
+    }
+  } catch (error) {
+    // Ignore error and try join code
   }
 
-  console.log("Fetching table by ID:", tableIdOrJoinCode);
-  const response = await fetch(`${API_URL}/table/${tableIdOrJoinCode}`);
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Failed to fetch table");
-  }
-
-  return response.json();
+  return getTableByJoinCode(tableIdOrJoinCode);
 };
 
 export const getTableByJoinCode = async (joinCode: string): Promise<Table> => {
@@ -151,4 +150,86 @@ export const startGame = async (
   }
 
   return response.json();
+};
+
+// Game State API
+export const getGameState = async (tableId: string): Promise<GameState> => {
+  const response = await fetch(`${API_URL}/table/${tableId}/game-state`);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to fetch game state");
+  }
+
+  return response.json();
+};
+
+export const updateGameState = async (
+  tableId: string,
+  playerId: PlayerId,
+  updates: Partial<GameState>
+): Promise<GameState> => {
+  const response = await fetch(
+    `${API_URL}/table/${tableId}/game-state/update`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        player_id: playerId,
+        updates,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to update game state");
+  }
+
+  return response.json();
+};
+
+// Polling helper
+export const pollGameState = (
+  tableId: string,
+  onUpdate: (gameState: GameState) => void,
+  interval: number = 2000,
+  onError?: (error: Error) => void
+): { stop: () => void } => {
+  let isPolling = true;
+  let timeoutId: NodeJS.Timeout;
+
+  const poll = async () => {
+    if (!isPolling) return;
+
+    try {
+      const gameState = await getGameState(tableId);
+      onUpdate(gameState);
+    } catch (error) {
+      if (onError && error instanceof Error) {
+        onError(error);
+      } else {
+        console.error("Polling error:", error);
+      }
+    }
+
+    if (isPolling) {
+      timeoutId = setTimeout(poll, interval);
+    }
+  };
+
+  // Start polling
+  poll();
+
+  // Return a function to stop polling
+  return {
+    stop: () => {
+      isPolling = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    },
+  };
 };

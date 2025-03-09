@@ -19,6 +19,7 @@ export interface Table {
   join_code: string;
   player_ids: PlayerId[];
   game_state_id: string;
+  game_state_data?: GameState;
   host_player_id: PlayerId;
   status: TableStatus;
   game_type: string;
@@ -28,9 +29,13 @@ export interface Table {
 
 // Game State
 export interface GameState {
-  game_state_id: string;
-  board_state: any;
-  current_player_id: PlayerId;
-  winner_id?: PlayerId;
-  is_draw: boolean;
+  id: string;
+  current_player: PlayerId;
+  is_game_over: boolean;
+  winning_players: PlayerId[];
+  losing_players: PlayerId[];
+  game_specific_state: {
+    gameType: string;
+    [key: string]: any;
+  };
 }

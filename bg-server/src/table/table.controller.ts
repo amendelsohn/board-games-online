@@ -12,10 +12,14 @@ import { Response } from 'express';
 import { PlayerId } from 'src/player/Player';
 import Table from './Table';
 import { TableService } from './table.service';
+import { GameStateService } from '../game-state/game-state.service';
 
 @Controller('table')
 export class TableController {
-  constructor(private readonly tableService: TableService) {}
+  constructor(
+    private readonly tableService: TableService,
+    private readonly gameStateService: GameStateService,
+  ) {}
 
   @Get('heartbeat')
   heartbeat(): { status: string; timestamp: string } {
@@ -105,6 +109,55 @@ export class TableController {
         player_ids,
       );
       response.json(updatedTable);
+    } catch (error) {
+      response.status(400).json({ message: error.message });
+    }
+  }
+
+  @Get(':table_id/game-state')
+  async getGameState(
+    @Param('table_id') table_id: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    try {
+      const gameState = await this.gameStateService.getGameStateFromTable(
+        table_id,
+      );
+      response.json(gameState);
+    } catch (error) {
+      response.status(404).json({ message: error.message });
+    }
+  }
+
+  @Post(':table_id/game-state/update')
+  async updateGameState(
+    @Param('table_id') table_id: string,
+    @Body('player_id') player_id: PlayerId,
+    @Body('updates') updates: any,
+    @Res() response: Response,
+  ): Promise<void> {
+    try {
+      // First get the table to check if it's this player's turn
+      const table = await this.tableService.getTable(table_id);
+
+      // Get the game state to check if it's this player's turn
+      const gameState = await this.gameStateService.getGameStateFromTable(
+        table_id,
+      );
+
+      // Check if it's this player's turn
+      if (gameState.current_player !== player_id) {
+        response.status(400).json({ message: "It's not your turn" });
+        return;
+      }
+
+      // Update the game state
+      const updatedGameState = await this.gameStateService.updateGameState(
+        table.game_state_id,
+        updates,
+      );
+
+      response.json(updatedGameState);
     } catch (error) {
       response.status(400).json({ message: error.message });
     }

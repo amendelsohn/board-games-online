@@ -6,36 +6,62 @@ import styles from "./Board.module.css";
 
 type BoardState = Array<Array<string>>;
 
-export default function Board() {
+interface BoardProps {
+  boardState?: BoardState;
+  onMove?: (move: { board: BoardState }) => void;
+  disabled?: boolean;
+  playerSymbol?: string;
+}
+
+export default function Board({
+  boardState: externalBoardState,
+  onMove,
+  disabled = false,
+  playerSymbol = "X",
+}: BoardProps) {
   const initialState: BoardState = [
     ["", "", ""],
     ["", "", ""],
     ["", "", ""],
   ];
 
-  const [boardState, setBoardState] = useState<BoardState>(initialState);
+  // Use external board state if provided, otherwise use local state
+  const [localBoardState, setLocalBoardState] = useState<BoardState>(
+    initialState
+  );
   const [isXNext, setIsXNext] = useState<boolean>(true);
 
+  // Determine which board state to use
+  const boardState = externalBoardState || localBoardState;
+
   const handleClick = (row: number, col: number) => {
-    // If square already filled, do nothing
-    if (boardState[row][col]) return;
+    // If square already filled or game is disabled, do nothing
+    if (boardState[row][col] || disabled) return;
 
     const newBoardState = boardState.map((rowArray, r) =>
       rowArray.map((value, c) => {
         if (r === row && c === col) {
-          return isXNext ? "X" : "O";
+          return onMove ? playerSymbol : isXNext ? "X" : "O";
         }
         return value;
       })
     );
 
-    setBoardState(newBoardState);
-    setIsXNext(!isXNext);
+    if (onMove) {
+      // If we have an external handler, use it
+      onMove({ board: newBoardState });
+    } else {
+      // Otherwise use local state
+      setLocalBoardState(newBoardState);
+      setIsXNext(!isXNext);
+    }
   };
 
   const resetGame = () => {
-    setBoardState(initialState);
-    setIsXNext(true);
+    if (!onMove) {
+      setLocalBoardState(initialState);
+      setIsXNext(true);
+    }
   };
 
   // Calculate winner
@@ -109,12 +135,16 @@ export default function Board() {
   } else if (winner) {
     status = `Winner: ${winner}`;
   } else {
-    status = `Next player: ${isXNext ? "X" : "O"}`;
+    status = onMove
+      ? disabled
+        ? "Waiting for your turn..."
+        : "Your turn"
+      : `Next player: ${isXNext ? "X" : "O"}`;
   }
 
   return (
     <div className={styles.gameContainer}>
-      <div className={styles.status}>{status}</div>
+      {!onMove && <div className={styles.status}>{status}</div>}
       <div className={styles.board}>
         {boardState.map((row, rowIndex) => (
           <div key={`row-${rowIndex}`} className={styles.boardRow}>
@@ -128,9 +158,11 @@ export default function Board() {
           </div>
         ))}
       </div>
-      <button className={styles.resetButton} onClick={resetGame}>
-        Reset Game
-      </button>
+      {!onMove && (
+        <button className={styles.resetButton} onClick={resetGame}>
+          Reset Game
+        </button>
+      )}
     </div>
   );
 }

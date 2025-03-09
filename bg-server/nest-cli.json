@@ -1,4 +1,16 @@
 {
   "collection": "@nestjs/schematics",
-  "sourceRoot": "src"
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "watchAssets": true,
+    "assets": []
+  },
+  "watchOptions": {
+    "watchExclude": [
+      "**/*.sqlite",
+      "**/*.sqlite3",
+      "**/*.db",
+      "**/database.sqlite"
+    ]
+  }
 }
