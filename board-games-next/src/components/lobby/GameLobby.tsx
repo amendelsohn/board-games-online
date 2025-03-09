@@ -6,34 +6,45 @@ import Link from "next/link";
 import { getTable, getPlayer, startGame } from "@/lib/api";
 import { Player, Table, TableStatus } from "@/types";
 import styles from "./Lobby.module.css";
+import { useGameSession } from "@/lib/hooks/useGameSession";
 
 interface GameLobbyProps {
   joinCode: string;
-  currentPlayer: Player;
 }
 
-export default function GameLobby({ joinCode, currentPlayer }: GameLobbyProps) {
+export default function GameLobby({ joinCode }: GameLobbyProps) {
   const router = useRouter();
   const [table, setTable] = useState<Table | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isTableLoading, setIsTableLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
-  const [error, setError] = useState("");
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(
-    null
-  );
+  const [tableError, setTableError] = useState("");
+
+  // Use our custom hook for player session and game state
+  const {
+    player: currentPlayer,
+    isLoadingPlayer,
+    playerError,
+    isReady,
+  } = useGameSession(table?.table_id || "", {
+    // Don't poll for game state yet, we're just using this for player session
+    pollingInterval: 0,
+  });
 
   // Load table data
   useEffect(() => {
+    console.log(`GameLobby: Initializing for join code ${joinCode}`);
+
     const fetchTableData = async () => {
       try {
-        console.log("Fetching table data for join code:", joinCode);
+        console.log(`GameLobby: Fetching table data for join code ${joinCode}`);
         const tableData = await getTable(joinCode);
-        console.log("Table data received:", tableData);
+        console.log(`GameLobby: Table data received:`, tableData);
         setTable(tableData);
 
         // If game has started, redirect to game
         if (tableData.status === TableStatus.PLAYING) {
+          console.log(`GameLobby: Game has started, redirecting to game page`);
           router.push(
             `/games/${tableData.game_type}?table=${tableData.table_id}`
           );
@@ -43,62 +54,88 @@ export default function GameLobby({ joinCode, currentPlayer }: GameLobbyProps) {
         // Fetch player data
         const playerPromises = tableData.player_ids.map((id) => getPlayer(id));
         const playerData = await Promise.all(playerPromises);
-        console.log("Player data received:", playerData);
+        console.log(`GameLobby: Player data received:`, playerData);
         setPlayers(playerData);
       } catch (err) {
-        console.error("Error fetching table data:", err);
-        setError(
+        console.error(`GameLobby: Error fetching table data:`, err);
+        setTableError(
           err instanceof Error ? err.message : "Failed to load game lobby"
         );
       } finally {
-        setIsLoading(false);
+        setIsTableLoading(false);
       }
     };
 
+    // Initial fetch
     fetchTableData();
 
-    // Set up polling to refresh data
-    const interval = setInterval(fetchTableData, 5000);
-    setPollingInterval(interval);
+    // Set up polling using an interval
+    const intervalId = setInterval(fetchTableData, 5000);
+    console.log(
+      `GameLobby: Started polling interval for join code ${joinCode}`
+    );
 
     return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
+      // Clean up interval when component unmounts
+      clearInterval(intervalId);
+      console.log(
+        `GameLobby: Cleared polling interval for join code ${joinCode}`
+      );
     };
   }, [joinCode, router]);
 
   const handleStartGame = async () => {
-    if (!table) return;
+    if (!table || !currentPlayer) return;
 
     setIsStarting(true);
-    setError("");
+    setTableError("");
 
     try {
+      console.log(`GameLobby: Starting game for table ${table.table_id}`);
+      // The server will automatically create the game state when starting the game
       await startGame(table.table_id, currentPlayer.player_id);
       router.push(`/games/${table.game_type}?table=${table.table_id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start game");
+      console.error(`GameLobby: Error starting game:`, err);
+      setTableError(
+        err instanceof Error ? err.message : "Failed to start game"
+      );
       setIsStarting(false);
     }
   };
 
-  const isHost = table?.host_player_id === currentPlayer.player_id;
-
-  if (isLoading) {
+  // Loading states
+  if (isLoadingPlayer || isTableLoading) {
     return <div className={styles.loading}>Loading game lobby...</div>;
   }
 
-  if (!table) {
+  // Error states
+  if (playerError) {
     return (
       <div className={styles.error}>
-        <p>Game not found or has been removed.</p>
+        Error: {playerError.message || "Failed to load player session"}
+      </div>
+    );
+  }
+
+  if (tableError || !table) {
+    return (
+      <div className={styles.error}>
+        <p>{tableError || "Game not found or has been removed."}</p>
         <Link href="/" className={styles.link}>
           Return to Home
         </Link>
       </div>
     );
   }
+
+  if (!currentPlayer) {
+    return (
+      <div className={styles.error}>Error: Player session not available</div>
+    );
+  }
+
+  const isHost = table.host_player_id === currentPlayer.player_id;
 
   return (
     <div className={styles.gameLobbyContainer}>
@@ -162,7 +199,7 @@ export default function GameLobby({ joinCode, currentPlayer }: GameLobbyProps) {
         </p>
       </div>
 
-      {error && <p className={styles.error}>{error}</p>}
+      {tableError && <p className={styles.error}>{tableError}</p>}
 
       <Link href="/" className={styles.backLink}>
         Leave Lobby

@@ -102,27 +102,10 @@ export class GameStateService {
       game_state_id: gameStateId,
     });
 
-    // Update each table with the current game state data
-    for (const table of tables) {
-      // Create a plain object from the game state entity
-      // This ensures proper serialization to JSON in the database
-      const gameStateData = {
-        id: gameState.id,
-        current_player: gameState.current_player,
-        is_game_over: gameState.is_game_over,
-        winning_players: gameState.winning_players,
-        losing_players: gameState.losing_players,
-        game_specific_state: gameState.game_specific_state,
-      };
-
-      table.game_state_data = gameStateData;
-      await this.tableRepository.save(table);
-
-      console.log(
-        'Updated table game state data:',
-        JSON.stringify(gameStateData),
-      );
-    }
+    // No need to duplicate game state data in the tables
+    // We're only using a reference via game_state_id now
+    // This method is kept for compatibility and could be expanded
+    // in the future if needed for additional synchronization tasks
   }
 
   // Get game state from table (for client polling)
@@ -132,10 +115,11 @@ export class GameStateService {
       throw new NotFoundException(`Table with ID ${tableId} not found`);
     }
 
-    if (!table.game_state_data) {
+    if (!table.game_state_id) {
       throw new NotFoundException(`No game state found for table ${tableId}`);
     }
 
-    return (table.game_state_data as unknown) as GameStateType;
+    // Get the game state using its ID
+    return this.getGameState(table.game_state_id);
   }
 }

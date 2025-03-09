@@ -20,9 +20,6 @@ export class Table {
   @Column({ nullable: true })
   game_state_id: string;
 
-  @Column('simple-json', { nullable: true })
-  game_state_data: any;
-
   @Column()
   host_player_id: string;
 

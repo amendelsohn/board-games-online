@@ -1,4 +1,5 @@
 import { Player, PlayerId, Table, GameState } from "@/types";
+import { pollingManager } from "./pollingManager";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -66,7 +67,8 @@ export const updatePlayerName = async (
 // Table API
 export const createTable = async (
   gameType: string,
-  hostPlayerId: PlayerId
+  hostPlayerId: PlayerId,
+  initialGameState: Partial<GameState> = {}
 ): Promise<Table> => {
   const response = await fetch(`${API_URL}/table/create`, {
     method: "POST",
@@ -76,6 +78,7 @@ export const createTable = async (
     body: JSON.stringify({
       game_type: gameType,
       host_player_id: hostPlayerId,
+      initial_game_state: initialGameState,
     }),
   });
 
@@ -198,38 +201,21 @@ export const pollGameState = (
   interval: number = 2000,
   onError?: (error: Error) => void
 ): { stop: () => void } => {
-  let isPolling = true;
-  let timeoutId: NodeJS.Timeout;
+  console.log(`pollGameState: Starting polling for table ${tableId}`);
 
-  const poll = async () => {
-    if (!isPolling) return;
-
-    try {
-      const gameState = await getGameState(tableId);
-      onUpdate(gameState);
-    } catch (error) {
-      if (onError && error instanceof Error) {
-        onError(error);
-      } else {
-        console.error("Polling error:", error);
-      }
-    }
-
-    if (isPolling) {
-      timeoutId = setTimeout(poll, interval);
-    }
-  };
-
-  // Start polling
-  poll();
+  // Use the polling manager to start polling
+  const stopFn = pollingManager.startPolling(
+    tableId,
+    onUpdate,
+    interval,
+    onError
+  );
 
   // Return a function to stop polling
   return {
     stop: () => {
-      isPolling = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      console.log(`pollGameState: Stop function called for table ${tableId}`);
+      stopFn();
     },
   };
 };

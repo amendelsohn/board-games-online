@@ -40,9 +40,17 @@ export class TableService {
   async createTable(
     gameType: string,
     hostPlayerId: PlayerId,
+    initialGameState: any = {},
   ): Promise<TableType> {
     // Generate a random 4-letter join code
     const join_code = this.generateJoinCode();
+
+    // Create game state immediately
+    const gameStateId = await this.gameStateService.createGameState(
+      [hostPlayerId],
+      gameType,
+      initialGameState,
+    );
 
     const table = this.tableRepository.create({
       table_id: uuidv4(),
@@ -51,7 +59,7 @@ export class TableService {
       host_player_id: hostPlayerId,
       status: TableStatus.WAITING,
       game_type: gameType,
-      game_state_id: '', // Will be populated when game starts
+      game_state_id: gameStateId,
     });
 
     return ((await this.tableRepository.save(table)) as unknown) as TableType;
@@ -98,11 +106,29 @@ export class TableService {
       throw new BadRequestException('Need at least 2 players to start a game');
     }
 
-    // Create game state using our new service
-    table.game_state_id = await this.gameStateService.createGameState(
-      table.player_ids,
-      table.game_type,
-    );
+    // Create initial state based on game type
+    let initialState = {};
+
+    if (table.game_type === 'tic-tac-toe') {
+      // Initialize with empty 3x3 board for Tic-Tac-Toe
+      initialState = {
+        board: [
+          ['', '', ''],
+          ['', '', ''],
+          ['', '', ''],
+        ],
+      };
+    }
+
+    // Only create a game state if one doesn't exist yet
+    if (!table.game_state_id) {
+      // Create game state using our new service
+      table.game_state_id = await this.gameStateService.createGameState(
+        table.player_ids,
+        table.game_type,
+        initialState,
+      );
+    }
 
     // Update status to playing
     table.status = TableStatus.PLAYING;

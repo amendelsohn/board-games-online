@@ -59,10 +59,15 @@ export class TableController {
   async createTable(
     @Body('game_type') gameType: string,
     @Body('host_player_id') hostPlayerId: PlayerId,
+    @Body('initial_game_state') initialGameState: any = {},
     @Res() response: Response,
   ): Promise<void> {
     try {
-      const table = await this.tableService.createTable(gameType, hostPlayerId);
+      const table = await this.tableService.createTable(
+        gameType,
+        hostPlayerId,
+        initialGameState,
+      );
       response.status(201).json(table);
     } catch (error) {
       response.status(400).json({ message: error.message });

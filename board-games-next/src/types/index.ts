@@ -19,7 +19,6 @@ export interface Table {
   join_code: string;
   player_ids: PlayerId[];
   game_state_id: string;
-  game_state_data?: GameState;
   host_player_id: PlayerId;
   status: TableStatus;
   game_type: string;
