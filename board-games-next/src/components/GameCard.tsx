@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React from "react";
+import React, { useState } from "react";
 
 interface GameCardProps {
   id: string;
@@ -26,6 +26,8 @@ export default function GameCard({
   isLoading = false,
   disabled = false,
 }: GameCardProps) {
+  const [isHovering, setIsHovering] = useState(false);
+
   // Set badge color based on difficulty
   const difficultyColor = {
     easy: "badge-success",
@@ -33,8 +35,24 @@ export default function GameCard({
     hard: "badge-error",
   }[difficulty];
 
+  const handleCardClick = () => {
+    if (!disabled && !isLoading) {
+      onClick();
+    }
+  };
+
   return (
-    <div className="card bg-base-100 shadow-md hover:shadow-lg transition-all">
+    <div
+      className={`card bg-base-100 shadow-md hover:shadow-lg transition-all cursor-pointer ${
+        disabled || isLoading ? "opacity-70" : "hover:scale-105"
+      }`}
+      onClick={handleCardClick}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      role="button"
+      aria-disabled={disabled || isLoading}
+      tabIndex={disabled || isLoading ? -1 : 0}
+    >
       <figure className="px-6 pt-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-[120px] w-[120px]">
@@ -79,20 +97,22 @@ export default function GameCard({
         </div>
 
         <div className="card-actions justify-end mt-4">
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={onClick}
-            disabled={disabled || isLoading}
-          >
-            {isLoading ? (
-              <>
-                <span className="loading loading-spinner loading-xs"></span>
-                Creating...
-              </>
-            ) : (
-              "Play Now"
-            )}
-          </button>
+          {isLoading ? (
+            <div className="flex items-center gap-2">
+              <span className="loading loading-spinner loading-xs"></span>
+              <span>Creating...</span>
+            </div>
+          ) : (
+            <div
+              className={`transition-all duration-800 ease-in-out min-w-[90px] h-8 flex items-center justify-center ${
+                isHovering
+                  ? "btn btn-primary btn-sm animate-pulse"
+                  : "badge badge-primary badge-outline text-xs px-3"
+              }`}
+            >
+              Play Now
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -99,29 +99,7 @@ export default function Home() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <div className="hero bg-base-200 rounded-box mb-8">
-        <div className="hero-content text-center py-10">
-          <div className="max-w-md">
-            <h1 className="text-5xl font-bold">Board Games Online</h1>
-            <p className="py-6">
-              Play your favorite board games online with friends from anywhere
-              in the world.
-            </p>
-            <button
-              className="btn btn-primary"
-              onClick={() =>
-                document
-                  .getElementById("game-selection")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
-            >
-              Play Now
-            </button>
-          </div>
-        </div>
-      </div>
-
+    <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
       {error && (
         <div className="alert alert-error mb-6">
           <svg
@@ -141,8 +119,11 @@ export default function Home() {
         </div>
       )}
 
+      <JoinGameHome />
+
+      <div className="divider">OR</div>
+
       <section id="game-selection" className="mb-12">
-        <h2 className="text-3xl font-bold text-center mb-8">Choose a Game</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {games.map((game) => (
             <div key={game.id} className="relative">
@@ -159,37 +140,6 @@ export default function Home() {
               />
             </div>
           ))}
-        </div>
-      </section>
-
-      <div className="divider">OR</div>
-
-      <section className="mb-12">
-        <h2 className="text-3xl font-bold text-center mb-8">
-          Join Existing Game
-        </h2>
-        <JoinGameHome />
-      </section>
-
-      <section className="mb-12">
-        <div className="card bg-base-200">
-          <div className="card-body">
-            <h2 className="card-title">About Board Games Online</h2>
-            <p>
-              This project is a modern implementation of classic board games
-              using Next.js, React, TypeScript, and daisyUI.
-            </p>
-            <div className="card-actions justify-end mt-4">
-              <a
-                href="https://github.com/yourusername/board-games-online"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-outline btn-sm"
-              >
-                View on GitHub
-              </a>
-            </div>
-          </div>
         </div>
       </section>
     </div>

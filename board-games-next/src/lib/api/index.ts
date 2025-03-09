@@ -49,7 +49,7 @@ export const updatePlayerName = async (
   name: string
 ): Promise<Player> => {
   const response = await fetch(`${API_URL}/player/${playerId}/name`, {
-    method: "POST",
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
