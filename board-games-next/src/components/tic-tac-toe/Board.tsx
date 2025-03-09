@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Square from "./Square";
-import styles from "./Board.module.css";
 import {
   BoardState,
   INITIAL_BOARD_STATE,
@@ -79,11 +78,16 @@ export default function Board({
   }
 
   return (
-    <div className={styles.gameContainer}>
-      {!onMove && <div className={styles.status}>{status}</div>}
-      <div className={styles.board}>
+    <div className="flex flex-col items-center my-8">
+      {!onMove && (
+        <div className="badge badge-lg badge-primary mb-4 text-lg p-4">
+          {status}
+        </div>
+      )}
+
+      <div className="grid grid-rows-3 gap-0 mb-6">
         {boardState.map((row, rowIndex) => (
-          <div key={`row-${rowIndex}`} className={styles.boardRow}>
+          <div key={`row-${rowIndex}`} className="flex">
             {row.map((value, colIndex) => (
               <Square
                 key={`square-${rowIndex}-${colIndex}`}
@@ -94,8 +98,9 @@ export default function Board({
           </div>
         ))}
       </div>
+
       {!onMove && (
-        <button className={styles.resetButton} onClick={resetGame}>
+        <button className="btn btn-primary mt-4" onClick={resetGame}>
           Reset Game
         </button>
       )}

@@ -11,7 +11,6 @@ import {
   updatePlayerName,
 } from "@/lib/api";
 import { Player, Table, TableStatus } from "@/types";
-import styles from "./Lobby.module.css";
 import { useGameSession } from "@/lib/hooks/useGameSession";
 
 interface GameLobbyProps {
@@ -267,95 +266,148 @@ export default function GameLobby({ joinCode }: GameLobbyProps) {
     }
   };
 
-  // Kicked player view
+  // Kicked state
   if (isKicked) {
     return (
-      <div className={styles.kickedContainer}>
-        <h2 className={styles.kickedTitle}>
-          You've been removed from this lobby
-        </h2>
-        <p>The host has removed you from this game lobby.</p>
-        <Link href="/" className={styles.button}>
-          Return to Home
-        </Link>
+      <div className="card bg-base-100 shadow-lg p-6 max-w-md mx-auto">
+        <div className="card-body items-center text-center">
+          <h2 className="card-title text-error">
+            You've been removed from this lobby
+          </h2>
+          <p className="mb-6">The host has removed you from this game lobby.</p>
+          <div className="card-actions">
+            <Link href="/" className="btn btn-primary">
+              Return to Home
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
   // Loading states
   if (isLoadingPlayer || isTableLoading) {
-    return <div className={styles.loading}>Loading game lobby...</div>;
+    return (
+      <div className="flex justify-center items-center py-12">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    );
   }
 
   // Error states
   if (playerError) {
     return (
-      <div className={styles.error}>
-        Error: {playerError.message || "Failed to load player session"}
+      <div className="alert alert-error max-w-lg mx-auto">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="stroke-current shrink-0 h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <span>
+          Error: {playerError.message || "Failed to load player session"}
+        </span>
       </div>
     );
   }
 
   if (tableError || !table) {
     return (
-      <div className={styles.error}>
-        <p>{tableError || "Game not found or has been removed."}</p>
-        <Link href="/" className={styles.link}>
-          Return to Home
-        </Link>
+      <div className="alert alert-error flex-col max-w-lg mx-auto">
+        <span>
+          Error: {tableError || "Game not found or has been removed."}
+        </span>
+        <div className="mt-4">
+          <Link href="/" className="btn btn-sm">
+            Return to Home
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (!currentPlayer) {
     return (
-      <div className={styles.error}>Error: Player session not available</div>
+      <div className="alert alert-error max-w-lg mx-auto">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="stroke-current shrink-0 h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <span>Error: Player session not available</span>
+      </div>
     );
   }
 
   const isHost = table.host_player_id === currentPlayer.player_id;
 
   return (
-    <div className={styles.gameLobbyContainer}>
-      <h2>{table.game_type}</h2>
+    <div className="card bg-base-100 shadow-lg max-w-xl mx-auto">
+      <div className="card-body">
+        <h2 className="card-title justify-center">{table.game_type}</h2>
 
-      <div className={styles.shareInfo}>
-        <p>
-          Invite Code: <strong>{table.join_code}</strong>
-        </p>
+        <div className="bg-base-200 rounded-box p-4 flex items-center justify-center my-4">
+          <div className="join">
+            <div className="join-item px-4 py-2 bg-base-100 flex items-center">
+              <span className="font-bold">Code:</span>
+              <span className="ml-2 text-lg tracking-wider">
+                {table.join_code}
+              </span>
+            </div>
+            <button
+              onClick={handleCopyLink}
+              className="btn join-item btn-primary btn-sm"
+              disabled={copySuccess}
+            >
+              {copySuccess ? (
+                <span className="text-success">✓</span>
+              ) : (
+                <span>Copy Link</span>
+              )}
+            </button>
+          </div>
+        </div>
 
-        <button
-          onClick={handleCopyLink}
-          className={styles.copyButton}
-          disabled={copySuccess}
-        >
-          {copySuccess ? "✅" : "📋"}
-        </button>
-      </div>
-
-      <div className={styles.playersContainer}>
-        <h3>Players in Lobby:</h3>
-        <ul className={styles.playersList}>
-          {players.map((player) => (
-            <li key={player.player_id} className={styles.playerItem}>
-              {player.player_id === currentPlayer.player_id && editingName ? (
-                <div className={styles.inlineEditContainer}>
-                  <input
-                    ref={nameInputRef}
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={handleNameKeyDown}
-                    className={styles.inlineInput}
-                    placeholder="Your name"
-                    maxLength={20}
-                    disabled={savingName}
-                  />
-                  <div className={styles.inlineButtonGroup}>
+        <div className="mb-4">
+          <h3 className="font-semibold mb-2">Players in Lobby:</h3>
+          <ul className="space-y-2">
+            {players.map((player) => (
+              <li
+                key={player.player_id}
+                className="flex items-center justify-between p-3 bg-base-200 rounded-box"
+              >
+                {player.player_id === currentPlayer.player_id && editingName ? (
+                  <div className="join w-full max-w-xs">
+                    <input
+                      ref={nameInputRef}
+                      type="text"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={handleNameKeyDown}
+                      className="input input-bordered input-sm join-item w-full"
+                      placeholder="Your name"
+                      maxLength={20}
+                      disabled={savingName}
+                    />
                     <button
                       onClick={handleSaveName}
                       disabled={savingName || !newName.trim()}
-                      className={styles.smallButton}
+                      className="btn btn-success btn-sm join-item"
                       title="Save"
                     >
                       ✓
@@ -363,79 +415,110 @@ export default function GameLobby({ joinCode }: GameLobbyProps) {
                     <button
                       onClick={handleCancelEditing}
                       disabled={savingName}
-                      className={styles.smallButton}
+                      className="btn btn-error btn-sm join-item"
                       title="Cancel"
                     >
                       ✕
                     </button>
                   </div>
-                </div>
-              ) : (
-                <div
-                  className={`${styles.playerName} ${
-                    player.player_id === currentPlayer.player_id
-                      ? styles.editable
-                      : ""
-                  }`}
-                  onClick={() => handleStartEditing(player)}
-                >
-                  {player.name}
+                ) : (
+                  <div
+                    className={`flex-1 flex items-center ${
+                      player.player_id === currentPlayer.player_id
+                        ? "cursor-pointer hover:text-primary"
+                        : ""
+                    }`}
+                    onClick={() => handleStartEditing(player)}
+                  >
+                    <div className="avatar placeholder mr-2">
+                      <div className="bg-neutral-focus text-neutral-content rounded-full w-8">
+                        <span>{player.name.charAt(0).toUpperCase()}</span>
+                      </div>
+                    </div>
+                    <span>{player.name}</span>
+                    {player.player_id === currentPlayer.player_id && (
+                      <span className="ml-2 text-info text-sm">
+                        (Click to edit)
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center space-x-2">
+                  {player.player_id === table.host_player_id && (
+                    <div className="badge badge-warning">Host</div>
+                  )}
                   {player.player_id === currentPlayer.player_id && (
-                    <span className={styles.editHint}>✎</span>
+                    <div className="badge badge-success">You</div>
+                  )}
+
+                  {isHost && player.player_id !== currentPlayer.player_id && (
+                    <button
+                      onClick={() => handleKickPlayer(player.player_id)}
+                      className="btn btn-error btn-xs"
+                      disabled={!!kickingPlayer}
+                    >
+                      {kickingPlayer === player.player_id ? (
+                        <span className="loading loading-spinner loading-xs"></span>
+                      ) : (
+                        "Remove"
+                      )}
+                    </button>
                   )}
                 </div>
-              )}
-
-              {player.player_id === table.host_player_id && (
-                <span className={styles.hostBadge}>Host</span>
-              )}
-              {player.player_id === currentPlayer.player_id && (
-                <span className={styles.youBadge}>You</span>
-              )}
-
-              {isHost && player.player_id !== currentPlayer.player_id && (
-                <button
-                  onClick={() => handleKickPlayer(player.player_id)}
-                  className={styles.kickButton}
-                  disabled={!!kickingPlayer}
-                >
-                  {kickingPlayer === player.player_id
-                    ? "Removing..."
-                    : "Remove"}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {isHost && (
-        <div className={styles.hostControls}>
-          <button
-            onClick={handleStartGame}
-            disabled={isStarting || players.length < 2}
-            className={styles.button}
-          >
-            {isStarting ? "Starting Game..." : "Start Game"}
-          </button>
-
-          {players.length < 2 && (
-            <p className={styles.hint}>Need at least 2 players to start</p>
-          )}
+              </li>
+            ))}
+          </ul>
         </div>
-      )}
 
-      {!isHost && (
-        <p className={styles.waitingMessage}>
-          Waiting for the host to start the game...
-        </p>
-      )}
+        {isHost && (
+          <div className="card-actions justify-center mt-4">
+            <button
+              onClick={handleStartGame}
+              disabled={isStarting || players.length < 2}
+              className="btn btn-primary btn-lg"
+            >
+              {isStarting ? (
+                <span className="loading loading-spinner loading-sm mr-2"></span>
+              ) : null}
+              {isStarting ? "Starting Game..." : "Start Game"}
+            </button>
 
-      {tableError && <p className={styles.error}>{tableError}</p>}
+            {players.length < 2 && (
+              <div className="text-sm text-base-content mt-2 opacity-75">
+                Need at least 2 players to start
+              </div>
+            )}
+          </div>
+        )}
 
-      <Link href="/" className={styles.backLink}>
-        Leave Lobby
-      </Link>
+        {!isHost && (
+          <div className="alert">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              className="stroke-info shrink-0 w-6 h-6"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              ></path>
+            </svg>
+            <span>Waiting for the host to start the game...</span>
+          </div>
+        )}
+
+        {tableError && <div className="text-error mt-2">{tableError}</div>}
+
+        <div className="card-actions justify-center mt-6">
+          <Link href="/" className="btn btn-outline">
+            Leave Lobby
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,13 +1,12 @@
 "use client";
 
 import { JoinGameHome } from "@/components/lobby/JoinGameHome";
-import styles from "@/styles/Home.module.css";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useGameSession } from "@/lib/hooks/useGameSession";
 import { createTable } from "@/lib/api";
 import { GameState } from "@/types";
+import GameCard from "@/components/GameCard";
 
 export default function Home() {
   const router = useRouter();
@@ -26,8 +25,28 @@ export default function Home() {
       name: "Tic Tac Toe",
       description: "Classic 3x3 grid game. Get three in a row to win!",
       image: "/images/tic-tac-toe.svg",
+      players: "2 players",
+      difficulty: "easy" as const,
     },
-    // Add more games here as they become available
+    {
+      id: "chess",
+      name: "Chess",
+      description: "Strategic board game played on an 8x8 grid.",
+      image: "/images/tic-tac-toe.svg", // Replace with chess image
+      players: "2 players",
+      difficulty: "hard" as const,
+      comingSoon: true,
+    },
+    {
+      id: "connect-four",
+      name: "Connect Four",
+      description:
+        "Vertical game where players drop discs to connect 4 in a row.",
+      image: "/images/tic-tac-toe.svg", // Replace with connect four image
+      players: "2 players",
+      difficulty: "medium" as const,
+      comingSoon: true,
+    },
   ];
 
   const handleCreateGame = async (gameType: string) => {
@@ -80,44 +99,99 @@ export default function Home() {
   };
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Welcome to Board Games Online</h1>
-      <p className={styles.description}>Play board games with friends online</p>
+    <div className="w-full max-w-4xl mx-auto">
+      <div className="hero bg-base-200 rounded-box mb-8">
+        <div className="hero-content text-center py-10">
+          <div className="max-w-md">
+            <h1 className="text-5xl font-bold">Board Games Online</h1>
+            <p className="py-6">
+              Play your favorite board games online with friends from anywhere
+              in the world.
+            </p>
+            <button
+              className="btn btn-primary"
+              onClick={() =>
+                document
+                  .getElementById("game-selection")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              Play Now
+            </button>
+          </div>
+        </div>
+      </div>
 
-      {error && <p className={styles.error}>{error}</p>}
-
-      <h2 className={styles.subtitle}>Select a Game</h2>
-      <div className={styles.gameGrid}>
-        {games.map((game) => (
-          <button
-            key={game.id}
-            onClick={() => handleCreateGame(game.id)}
-            className={styles.gameCard}
-            disabled={isCreating !== null || isLoadingPlayer}
+      {error && (
+        <div className="alert alert-error mb-6">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="stroke-current shrink-0 h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
           >
-            <div className={styles.gameImageContainer}>
-              {isCreating === game.id ? (
-                <div className={styles.loadingSpinner}>Creating game...</div>
-              ) : (
-                <Image
-                  src={game.image}
-                  alt={game.name}
-                  width={120}
-                  height={120}
-                  className={styles.gameImage}
-                />
-              )}
-            </div>
-            <h3>{game.name}</h3>
-            <p>{game.description}</p>
-          </button>
-        ))}
-      </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <span>{error}</span>
+        </div>
+      )}
 
-      <div className={styles.joinSection}>
-        <h2 className={styles.subtitle}>Join Existing Game</h2>
+      <section id="game-selection" className="mb-12">
+        <h2 className="text-3xl font-bold text-center mb-8">Choose a Game</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {games.map((game) => (
+            <div key={game.id} className="relative">
+              {game.comingSoon && (
+                <div className="absolute inset-0 flex items-center justify-center bg-base-200 bg-opacity-80 z-10 rounded-lg">
+                  <span className="badge badge-lg">Coming Soon</span>
+                </div>
+              )}
+              <GameCard
+                {...game}
+                onClick={() => !game.comingSoon && handleCreateGame(game.id)}
+                isLoading={isCreating === game.id}
+                disabled={!!isCreating || isLoadingPlayer || !!game.comingSoon}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="divider">OR</div>
+
+      <section className="mb-12">
+        <h2 className="text-3xl font-bold text-center mb-8">
+          Join Existing Game
+        </h2>
         <JoinGameHome />
-      </div>
+      </section>
+
+      <section className="mb-12">
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">About Board Games Online</h2>
+            <p>
+              This project is a modern implementation of classic board games
+              using Next.js, React, TypeScript, and daisyUI.
+            </p>
+            <div className="card-actions justify-end mt-4">
+              <a
+                href="https://github.com/yourusername/board-games-online"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-outline btn-sm"
+              >
+                View on GitHub
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

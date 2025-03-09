@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import styles from "../page.module.css";
 import GameLobby from "@/components/lobby/GameLobby";
 
 // Update the type definition for the params in Next.js 15
@@ -17,8 +16,8 @@ export default function LobbyJoinPage({ params }: LobbyPageProps) {
   const { joinCode } = unwrappedParams;
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Game Lobby</h1>
+    <div className="w-full max-w-4xl mx-auto px-4">
+      <h1 className="text-3xl font-bold text-center my-8">Game Lobby</h1>
       <GameLobby joinCode={joinCode} />
     </div>
   );

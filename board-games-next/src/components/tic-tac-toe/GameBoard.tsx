@@ -163,7 +163,11 @@ export default function GameBoard({ tableId }: GameBoardProps) {
 
   // Loading state
   if (isLoading || isCheckingTable) {
-    return <div>Loading game...</div>;
+    return (
+      <div className="flex justify-center items-center py-12">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
   }
 
   // Handle the specific case where game state doesn't exist yet
@@ -203,41 +207,116 @@ export default function GameBoard({ tableId }: GameBoardProps) {
 
   // General error state
   if (isError) {
-    return <div>Error: {error?.message || "Failed to load game state"}</div>;
+    return (
+      <div className="alert alert-error max-w-lg mx-auto">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="stroke-current shrink-0 h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <span>Error: {error?.message || "Failed to load game"}</span>
+      </div>
+    );
   }
 
   // Missing state (should rarely happen with our new handling)
   if (!gameState) {
-    return <div>Initializing game state...</div>;
+    return (
+      <div className="flex justify-center items-center flex-col py-12">
+        <div className="loading loading-spinner loading-lg text-primary mb-4"></div>
+        <div className="text-xl font-medium">Waiting for game to start...</div>
+      </div>
+    );
   }
 
   // Determine player symbol from game state
-  const gameSpecificState = (gameState?.game_specific_state as unknown) as TicTacToeState;
+  const gameSpecificState = (gameState.game_specific_state as unknown) as TicTacToeState;
+  const board = gameSpecificState?.board || INITIAL_BOARD_STATE;
   const playerSymbol =
     gameSpecificState?.player_symbols?.[currentPlayerId] ||
-    // Fallback to index-based assignment if not available in game state
-    (table?.player_ids.indexOf(currentPlayerId) === 0 ? "X" : "O");
+    (currentPlayerId === table?.host_player_id ? "X" : "O");
+  const opponentSymbol = playerSymbol === "X" ? "O" : "X";
 
   // Get game status from our game logic
   const gameStatus = ticTacToeLogic.getGameStatus(gameState, currentPlayerId);
 
   return (
-    <div>
-      <h2>Tic Tac Toe Game</h2>
-
-      {/* Game status */}
-      <div className="game-status">{gameStatus}</div>
+    <div className="flex flex-col items-center p-4">
+      <div className="badge badge-lg p-3 mb-6">{gameStatus}</div>
 
       {/* Game board */}
       <Board
-        boardState={
-          ((gameState.game_specific_state as unknown) as TicTacToeState)
-            .board || INITIAL_BOARD_STATE
-        }
+        boardState={board}
         onMove={handleMove}
         disabled={!isCurrentPlayerTurn || gameState.is_game_over}
         playerSymbol={playerSymbol}
       />
+
+      {/* Player info */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg mt-4">
+        <div className="card bg-base-100 shadow-sm">
+          <div className="card-body p-4">
+            <div className="flex items-center">
+              <div className="avatar placeholder mr-2">
+                <div className="bg-primary text-primary-content rounded-full w-8">
+                  <span>{playerSymbol}</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-medium">You</p>
+                {isCurrentPlayerTurn && !gameState.is_game_over && (
+                  <span className="badge badge-success badge-sm">
+                    Your turn
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card bg-base-100 shadow-sm">
+          <div className="card-body p-4">
+            <div className="flex items-center">
+              <div className="avatar placeholder mr-2">
+                <div className="bg-neutral text-neutral-content rounded-full w-8">
+                  <span>{opponentSymbol}</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-medium">Opponent</p>
+                {!isCurrentPlayerTurn && !gameState.is_game_over && (
+                  <span className="badge badge-info badge-sm">Their turn</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Game result */}
+      {gameState.is_game_over && (
+        <div className="mt-6 card bg-base-100 shadow-lg">
+          <div className="card-body items-center text-center">
+            <h2 className="card-title">Game Over</h2>
+            <div className="card-actions">
+              <button
+                onClick={() => router.push(`/lobby/${table?.join_code}`)}
+                className="btn btn-primary"
+              >
+                Return to Lobby
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,7 +6,6 @@ import CreateGame from "@/components/lobby/CreateGame";
 import JoinGame from "@/components/lobby/JoinGame";
 import { isServerRunning } from "@/lib/api/serverCheck";
 import { ServerConnectionError } from "@/components/ErrorMessage";
-import styles from "@/app/lobby/page.module.css";
 
 interface LobbyProps {
   initialGameType?: string;
@@ -41,14 +40,18 @@ export default function Lobby({ initialGameType }: LobbyProps = {}) {
 
   // Loading state
   if (isCheckingServer || isLoadingPlayer) {
-    return <div className={styles.loading}>Loading...</div>;
+    return (
+      <div className="flex justify-center items-center py-12">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    );
   }
 
   // Server error state
   if (serverAvailable === false) {
     return (
-      <div className={styles.container}>
-        <h1 className={styles.title}>Game Lobby</h1>
+      <div className="w-full max-w-4xl mx-auto px-4">
+        <h1 className="text-3xl font-bold text-center my-8">Game Lobby</h1>
         <ServerConnectionError />
       </div>
     );
@@ -57,21 +60,34 @@ export default function Lobby({ initialGameType }: LobbyProps = {}) {
   // Player error state
   if (playerError || !player) {
     return (
-      <div className={styles.error}>
-        Error: {playerError?.message || "Failed to load player data"}
+      <div className="alert alert-error max-w-lg mx-auto">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="stroke-current shrink-0 h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <span>
+          Error: {playerError?.message || "Failed to load player data"}
+        </span>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Game Lobby</h1>
+    <div className="w-full max-w-4xl mx-auto px-4">
+      <h1 className="text-3xl font-bold text-center my-8">Game Lobby</h1>
 
-      <div className={styles.grid}>
-        <div className={styles.column}>
-          <CreateGame player={player} initialGameType={initialGameType} />
-          <JoinGame player={player} />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+        <CreateGame player={player} initialGameType={initialGameType} />
+        <JoinGame player={player} />
       </div>
     </div>
   );

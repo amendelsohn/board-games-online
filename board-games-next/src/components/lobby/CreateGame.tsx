@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createTable } from "@/lib/api";
 import { Player, GameState } from "@/types";
-import styles from "./Lobby.module.css";
 
 interface CreateGameProps {
   player: Player;
@@ -80,31 +79,43 @@ export default function CreateGame({
   };
 
   return (
-    <div className={styles.createGameContainer}>
-      <h2>Create New Game</h2>
+    <div className="card bg-base-100 shadow-md h-full">
+      <div className="card-body">
+        <h2 className="card-title">Create New Game</h2>
 
-      <div className={styles.formGroup}>
-        <label htmlFor="gameType">Game Type:</label>
-        <select
-          id="gameType"
-          value={gameType}
-          onChange={(e) => setGameType(e.target.value)}
-          className={styles.select}
-        >
-          <option value="tic-tac-toe">Tic Tac Toe</option>
-          {/* Add more game types as they become available */}
-        </select>
+        <div className="form-control w-full">
+          <label className="label">
+            <span className="label-text">Game Type:</span>
+          </label>
+          <select
+            value={gameType}
+            onChange={(e) => setGameType(e.target.value)}
+            className="select select-bordered w-full"
+          >
+            <option value="tic-tac-toe">Tic Tac Toe</option>
+            {/* Add more game types as they become available */}
+          </select>
+        </div>
+
+        <div className="card-actions justify-end mt-4">
+          <button
+            onClick={handleCreateGame}
+            disabled={isCreating}
+            className="btn btn-primary w-full"
+          >
+            {isCreating ? (
+              <>
+                <span className="loading loading-spinner loading-sm"></span>
+                Creating...
+              </>
+            ) : (
+              "Create Game"
+            )}
+          </button>
+        </div>
+
+        {error && <div className="mt-3 text-error text-sm">{error}</div>}
       </div>
-
-      <button
-        onClick={handleCreateGame}
-        disabled={isCreating}
-        className={styles.button}
-      >
-        {isCreating ? "Creating..." : "Create Game"}
-      </button>
-
-      {error && <p className={styles.error}>{error}</p>}
     </div>
   );
 }

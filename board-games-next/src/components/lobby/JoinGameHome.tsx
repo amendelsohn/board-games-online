@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { joinTable } from "@/lib/api";
 import { useGameSession } from "@/lib/hooks/useGameSession";
-import styles from "./JoinGameHome.module.css";
 
 export function JoinGameHome() {
   const router = useRouter();
@@ -45,34 +44,49 @@ export function JoinGameHome() {
 
   // Loading state
   if (isLoadingPlayer) {
-    return <div className={styles.loading}>Loading...</div>;
+    return (
+      <div className="flex justify-center items-center py-8">
+        <span className="loading loading-spinner loading-md"></span>
+      </div>
+    );
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.formGroup}>
-        <label htmlFor="joinCode">Enter 4-letter Join Code:</label>
-        <div className={styles.inputGroup}>
-          <input
-            id="joinCode"
-            type="text"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={4}
-            placeholder="ABCD"
-            className={styles.input}
-          />
-          <button
-            onClick={handleJoinGame}
-            disabled={isJoining || !joinCode.trim() || !player}
-            className={styles.button}
-          >
-            {isJoining ? "Joining..." : "Join Game"}
-          </button>
+    <div className="card bg-base-100 shadow-md mx-auto max-w-md">
+      <div className="card-body">
+        <div className="form-control w-full">
+          <label className="label">
+            <span className="label-text font-medium">
+              Enter 4-letter Join Code:
+            </span>
+          </label>
+          <div className="join w-full">
+            <input
+              type="text"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              maxLength={4}
+              placeholder="ABCD"
+              className="input input-bordered input-primary join-item flex-1 text-center font-bold tracking-widest uppercase"
+            />
+            <button
+              onClick={handleJoinGame}
+              disabled={isJoining || !joinCode.trim() || !player}
+              className="btn btn-primary join-item"
+            >
+              {isJoining ? (
+                <span className="loading loading-spinner loading-sm"></span>
+              ) : null}
+              {isJoining ? "Joining..." : "Join Game"}
+            </button>
+          </div>
+          {error && (
+            <div className="label">
+              <span className="label-text-alt text-error">{error}</span>
+            </div>
+          )}
         </div>
       </div>
-
-      {error && <p className={styles.error}>{error}</p>}
     </div>
   );
 }

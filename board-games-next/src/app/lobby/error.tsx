@@ -11,23 +11,29 @@ interface ErrorProps {
 export default function Error({ error, reset }: ErrorProps) {
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error("Application error:", error);
+    console.error("Lobby error:", error);
   }, [error]);
 
   return (
     <div className="p-8 flex flex-col items-center justify-center min-h-[50vh]">
       <ErrorMessage
-        title="Something went wrong!"
-        message={error.message || "An unexpected error occurred"}
+        title="Lobby Error"
+        message={error.message || "An error occurred in the game lobby"}
         hints={[
           "Try refreshing the page",
-          "Make sure both the frontend and backend servers are running",
+          "Check your connection to the game server",
+          "The game session may have expired or been closed",
         ]}
       />
 
-      <button onClick={reset} className="btn btn-primary mt-4">
-        Try again
-      </button>
+      <div className="flex gap-4 mt-6">
+        <button onClick={reset} className="btn btn-primary">
+          Try again
+        </button>
+        <a href="/" className="btn btn-outline">
+          Return home
+        </a>
+      </div>
     </div>
   );
 }

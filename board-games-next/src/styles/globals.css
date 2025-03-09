@@ -1,3 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import "tailwindcss";
+@plugin "daisyui";
+
 :root {
   --max-width: 1100px;
   --border-radius: 12px;
@@ -60,4 +66,25 @@ footer {
   align-items: center;
   padding: 2rem 0;
   border-top: 1px solid #eaeaea;
+}
+
+/* Tailwind/DaisyUI extension classes */
+@layer components {
+  /* Layout extension classes */
+  .layout-container {
+    @apply min-h-screen flex flex-col px-4 max-w-[1100px] mx-auto;
+  }
+
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+
+  .grid-responsive {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+  }
+
+  /* Custom extension classes not provided by daisyUI */
+  .section-title {
+    @apply text-2xl font-semibold text-center text-gray-700 my-6;
+  }
 }

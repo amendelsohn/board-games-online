@@ -12,20 +12,11 @@ export function ErrorMessage({
   hints = [],
 }: ErrorMessageProps) {
   return (
-    <div
-      style={{
-        padding: "1rem",
-        margin: "1rem 0",
-        backgroundColor: "#FEE2E2",
-        color: "#B91C1C",
-        borderRadius: "0.5rem",
-        textAlign: "center",
-      }}
-    >
-      <h3 style={{ marginTop: 0 }}>{title}</h3>
+    <div className="alert alert-error my-4 flex-col items-start">
+      <h3 className="font-bold">{title}</h3>
       <p>{message}</p>
       {hints.length > 0 && (
-        <ul style={{ textAlign: "left" }}>
+        <ul className="list-disc pl-5 mt-2 w-full">
           {hints.map((hint, index) => (
             <li key={index}>{hint}</li>
           ))}
