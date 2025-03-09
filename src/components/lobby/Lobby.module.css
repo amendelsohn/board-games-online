@@ -1,0 +1,84 @@
+.playerItem {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background-color: #f7fafc;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  position: relative;
+  min-height: 3.5rem;
+}
+
+.playerName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inlineEditContainer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.inlineNameInput {
+  flex: 1;
+  padding: 0.4rem;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  margin-right: 0.5rem;
+}
+
+.inlineButtonGroup {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.inlineButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.inlineButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.inlineButton:nth-child(2) {
+  background-color: #718096;
+}
+
+.editButton {
+  background-color: transparent;
+  color: #3182ce;
+  border: 1px solid #3182ce;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+
+.hostBadge,
+.youBadge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+}

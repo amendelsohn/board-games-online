@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createTable } from "@/lib/api";
 import { Player, GameState } from "@/types";
@@ -8,13 +8,24 @@ import styles from "./Lobby.module.css";
 
 interface CreateGameProps {
   player: Player;
+  initialGameType?: string;
 }
 
-export default function CreateGame({ player }: CreateGameProps) {
+export default function CreateGame({
+  player,
+  initialGameType,
+}: CreateGameProps) {
   const router = useRouter();
-  const [gameType, setGameType] = useState("tic-tac-toe");
+  const [gameType, setGameType] = useState(initialGameType || "tic-tac-toe");
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
+
+  // Update gameType if initialGameType changes
+  useEffect(() => {
+    if (initialGameType) {
+      setGameType(initialGameType);
+    }
+  }, [initialGameType]);
 
   const handleCreateGame = async () => {
     setIsCreating(true);

@@ -4,13 +4,15 @@ import React, { useState, useEffect } from "react";
 import { useGameSession } from "@/lib/hooks/useGameSession";
 import CreateGame from "@/components/lobby/CreateGame";
 import JoinGame from "@/components/lobby/JoinGame";
-import PlayerProfile from "@/components/lobby/PlayerProfile";
 import { isServerRunning } from "@/lib/api/serverCheck";
 import { ServerConnectionError } from "@/components/ErrorMessage";
 import styles from "@/app/lobby/page.module.css";
-import { Player } from "@/types";
 
-export default function Lobby() {
+interface LobbyProps {
+  initialGameType?: string;
+}
+
+export default function Lobby({ initialGameType }: LobbyProps = {}) {
   const [serverAvailable, setServerAvailable] = useState<boolean | null>(null);
   const [isCheckingServer, setIsCheckingServer] = useState(true);
 
@@ -61,24 +63,13 @@ export default function Lobby() {
     );
   }
 
-  // Handler for player updates
-  const handlePlayerUpdate = (updatedPlayer: Player) => {
-    // Since we're using the hook, we don't need to manually update the player
-    // The hook will handle re-fetching player data as needed
-    console.log("Player updated:", updatedPlayer);
-  };
-
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>Game Lobby</h1>
 
       <div className={styles.grid}>
         <div className={styles.column}>
-          <PlayerProfile player={player} onPlayerUpdate={handlePlayerUpdate} />
-        </div>
-
-        <div className={styles.column}>
-          <CreateGame player={player} />
+          <CreateGame player={player} initialGameType={initialGameType} />
           <JoinGame player={player} />
         </div>
       </div>

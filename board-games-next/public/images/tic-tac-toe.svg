@@ -1,0 +1,21 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="200" height="200" fill="#f7fafc" rx="10"/>
+  
+  <!-- Grid Lines -->
+  <line x1="66.6" y1="20" x2="66.6" y2="180" stroke="#4a5568" stroke-width="4"/>
+  <line x1="133.3" y1="20" x2="133.3" y2="180" stroke="#4a5568" stroke-width="4"/>
+  <line x1="20" y1="66.6" x2="180" y2="66.6" stroke="#4a5568" stroke-width="4"/>
+  <line x1="20" y1="133.3" x2="180" y2="133.3" stroke="#4a5568" stroke-width="4"/>
+  
+  <!-- X in top-left cell -->
+  <line x1="30" y1="30" x2="56.6" y2="56.6" stroke="#3182ce" stroke-width="6" stroke-linecap="round"/>
+  <line x1="56.6" y1="30" x2="30" y2="56.6" stroke="#3182ce" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- O in center cell -->
+  <circle cx="100" cy="100" r="20" stroke="#e53e3e" stroke-width="6" fill="none"/>
+  
+  <!-- X in bottom-right cell -->
+  <line x1="143.3" y1="143.3" x2="170" y2="170" stroke="#3182ce" stroke-width="6" stroke-linecap="round"/>
+  <line x1="170" y1="143.3" x2="143.3" y2="170" stroke="#3182ce" stroke-width="6" stroke-linecap="round"/>
+</svg> 
