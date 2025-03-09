@@ -3,12 +3,17 @@
 import { useState } from "react";
 import Square from "./Square";
 import styles from "./Board.module.css";
-
-type BoardState = Array<Array<string>>;
+import {
+  BoardState,
+  INITIAL_BOARD_STATE,
+  calculateWinner,
+  applyMove,
+} from "@/lib/games/tic-tac-toe/utils";
+import { TicTacToeMove } from "@/lib/games/tic-tac-toe/game-logic";
 
 interface BoardProps {
   boardState?: BoardState;
-  onMove?: (move: { board: BoardState }) => void;
+  onMove?: (move: TicTacToeMove) => void;
   disabled?: boolean;
   playerSymbol?: string;
 }
@@ -19,15 +24,9 @@ export default function Board({
   disabled = false,
   playerSymbol = "X",
 }: BoardProps) {
-  const initialState: BoardState = [
-    ["", "", ""],
-    ["", "", ""],
-    ["", "", ""],
-  ];
-
   // Use external board state if provided, otherwise use local state
   const [localBoardState, setLocalBoardState] = useState<BoardState>(
-    initialState
+    INITIAL_BOARD_STATE
   );
   const [isXNext, setIsXNext] = useState<boolean>(true);
 
@@ -38,13 +37,12 @@ export default function Board({
     // If square already filled or game is disabled, do nothing
     if (boardState[row][col] || disabled) return;
 
-    const newBoardState = boardState.map((rowArray, r) =>
-      rowArray.map((value, c) => {
-        if (r === row && c === col) {
-          return onMove ? playerSymbol : isXNext ? "X" : "O";
-        }
-        return value;
-      })
+    // Create new board with the move applied
+    const newBoardState = applyMove(
+      boardState,
+      row,
+      col,
+      onMove ? playerSymbol : isXNext ? "X" : "O"
     );
 
     if (onMove) {
@@ -59,74 +57,12 @@ export default function Board({
 
   const resetGame = () => {
     if (!onMove) {
-      setLocalBoardState(initialState);
+      setLocalBoardState(INITIAL_BOARD_STATE);
       setIsXNext(true);
     }
   };
 
-  // Calculate winner
-  const calculateWinner = (board: BoardState): string | null => {
-    const lines = [
-      [
-        [0, 0],
-        [0, 1],
-        [0, 2],
-      ], // rows
-      [
-        [1, 0],
-        [1, 1],
-        [1, 2],
-      ],
-      [
-        [2, 0],
-        [2, 1],
-        [2, 2],
-      ],
-      [
-        [0, 0],
-        [1, 0],
-        [2, 0],
-      ], // columns
-      [
-        [0, 1],
-        [1, 1],
-        [2, 1],
-      ],
-      [
-        [0, 2],
-        [1, 2],
-        [2, 2],
-      ],
-      [
-        [0, 0],
-        [1, 1],
-        [2, 2],
-      ], // diagonals
-      [
-        [0, 2],
-        [1, 1],
-        [2, 0],
-      ],
-    ];
-
-    for (const line of lines) {
-      const [[a1, a2], [b1, b2], [c1, c2]] = line;
-      if (
-        board[a1][a2] &&
-        board[a1][a2] === board[b1][b2] &&
-        board[a1][a2] === board[c1][c2]
-      ) {
-        return board[a1][a2];
-      }
-    }
-
-    // Check for draw (all squares filled)
-    const isDraw = board.every((row) => row.every((cell) => cell !== ""));
-    if (isDraw) return "draw";
-
-    return null;
-  };
-
+  // Calculate winner using our utility function
   const winner = calculateWinner(boardState);
   let status;
 

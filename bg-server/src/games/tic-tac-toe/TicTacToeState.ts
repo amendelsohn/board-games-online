@@ -1,13 +1,21 @@
-import GameState from "src/game-state/GameState";
-import { PlayerId } from "src/player/Player";
+import GameState from 'src/game-state/GameState';
+import { PlayerId } from 'src/player/Player';
 
 type Row = string[];
 
-export const initial_state: Row[] = [['', '', ''], ['', '', ''], ['', '', '']];
+export const initial_state: Row[] = [
+  ['', '', ''],
+  ['', '', ''],
+  ['', '', ''],
+];
+
+interface TicTacToeSpecificState {
+  board: Row[];
+  player_symbols: Record<PlayerId, string>;
+}
 
 type TicTacToeGameState = GameState & {
-    squares: Row[];
-    player_symbols: Map<PlayerId, string>
-}
+  game_specific_state: TicTacToeSpecificState;
+};
 
 export default TicTacToeGameState;

@@ -45,13 +45,7 @@ export class TableService {
     // Generate a random 4-letter join code
     const join_code = this.generateJoinCode();
 
-    // Create game state immediately
-    const gameStateId = await this.gameStateService.createGameState(
-      [hostPlayerId],
-      gameType,
-      initialGameState,
-    );
-
+    // Don't create game state immediately, wait until game starts with enough players
     const table = this.tableRepository.create({
       table_id: uuidv4(),
       join_code,
@@ -59,7 +53,7 @@ export class TableService {
       host_player_id: hostPlayerId,
       status: TableStatus.WAITING,
       game_type: gameType,
-      game_state_id: gameStateId,
+      game_state_id: null, // Will be set when the game starts
     });
 
     return ((await this.tableRepository.save(table)) as unknown) as TableType;

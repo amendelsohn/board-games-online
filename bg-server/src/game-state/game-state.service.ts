@@ -5,6 +5,8 @@ import { GameState, Table } from '../database/entities';
 import { v4 as uuidv4 } from 'uuid';
 import { PlayerId } from 'src/player/Player';
 import GameStateType from './GameState';
+import { GameRegistryService } from 'src/games/game-registry.service';
+import { GameMove } from 'src/games/game-interface';
 
 @Injectable()
 export class GameStateService {
@@ -13,6 +15,7 @@ export class GameStateService {
     private gameStateRepository: Repository<GameState>,
     @InjectRepository(Table)
     private tableRepository: Repository<Table>,
+    private gameRegistry: GameRegistryService,
   ) {}
 
   async getGameState(id: string): Promise<GameStateType> {
@@ -28,6 +31,24 @@ export class GameStateService {
     gameType: string,
     initialState: any = {},
   ): Promise<string> {
+    // Get the game implementation
+    const gameImpl = this.gameRegistry.getGame(gameType);
+    if (!gameImpl) {
+      throw new NotFoundException(`Game type '${gameType}' not found`);
+    }
+
+    // Validate player count
+    const minPlayers = gameImpl.getMinPlayers();
+    const maxPlayers = gameImpl.getMaxPlayers();
+
+    if (players.length < minPlayers || players.length > maxPlayers) {
+      throw new Error(
+        `Game ${gameType} requires between ${minPlayers} and ${maxPlayers} players`,
+      );
+    }
+
+    // Create game-specific initial state
+    const gameSpecificState = gameImpl.createInitialState(players);
     const currentPlayer = players[0]; // First player goes first
 
     const gameState = this.gameStateRepository.create({
@@ -38,7 +59,7 @@ export class GameStateService {
       losing_players: [],
       game_specific_state: {
         gameType,
-        ...initialState,
+        ...gameSpecificState,
       },
     });
 
@@ -48,6 +69,34 @@ export class GameStateService {
     await this.syncGameStateToTables(savedState.id, savedState);
 
     return savedState.id;
+  }
+
+  async processMove(
+    gameStateId: string,
+    playerId: PlayerId,
+    move: GameMove,
+  ): Promise<GameStateType> {
+    // Get current game state
+    const gameState = await this.getGameState(gameStateId);
+
+    // Get game implementation
+    const gameType = gameState.game_specific_state.gameType;
+    const gameImpl = this.gameRegistry.getGame(gameType);
+
+    if (!gameImpl) {
+      throw new NotFoundException(`Game type '${gameType}' not found`);
+    }
+
+    // Validate move
+    if (!gameImpl.isValidMove(gameState, move, playerId)) {
+      throw new Error('Invalid move');
+    }
+
+    // Apply move
+    const updatedState = gameImpl.applyMove(gameState, move, playerId);
+
+    // Save updated state
+    return this.updateGameState(gameStateId, updatedState);
   }
 
   async updateGameState(

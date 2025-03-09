@@ -9,11 +9,13 @@ import { DatabaseModule } from './database/database.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Player, Table, GameState } from './database/entities';
 import { GameStateService } from './game-state/game-state.service';
+import { GamesModule } from './games/games.module';
 
 @Module({
   imports: [
     DatabaseModule,
     TypeOrmModule.forFeature([Player, Table, GameState]),
+    GamesModule,
   ],
   controllers: [AppController, PlayerController, TableController],
   providers: [AppService, PlayerService, TableService, GameStateService],

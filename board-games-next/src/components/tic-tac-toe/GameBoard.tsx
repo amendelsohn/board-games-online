@@ -4,8 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameSession } from "@/lib/hooks/useGameSession";
 import { getTable } from "@/lib/api";
-import { TableStatus, GameState, Table } from "@/types";
+import { TableStatus, GameState } from "@/types";
 import Board from "./Board";
+import ticTacToeLogic, {
+  TicTacToeMove,
+  TicTacToeState,
+} from "@/lib/games/tic-tac-toe/game-logic";
+import { INITIAL_BOARD_STATE } from "@/lib/games/tic-tac-toe/utils";
 
 interface GameBoardProps {
   tableId: string;
@@ -72,21 +77,50 @@ export default function GameBoard({ tableId }: GameBoardProps) {
   }, [isGameStateMissing, tableId, router, isCheckingTable]);
 
   // Handle making a move
-  const handleMove = (move: { board: string[][] }) => {
+  const handleMove = (move: TicTacToeMove) => {
     if (!gameState || !isCurrentPlayerTurn || isUpdating || !table) return;
 
-    // Determine the next player (simple round-robin)
-    if (!table.player_ids.length) return;
+    // Debug information
+    console.log("Making move:", {
+      currentPlayerId,
+      playerSymbol,
+      move,
+      gameSpecificState: (gameState.game_specific_state as unknown) as TicTacToeState,
+    });
 
-    const playerIndex = table.player_ids.indexOf(currentPlayerId);
-    const nextPlayerIndex = (playerIndex + 1) % table.player_ids.length;
-    const nextPlayer = table.player_ids[nextPlayerIndex];
+    // Validate the move using our game logic
+    if (!ticTacToeLogic.validateMove(gameState, move, currentPlayerId)) {
+      console.error("Invalid move - validation failed");
 
-    // Check for winner or draw
-    const winner = calculateWinner(move.board);
-    const isGameOver = winner !== null;
+      // Additional debugging information
+      const gameSpecificState = (gameState.game_specific_state as unknown) as TicTacToeState;
+      console.error("Move validation details:", {
+        isGameOver: gameState.is_game_over,
+        isCurrentPlayer: gameState.current_player === currentPlayerId,
+        oldBoard: gameSpecificState.board,
+        newBoard: move.board,
+        playerSymbols: gameSpecificState.player_symbols,
+        currentPlayerSymbol:
+          gameSpecificState.player_symbols?.[currentPlayerId],
+        expectedSymbol: playerSymbol,
+      });
 
-    // Prepare updates for the game state with proper typing
+      return;
+    }
+
+    // Determine the next player (using game logic)
+    const nextPlayer = ticTacToeLogic.getNextPlayer(gameState, currentPlayerId);
+
+    // Check for game over
+    const isGameOver = ticTacToeLogic.checkGameOver({
+      ...gameState,
+      game_specific_state: {
+        ...gameState.game_specific_state,
+        board: move.board,
+      },
+    });
+
+    // Prepare updates for the game state
     const updates: Partial<GameState> = {
       current_player: nextPlayer,
       is_game_over: isGameOver,
@@ -97,80 +131,34 @@ export default function GameBoard({ tableId }: GameBoardProps) {
     };
 
     // Add winning players if there's a winner
-    if (winner && winner !== "draw" && table.player_ids.length >= 2) {
-      const winnerSymbol = winner; // 'X' or 'O'
-      const winnerIndex = winnerSymbol === "X" ? 0 : 1;
+    if (isGameOver) {
+      const gameStateWithMove = {
+        ...gameState,
+        game_specific_state: {
+          ...gameState.game_specific_state,
+          board: move.board,
+        },
+      };
 
-      if (table.player_ids[winnerIndex]) {
-        updates.winning_players = [table.player_ids[winnerIndex]];
+      // Let the server determine winners and losers
+      // This is just a client-side prediction
+      const gameSpecificState = (gameStateWithMove.game_specific_state as unknown) as TicTacToeState;
+      const playerSymbols = gameSpecificState.player_symbols || {};
+
+      // Find the winner based on the symbol
+      for (const [playerId, symbol] of Object.entries(playerSymbols)) {
+        if (symbol === "X" && table.player_ids[0] === playerId) {
+          updates.winning_players = [playerId];
+          break;
+        } else if (symbol === "O" && table.player_ids[1] === playerId) {
+          updates.winning_players = [playerId];
+          break;
+        }
       }
     }
 
     // Update the game state
     updateGameState(updates);
-  };
-
-  // Calculate winner
-  const calculateWinner = (board: string[][]): string | null => {
-    const lines = [
-      [
-        [0, 0],
-        [0, 1],
-        [0, 2],
-      ], // rows
-      [
-        [1, 0],
-        [1, 1],
-        [1, 2],
-      ],
-      [
-        [2, 0],
-        [2, 1],
-        [2, 2],
-      ],
-      [
-        [0, 0],
-        [1, 0],
-        [2, 0],
-      ], // columns
-      [
-        [0, 1],
-        [1, 1],
-        [2, 1],
-      ],
-      [
-        [0, 2],
-        [1, 2],
-        [2, 2],
-      ],
-      [
-        [0, 0],
-        [1, 1],
-        [2, 2],
-      ], // diagonals
-      [
-        [0, 2],
-        [1, 1],
-        [2, 0],
-      ],
-    ];
-
-    for (const line of lines) {
-      const [[a1, a2], [b1, b2], [c1, c2]] = line;
-      if (
-        board[a1][a2] &&
-        board[a1][a2] === board[b1][b2] &&
-        board[a1][a2] === board[c1][c2]
-      ) {
-        return board[a1][a2];
-      }
-    }
-
-    // Check for draw (all squares filled)
-    const isDraw = board.every((row) => row.every((cell) => cell !== ""));
-    if (isDraw) return "draw";
-
-    return null;
   };
 
   // Loading state
@@ -223,41 +211,28 @@ export default function GameBoard({ tableId }: GameBoardProps) {
     return <div>Initializing game state...</div>;
   }
 
-  // Determine player symbol (first player is X, second is O)
-  const playerIndex = table?.player_ids.indexOf(currentPlayerId) || 0;
-  const playerSymbol = playerIndex === 0 ? "X" : "O";
+  // Determine player symbol from game state
+  const gameSpecificState = (gameState?.game_specific_state as unknown) as TicTacToeState;
+  const playerSymbol =
+    gameSpecificState?.player_symbols?.[currentPlayerId] ||
+    // Fallback to index-based assignment if not available in game state
+    (table?.player_ids.indexOf(currentPlayerId) === 0 ? "X" : "O");
+
+  // Get game status from our game logic
+  const gameStatus = ticTacToeLogic.getGameStatus(gameState, currentPlayerId);
 
   return (
     <div>
       <h2>Tic Tac Toe Game</h2>
 
       {/* Game status */}
-      <div className="game-status">
-        {gameState.is_game_over ? (
-          <div>
-            {gameState.winning_players.includes(currentPlayerId)
-              ? "You won!"
-              : gameState.winning_players.length > 0
-              ? `Player ${gameState.winning_players[0]} won!`
-              : "Game ended in a draw"}
-          </div>
-        ) : (
-          <div>
-            {isCurrentPlayerTurn
-              ? "Your turn"
-              : `Waiting for ${gameState.current_player}'s move...`}
-          </div>
-        )}
-      </div>
+      <div className="game-status">{gameStatus}</div>
 
       {/* Game board */}
       <Board
         boardState={
-          gameState.game_specific_state.board || [
-            ["", "", ""],
-            ["", "", ""],
-            ["", "", ""],
-          ]
+          ((gameState.game_specific_state as unknown) as TicTacToeState)
+            .board || INITIAL_BOARD_STATE
         }
         onMove={handleMove}
         disabled={!isCurrentPlayerTurn || gameState.is_game_over}
