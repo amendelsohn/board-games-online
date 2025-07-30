@@ -17,11 +17,7 @@ console.log('Database path:', dbPath);
       database: dbPath, // Store in bg-server root directory
       entities: [Player, Table, GameState],
       synchronize: true, // Set to false in production
-      extra: {
-        pragma: {
-          journal_mode: 'WAL',
-        },
-      },
+      // Remove extra.pragma as it's handled differently in 0.3.x
     }),
   ],
 })

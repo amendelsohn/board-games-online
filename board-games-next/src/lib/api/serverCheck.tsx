@@ -2,8 +2,7 @@
 
 import React from "react";
 
-// Hard-coded API URL to avoid process.env type issues
-const API_URL = "http://localhost:8080";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 /**
  * Checks if the API server is running
@@ -11,32 +10,14 @@ const API_URL = "http://localhost:8080";
  */
 export const isServerRunning = async (): Promise<boolean> => {
   try {
-    console.log("Checking server connection...");
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.log("Server check timed out");
-      controller.abort();
-    }, 3000);
-
-    console.log("Fetching from:", `${API_URL}/player/heartbeat`);
     const response = await fetch(`${API_URL}/player/heartbeat`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      // Add cache: 'no-store' to prevent caching
-      cache: "no-store",
+      // Add a short timeout to fail fast if server is not responding
+      signal: AbortSignal.timeout(3000),
     });
 
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log("Server response:", data);
-      return true;
-    } else {
-      console.error("Server returned error status:", response.status);
-      return false;
-    }
+    return response.ok;
   } catch (error) {
     console.error("Server check failed:", error);
     return false;
@@ -46,7 +27,7 @@ export const isServerRunning = async (): Promise<boolean> => {
 /**
  * Displays a server connection error message
  */
-export const ServerConnectionError: React.FC = () => {
+export const ServerConnectionError = () => {
   return (
     <div
       style={{
@@ -63,7 +44,7 @@ export const ServerConnectionError: React.FC = () => {
       <ul style={{ textAlign: "left" }}>
         <li>The backend server is running on port 8080</li>
         <li>
-          You&apos;ve started the server with <code>pnpm dev:backend</code>
+          You've started the server with <code>pnpm dev:backend</code>
         </li>
       </ul>
     </div>

@@ -3,18 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 // This is a proxy to the backend server
 const API_URL = process.env.API_URL || "http://localhost:8080";
 
-type RouteSegmentConfig = {
-  params: {
-    id: string;
-  };
-};
-
 export async function GET(
   request: NextRequest,
-  { params }: RouteSegmentConfig
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await context.params;
 
     const response = await fetch(`${API_URL}/table/${id}`);
 
@@ -38,10 +32,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: RouteSegmentConfig
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await context.params;
     const body = await request.json();
 
     const response = await fetch(`${API_URL}/table/${id}/addPlayers`, {

@@ -19,7 +19,7 @@ export class GameStateService {
   ) {}
 
   async getGameState(id: string): Promise<GameStateType> {
-    const gameState = await this.gameStateRepository.findOne({ id });
+    const gameState = await this.gameStateRepository.findOne({ where: { id } });
     if (!gameState) {
       throw new NotFoundException(`Game state with ID ${id} not found`);
     }
@@ -103,7 +103,7 @@ export class GameStateService {
     id: string,
     updates: Partial<GameStateType> & { game_specific_state?: any },
   ): Promise<GameStateType> {
-    const gameState = await this.gameStateRepository.findOne({ id });
+    const gameState = await this.gameStateRepository.findOne({ where: { id } });
     if (!gameState) {
       throw new NotFoundException(`Game state with ID ${id} not found`);
     }
@@ -148,7 +148,7 @@ export class GameStateService {
   ): Promise<void> {
     // Find all tables that use this game state
     const tables = await this.tableRepository.find({
-      game_state_id: gameStateId,
+      where: { game_state_id: gameStateId },
     });
 
     // No need to duplicate game state data in the tables
@@ -159,7 +159,7 @@ export class GameStateService {
 
   // Get game state from table (for client polling)
   async getGameStateFromTable(tableId: string): Promise<GameStateType> {
-    const table = await this.tableRepository.findOne({ table_id: tableId });
+    const table = await this.tableRepository.findOne({ where: { table_id: tableId } });
     if (!table) {
       throw new NotFoundException(`Table with ID ${tableId} not found`);
     }

@@ -17,7 +17,7 @@ export class PlayerService {
   ) {}
 
   async getPlayer(player_id: string): Promise<PlayerType> {
-    const found = await this.playerRepository.findOne({ player_id });
+    const found = await this.playerRepository.findOne({ where: { player_id } });
     if (!found) {
       throw new NotFoundException(`Player with ID ${player_id} not found`);
     }
@@ -38,7 +38,7 @@ export class PlayerService {
       throw new BadRequestException('Player name cannot be empty');
     }
 
-    const player = await this.playerRepository.findOne({ player_id });
+    const player = await this.playerRepository.findOne({ where: { player_id } });
     if (!player) {
       throw new NotFoundException(`Player with ID ${player_id} not found`);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getPlayerSession } from "@/lib/playerSession";
 import { getTable } from "@/lib/api";
@@ -9,13 +9,13 @@ import GameBoard from "@/components/tic-tac-toe/GameBoard";
 import Link from "next/link";
 
 interface GamePageProps {
-  params: {
+  params: Promise<{
     gameType: string;
-  };
+  }>;
 }
 
 export default function GamePage({ params }: GamePageProps) {
-  const { gameType } = params;
+  const { gameType } = React.use(params);
   const searchParams = useSearchParams();
   const tableId = searchParams.get("table");
 

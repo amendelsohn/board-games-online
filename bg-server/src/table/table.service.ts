@@ -27,7 +27,7 @@ export class TableService {
 
   // Get a table by join code
   async getTableByJoinCode(join_code: string): Promise<TableType> {
-    const table = await this.tableRepository.findOne({ join_code });
+    const table = await this.tableRepository.findOne({ where: { join_code } });
     if (!table) {
       throw new NotFoundException(
         `Table with join code ${join_code} not found`,
@@ -61,7 +61,7 @@ export class TableService {
 
   // Add a player to a table if it's in WAITING status
   async joinTable(join_code: string, player_id: PlayerId): Promise<TableType> {
-    const table = await this.tableRepository.findOne({ join_code });
+    const table = await this.tableRepository.findOne({ where: { join_code } });
 
     if (!table) {
       throw new NotFoundException(
@@ -162,7 +162,7 @@ export class TableService {
 
   // Helper method to get a table by ID
   private async getTableById(table_id: string): Promise<TableEntity> {
-    const table = await this.tableRepository.findOne({ table_id });
+    const table = await this.tableRepository.findOne({ where: { table_id } });
     if (!table) {
       throw new NotFoundException(`Table with ID ${table_id} not found`);
     }
