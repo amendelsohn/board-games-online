@@ -142,6 +142,55 @@ export function GameIcon({
     );
   }
 
+  if (type === "battleship") {
+    // 5×5 grid of blue "water" cells with a 3-cell ship silhouette and
+    // a couple of hit/miss markers — a tiny battleship tableau.
+    const cells: ("water" | "ship" | "hit" | "miss")[] = [
+      "water", "miss",  "water", "water", "water",
+      "water", "water", "water", "water", "hit",
+      "water", "water", "ship",  "ship",  "ship",
+      "water", "hit",   "water", "water", "water",
+      "water", "water", "water", "miss",  "water",
+    ];
+    const fill = (k: "water" | "ship" | "hit" | "miss") => {
+      if (k === "water") return "var(--color-info)";
+      if (k === "ship") return "var(--color-neutral)";
+      if (k === "hit") return "var(--color-error)";
+      return "var(--color-info)"; // miss tile is water-colored with a dot
+    };
+    return (
+      <div className={wrap}>
+        <div className="absolute inset-1.5 grid grid-cols-5 grid-rows-5 gap-[2px]">
+          {cells.map((k, i) => (
+            <span
+              key={i}
+              className="rounded-[2px] relative"
+              style={{
+                background: fill(k),
+                boxShadow:
+                  "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -1px 0 oklch(0% 0 0 / 0.15)",
+              }}
+            >
+              {k === "miss" && (
+                <span
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{
+                    color: "var(--color-base-content)",
+                    opacity: 0.55,
+                    fontSize: "0.7em",
+                    lineHeight: 1,
+                  }}
+                >
+                  •
+                </span>
+              )}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (type === "spyfall") {
     return (
       <div className={wrap}>
