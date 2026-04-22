@@ -6,7 +6,7 @@ import { getClientModule } from "@bgo/sdk-client";
 import type { PlayerWire, TableWire } from "@bgo/contracts";
 import { api } from "@/lib/apiClient";
 import { ensurePlayer } from "@/lib/playerSession";
-import { useMatchSocket } from "@/lib/useMatchSocket";
+import { useMatchSocket, type ConnectionState } from "@/lib/useMatchSocket";
 import { registerAllClientGames } from "@/lib/registerClientGames";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
 
@@ -56,6 +56,7 @@ export default function PlayPage() {
     phase,
     currentActors,
     connectionState,
+    reconnectAttempt,
     error,
     sendMove,
     addEventListener,
@@ -112,7 +113,8 @@ export default function PlayPage() {
         currentActors={currentActors}
         me={player.id}
         phase={phase}
-        connected={connectionState === "connected"}
+        connectionState={connectionState}
+        reconnectAttempt={reconnectAttempt}
       />
 
       {error && (
@@ -174,15 +176,18 @@ function MatchHeader({
   currentActors,
   me,
   phase,
-  connected,
+  connectionState,
+  reconnectAttempt,
 }: {
   gameType: string;
   players: PlayerWire[];
   currentActors: string[];
   me: string;
   phase: string | null;
-  connected: boolean;
+  connectionState: ConnectionState;
+  reconnectAttempt: number;
 }) {
+  const { label, tone } = connectionLabel(connectionState, reconnectAttempt);
   return (
     <div
       className={[
@@ -203,18 +208,22 @@ function MatchHeader({
         <span
           className={[
             "flex items-center gap-1.5 text-xs tabular",
-            connected ? "text-base-content/60" : "text-error",
+            tone === "good" ? "text-base-content/60" : "",
+            tone === "warn" ? "text-warning-content/80" : "",
+            tone === "bad" ? "text-error" : "",
           ].join(" ")}
           aria-live="polite"
         >
           <span
             className={[
               "inline-block h-1.5 w-1.5 rounded-full",
-              connected ? "bg-success" : "bg-error",
+              tone === "good" ? "bg-success" : "",
+              tone === "warn" ? "bg-warning animate-pulse" : "",
+              tone === "bad" ? "bg-error" : "",
             ].join(" ")}
             aria-hidden
           />
-          {connected ? "connected" : "disconnected"}
+          {label}
         </span>
       </div>
 
@@ -372,6 +381,25 @@ function gameLabel(type: string): string {
   if (type === "codenames") return "Codenames";
   if (type === "spyfall") return "Spyfall";
   return type;
+}
+
+function connectionLabel(
+  state: ConnectionState,
+  reconnectAttempt: number,
+): { label: string; tone: "good" | "warn" | "bad" } {
+  if (state === "connected") return { label: "connected", tone: "good" };
+  if (state === "connecting") return { label: "connecting", tone: "warn" };
+  if (state === "reconnecting") {
+    return {
+      label:
+        reconnectAttempt > 1
+          ? `reconnecting (${reconnectAttempt})`
+          : "reconnecting",
+      tone: "warn",
+    };
+  }
+  if (state === "error") return { label: "offline", tone: "bad" };
+  return { label: "disconnected", tone: "bad" };
 }
 
 function phaseLabel(phase: string): string {

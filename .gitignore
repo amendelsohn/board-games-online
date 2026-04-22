@@ -47,3 +47,4 @@ lerna-debug.log*
 # Playwright MCP verification artifacts
 .playwright-mcp/
 /*.png
+.todos/
