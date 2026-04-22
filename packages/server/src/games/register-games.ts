@@ -8,9 +8,10 @@ import { gomokuServerModule } from '@bgo/games-gomoku/server';
 import { dotsAndBoxesServerModule } from '@bgo/games-dotsandboxes/server';
 import { battleshipServerModule } from '@bgo/games-battleship/server';
 import { mastermindServerModule } from '@bgo/games-mastermind/server';
-import { memoryServerModule } from '@bgo/games-memory/server';
 import { nimServerModule } from '@bgo/games-nim/server';
 import { rpsServerModule } from '@bgo/games-rps/server';
+import { memoryServerModule } from '@bgo/games-memory/server';
+import { heartsServerModule } from '@bgo/games-hearts/server';
 import type { GamesRegistry } from './games-registry.service';
 
 /** Registers every installed game module with the registry at bootstrap. */
@@ -25,7 +26,8 @@ export function registerAllGames(registry: GamesRegistry): void {
   registry.register(dotsAndBoxesServerModule);
   registry.register(battleshipServerModule);
   registry.register(mastermindServerModule);
-  registry.register(memoryServerModule);
   registry.register(nimServerModule);
   registry.register(rpsServerModule);
+  registry.register(memoryServerModule);
+  registry.register(heartsServerModule);
 }
