@@ -22,6 +22,7 @@
     "@bgo/contracts": "workspace:*",
     "@bgo/games-codenames": "workspace:*",
     "@bgo/games-connectfour": "workspace:*",
+    "@bgo/games-rps": "workspace:*",
     "@bgo/games-spyfall": "workspace:*",
     "@bgo/games-tictactoe": "workspace:*",
     "@bgo/sdk": "workspace:*",

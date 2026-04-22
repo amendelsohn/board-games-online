@@ -206,6 +206,110 @@ export function GameIcon({
     );
   }
 
+  if (type === "rps") {
+    // Rock / Paper / Scissors arranged in a triangle — a tiny tactile RPS diorama.
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          <defs>
+            <radialGradient id="rps-bg" cx="50%" cy="55%" r="70%">
+              <stop
+                offset="0%"
+                stopColor="var(--color-primary)"
+                stopOpacity="0.1"
+              />
+              <stop
+                offset="100%"
+                stopColor="var(--color-secondary)"
+                stopOpacity="0"
+              />
+            </radialGradient>
+          </defs>
+          <rect width="56" height="56" fill="url(#rps-bg)" />
+          {/* dashed triangle connecting the three throws */}
+          <polygon
+            points="28,14 44,40 12,40"
+            fill="none"
+            stroke="color-mix(in oklch, currentColor 25%, transparent)"
+            strokeWidth="1"
+            strokeDasharray="2 3"
+            strokeLinecap="round"
+          />
+          {/* rock — top: chunky round stone */}
+          <g>
+            <ellipse
+              cx="28"
+              cy="15"
+              rx="6.5"
+              ry="5"
+              fill="var(--color-primary)"
+            />
+            <ellipse
+              cx="26"
+              cy="13.5"
+              rx="2"
+              ry="1.2"
+              fill="oklch(100% 0 0 / 0.25)"
+            />
+          </g>
+          {/* paper — bottom-left: folded sheet */}
+          <g transform="translate(6 32)">
+            <rect
+              x="0"
+              y="0"
+              width="12"
+              height="14"
+              rx="1.5"
+              fill="var(--color-base-100)"
+              stroke="var(--color-secondary)"
+              strokeWidth="1.5"
+            />
+            <line
+              x1="2.5"
+              y1="4"
+              x2="9.5"
+              y2="4"
+              stroke="var(--color-secondary)"
+              strokeWidth="1"
+              strokeLinecap="round"
+            />
+            <line
+              x1="2.5"
+              y1="7"
+              x2="9.5"
+              y2="7"
+              stroke="var(--color-secondary)"
+              strokeWidth="1"
+              strokeLinecap="round"
+            />
+            <line
+              x1="2.5"
+              y1="10"
+              x2="7"
+              y2="10"
+              stroke="var(--color-secondary)"
+              strokeWidth="1"
+              strokeLinecap="round"
+            />
+          </g>
+          {/* scissors — bottom-right: open blades with finger loops */}
+          <g
+            transform="translate(36 32)"
+            stroke="var(--color-primary)"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            fill="none"
+          >
+            <line x1="2" y1="2" x2="12" y2="13" />
+            <line x1="12" y1="2" x2="2" y2="13" />
+            <circle cx="2" cy="2" r="2" fill="var(--color-base-100)" />
+            <circle cx="12" cy="2" r="2" fill="var(--color-base-100)" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>
