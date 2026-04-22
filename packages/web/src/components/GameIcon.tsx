@@ -142,6 +142,49 @@ export function GameIcon({
     );
   }
 
+  if (type === "reversi") {
+    // 4x4 mini-board of discs — alternating black/white to evoke a
+    // flipped line-of-capture.
+    const pattern: ("B" | "W" | null)[] = [
+      "W", "B", "W", "B",
+      "B", "W", "W", "W",
+      "B", "B", "B", "W",
+      "W", "B", "W", "B",
+    ];
+    return (
+      <div className={wrap}>
+        <div
+          className="absolute inset-1.5 rounded-lg grid grid-cols-4 grid-rows-4 gap-[3px] p-1"
+          style={{
+            background:
+              "color-mix(in oklch, var(--color-success) 55%, var(--color-base-300))",
+            boxShadow:
+              "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
+          }}
+        >
+          {pattern.map((d, i) => (
+            <span
+              key={i}
+              className="rounded-full"
+              style={{
+                background:
+                  d === "B"
+                    ? "var(--color-primary)"
+                    : d === "W"
+                      ? "var(--color-secondary)"
+                      : "color-mix(in oklch, oklch(0% 0 0) 12%, transparent)",
+                boxShadow:
+                  d !== null
+                    ? "inset 0 -1px 0 oklch(0% 0 0 / 0.25), inset 0 1px 0 oklch(100% 0 0 / 0.25)"
+                    : undefined,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (type === "spyfall") {
     return (
       <div className={wrap}>
