@@ -13,6 +13,7 @@ import { battleshipClientModule } from "@bgo/games-battleship/client";
 import { mastermindClientModule } from "@bgo/games-mastermind/client";
 import { nimClientModule } from "@bgo/games-nim/client";
 import { rpsClientModule } from "@bgo/games-rps/client";
+import { mancalaClientModule } from "@bgo/games-mancala/client";
 
 let registered = false;
 
@@ -31,5 +32,6 @@ export function registerAllClientGames(): void {
   registerClientModule(mastermindClientModule);
   registerClientModule(nimClientModule);
   registerClientModule(rpsClientModule);
+  registerClientModule(mancalaClientModule);
   registered = true;
 }

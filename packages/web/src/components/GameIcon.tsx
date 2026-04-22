@@ -703,6 +703,102 @@ export function GameIcon({
     );
   }
 
+  if (type === "mancala") {
+    // Mini Kalah board: oval basin with stores at each end and 3 pits per side
+    // (scaled-down from the real 6). A few warm-tone stones scattered inside.
+    const pit = (cx: number, cy: number, seeds: { dx: number; dy: number }[]) => (
+      <g key={`${cx},${cy}`}>
+        <circle
+          cx={cx}
+          cy={cy}
+          r="4.5"
+          fill="color-mix(in oklch, var(--color-base-100) 85%, transparent)"
+          stroke="color-mix(in oklch, var(--color-base-content) 22%, transparent)"
+          strokeWidth="0.5"
+        />
+        {seeds.map((s, i) => (
+          <circle
+            key={i}
+            cx={cx + s.dx}
+            cy={cy + s.dy}
+            r="1"
+            fill="var(--color-warning)"
+          />
+        ))}
+      </g>
+    );
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          {/* wooden basin */}
+          <rect
+            x="4"
+            y="14"
+            width="48"
+            height="28"
+            rx="10"
+            fill="color-mix(in oklch, var(--color-primary) 55%, var(--color-base-300))"
+            stroke="color-mix(in oklch, oklch(0% 0 0) 30%, transparent)"
+            strokeWidth="0.75"
+          />
+          {/* left store */}
+          <ellipse
+            cx="10.5"
+            cy="28"
+            rx="3.2"
+            ry="9"
+            fill="color-mix(in oklch, var(--color-base-100) 75%, var(--color-primary) 10%)"
+            stroke="color-mix(in oklch, oklch(0% 0 0) 22%, transparent)"
+            strokeWidth="0.5"
+          />
+          <circle cx="10" cy="24" r="1" fill="var(--color-warning)" />
+          <circle cx="11.2" cy="27" r="1" fill="var(--color-warning)" />
+          <circle cx="9.8" cy="30" r="1" fill="var(--color-warning)" />
+          <circle cx="11" cy="33" r="1" fill="var(--color-warning)" />
+          {/* right store */}
+          <ellipse
+            cx="45.5"
+            cy="28"
+            rx="3.2"
+            ry="9"
+            fill="color-mix(in oklch, var(--color-base-100) 75%, var(--color-primary) 10%)"
+            stroke="color-mix(in oklch, oklch(0% 0 0) 22%, transparent)"
+            strokeWidth="0.5"
+          />
+          <circle cx="45" cy="25" r="1" fill="var(--color-warning)" />
+          <circle cx="46" cy="28" r="1" fill="var(--color-warning)" />
+          <circle cx="45" cy="31" r="1" fill="var(--color-warning)" />
+          {/* top row of 3 pits */}
+          {pit(20, 22, [
+            { dx: -1, dy: 0 },
+            { dx: 1, dy: -0.5 },
+          ])}
+          {pit(28, 22, [
+            { dx: 0, dy: 0 },
+            { dx: -1.2, dy: 1 },
+            { dx: 1.1, dy: -0.8 },
+          ])}
+          {pit(36, 22, [{ dx: 0.2, dy: 0 }])}
+          {/* bottom row of 3 pits */}
+          {pit(20, 34, [
+            { dx: -0.8, dy: -0.5 },
+            { dx: 0.9, dy: 0.9 },
+          ])}
+          {pit(28, 34, [
+            { dx: 0, dy: 0 },
+            { dx: -1.1, dy: -0.8 },
+          ])}
+          {pit(36, 34, [
+            { dx: 0, dy: 0 },
+            { dx: 1, dy: 0.6 },
+            { dx: -1, dy: 0.5 },
+            { dx: 0.5, dy: -1 },
+          ])}
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>
