@@ -703,6 +703,117 @@ export function GameIcon({
     );
   }
 
+  if (type === "liars-dice") {
+    // Three overlapping d6 silhouettes showing different faces — a small
+    // dice cluster in the shadow of a tipped cup. Pips are painted as
+    // small circles on each face.
+    const cube = (
+      x: number,
+      y: number,
+      size: number,
+      tone: string,
+      pipPositions: [number, number][],
+      pipColor: string,
+      tilt = 0,
+    ) => {
+      const pips = pipPositions.map(([px, py], i) => (
+        <circle
+          key={i}
+          cx={x + px * size}
+          cy={y + py * size}
+          r={size * 0.085}
+          fill={pipColor}
+        />
+      ));
+      return (
+        <g transform={`rotate(${tilt} ${x + size / 2} ${y + size / 2})`}>
+          <rect
+            x={x}
+            y={y}
+            width={size}
+            height={size}
+            rx={size * 0.18}
+            fill={tone}
+            stroke="color-mix(in oklch, currentColor 18%, transparent)"
+            strokeWidth="0.6"
+          />
+          {/* top glint */}
+          <rect
+            x={x + size * 0.12}
+            y={y + size * 0.1}
+            width={size * 0.76}
+            height={size * 0.16}
+            rx={size * 0.08}
+            fill="oklch(100% 0 0 / 0.22)"
+          />
+          {pips}
+        </g>
+      );
+    };
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          {/* subtle back glow */}
+          <defs>
+            <radialGradient id="ld-bg" cx="50%" cy="55%" r="75%">
+              <stop
+                offset="0%"
+                stopColor="var(--color-warning)"
+                stopOpacity="0.2"
+              />
+              <stop
+                offset="100%"
+                stopColor="var(--color-neutral)"
+                stopOpacity="0"
+              />
+            </radialGradient>
+          </defs>
+          <rect width="56" height="56" fill="url(#ld-bg)" />
+          {/* back die — a 5, off-primary tone, tilted left */}
+          {cube(
+            6,
+            16,
+            22,
+            "var(--color-secondary)",
+            [
+              [0.25, 0.25],
+              [0.75, 0.25],
+              [0.5, 0.5],
+              [0.25, 0.75],
+              [0.75, 0.75],
+            ],
+            "var(--color-secondary-content)",
+            -12,
+          )}
+          {/* right die — a 3, primary tone, tilted right */}
+          {cube(
+            28,
+            20,
+            22,
+            "var(--color-primary)",
+            [
+              [0.25, 0.25],
+              [0.5, 0.5],
+              [0.75, 0.75],
+            ],
+            "var(--color-primary-content)",
+            8,
+          )}
+          {/* front die — a single pip, ivory */}
+          {cube(
+            17,
+            30,
+            20,
+            "var(--color-base-100)",
+            [[0.5, 0.5]],
+            "var(--color-base-content)",
+            -3,
+          )}
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>

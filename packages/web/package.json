@@ -26,6 +26,7 @@
     "@bgo/games-connectfour": "workspace:*",
     "@bgo/games-dotsandboxes": "workspace:*",
     "@bgo/games-gomoku": "workspace:*",
+    "@bgo/games-liarsdice": "workspace:*",
     "@bgo/games-mastermind": "workspace:*",
     "@bgo/games-nim": "workspace:*",
     "@bgo/games-reversi": "workspace:*",
