@@ -206,6 +206,67 @@ export function GameIcon({
     );
   }
 
+  if (type === "mastermind") {
+    // A row of 4 colored code pegs with a little 2-dot feedback cluster
+    // tucked in the corner — echoes the physical Mastermind board.
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          <defs>
+            <radialGradient id="mm-peg" cx="35%" cy="30%" r="70%">
+              <stop offset="0%" stopColor="white" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          {/* code row */}
+          {[
+            { cx: 12, fill: "var(--color-error)" },
+            { cx: 23, fill: "var(--color-warning)" },
+            { cx: 34, fill: "var(--color-success)" },
+            { cx: 45, fill: "var(--color-info)" },
+          ].map((p, i) => (
+            <g key={i}>
+              <circle cx={p.cx} cy="28" r="6" fill={p.fill} />
+              <circle cx={p.cx} cy="28" r="6" fill="url(#mm-peg)" />
+            </g>
+          ))}
+          {/* feedback peg cluster — 1 black + 1 white */}
+          <circle cx="19" cy="46" r="2.6" fill="var(--color-base-content)" />
+          <circle
+            cx="26"
+            cy="46"
+            r="2.6"
+            fill="var(--color-base-100)"
+            stroke="color-mix(in oklch, var(--color-base-content) 35%, transparent)"
+            strokeWidth="0.8"
+          />
+          <circle
+            cx="33"
+            cy="46"
+            r="2.3"
+            fill="color-mix(in oklch, var(--color-base-content) 10%, transparent)"
+          />
+          <circle
+            cx="39"
+            cy="46"
+            r="2.3"
+            fill="color-mix(in oklch, var(--color-base-content) 10%, transparent)"
+          />
+          {/* decoding band */}
+          <line
+            x1="6"
+            y1="13"
+            x2="50"
+            y2="13"
+            stroke="color-mix(in oklch, var(--color-base-content) 18%, transparent)"
+            strokeWidth="1.25"
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>
