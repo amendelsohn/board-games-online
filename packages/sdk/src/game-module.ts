@@ -36,30 +36,30 @@ export interface GameModule<S, M, Cfg = unknown, V = unknown> {
    * calls this. Return `{ ok: false, reason }` for game-logic rejections.
    */
   handleMove(
-    state: Readonly<S>,
+    state: S,
     move: M,
     actor: PlayerId,
     ctx: GameContext,
   ): MoveResult<S>;
 
   /** Fired when a previously-scheduled timer elapses. */
-  onTimer?(state: Readonly<S>, key: string, ctx: GameContext): MoveResult<S>;
+  onTimer?(state: S, key: string, ctx: GameContext): MoveResult<S>;
 
   /**
    * THE projection boundary. Clients only ever see the output of this
    * function. Strip hidden info (spymaster grid, spy location, etc.) here.
    */
-  view(state: Readonly<S>, viewer: Viewer): V;
+  view(state: S, viewer: Viewer): V;
 
-  phase(state: Readonly<S>): PhaseId;
+  phase(state: S): PhaseId;
 
   /** Who the game is waiting on right now. [] = nobody / simultaneous. */
-  currentActors(state: Readonly<S>): PlayerId[];
+  currentActors(state: S): PlayerId[];
 
-  isTerminal(state: Readonly<S>): boolean;
+  isTerminal(state: S): boolean;
 
   /** null while the game is in progress. */
-  outcome(state: Readonly<S>): Outcome | null;
+  outcome(state: S): Outcome | null;
 }
 
 export interface GameModuleMetadata {

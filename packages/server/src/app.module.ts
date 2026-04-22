@@ -1,23 +1,24 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { PlayerController } from './player/player.controller';
-import { PlayerService } from './player/player.service';
-import { TableController } from './table/table.controller';
-import { TableService } from './table/table.service';
-import { DatabaseModule } from './database/database.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Player, Table, GameState } from './database/entities';
-import { GameStateService } from './game-state/game-state.service';
+import { StateModule } from './state/state.module';
 import { GamesModule } from './games/games.module';
+import { PlayersModule } from './players/players.module';
+import { TablesModule } from './tables/tables.module';
+import { MatchModule } from './match/match.module';
+import { SessionMiddleware } from './common/session.middleware';
 
 @Module({
   imports: [
-    DatabaseModule,
-    TypeOrmModule.forFeature([Player, Table, GameState]),
+    StateModule,
     GamesModule,
+    PlayersModule,
+    MatchModule,
+    TablesModule,
   ],
-  controllers: [AppController, PlayerController, TableController],
-  providers: [AppService, PlayerService, TableService, GameStateService],
+  controllers: [AppController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(SessionMiddleware).forRoutes('*');
+  }
+}
