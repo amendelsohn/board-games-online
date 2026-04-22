@@ -3,6 +3,7 @@
 import { registerClientModule } from "@bgo/sdk-client";
 import { ticTacToeClientModule } from "@bgo/games-tictactoe/client";
 import { connectFourClientModule } from "@bgo/games-connectfour/client";
+import { codenamesClientModule } from "@bgo/games-codenames/client";
 
 let registered = false;
 
@@ -11,5 +12,6 @@ export function registerAllClientGames(): void {
   if (registered) return;
   registerClientModule(ticTacToeClientModule);
   registerClientModule(connectFourClientModule);
+  registerClientModule(codenamesClientModule);
   registered = true;
 }

@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { PlayerWire, TableWire } from "@bgo/contracts";
+import { getClientModule } from "@bgo/sdk-client";
 import { api } from "@/lib/apiClient";
 import { ensurePlayer, getStoredName, storeName } from "@/lib/playerSession";
+import { registerAllClientGames } from "@/lib/registerClientGames";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
 import { JoinCodeDisplay } from "@/components/JoinCodeDisplay";
+
+registerAllClientGames();
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -67,6 +71,11 @@ export default function LobbyPage() {
     };
   }, [joinCode, schedulePoll]);
 
+  const module_ = useMemo(() => {
+    if (!table) return null;
+    return getClientModule(table.gameType) ?? null;
+  }, [table]);
+
   const start = async () => {
     if (!table) return;
     try {
@@ -94,6 +103,16 @@ export default function LobbyPage() {
       await api.updateMe({ name: newName });
       storeName(newName);
       setMe((m) => (m ? { ...m, name: newName } : m));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const updateConfig = async (nextConfig: unknown) => {
+    if (!table) return;
+    try {
+      const r = await api.updateConfig(table.id, { config: nextConfig });
+      setTable(r.table);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -139,10 +158,12 @@ export default function LobbyPage() {
   }
 
   const isHost = me.id === table.hostPlayerId;
-  const canStart = isHost && table.players.length >= 2;
+  const minPlayers = moduleMinPlayers(table.gameType);
+  const canStart = isHost && table.players.length >= minPlayers;
+  const LobbyPanel = module_?.LobbyPanel;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 md:py-12 flex flex-col gap-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 flex flex-col gap-8">
       <section className="text-center flex flex-col items-center gap-4">
         <div className="text-sm text-base-content/60 uppercase tracking-widest">
           Share this code with your friends
@@ -204,18 +225,38 @@ export default function LobbyPage() {
               </div>
             </li>
           ))}
-          {table.players.length < 2 && (
+          {table.players.length < minPlayers && (
             <li className="card bg-base-100 border border-dashed border-base-300 animate-pulse">
               <div className="card-body p-4 flex-row items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-base-300" />
                 <div className="text-base-content/50 text-sm">
-                  Waiting for another player…
+                  Waiting for{" "}
+                  {minPlayers - table.players.length === 1
+                    ? "another player"
+                    : `${minPlayers - table.players.length} more players`}
+                  …
                 </div>
               </div>
             </li>
           )}
         </ul>
       </section>
+
+      {LobbyPanel && (
+        <section>
+          <h2 className="text-xl font-bold mb-3">Game settings</h2>
+          <div className="card bg-base-200/60 border border-base-300">
+            <div className="card-body p-4">
+              <LobbyPanel
+                config={table.config ?? {}}
+                onChange={updateConfig}
+                players={table.players}
+                isHost={isHost}
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="card bg-base-200/60 border border-base-300">
         <div className="card-body gap-2">
@@ -246,7 +287,7 @@ export default function LobbyPage() {
           >
             {canStart
               ? "Start game"
-              : `Need ${2 - table.players.length} more player${2 - table.players.length === 1 ? "" : "s"}`}
+              : `Need ${minPlayers - table.players.length} more`}
           </button>
         ) : (
           <div className="text-sm text-base-content/60">
@@ -261,5 +302,11 @@ export default function LobbyPage() {
 function gameLabel(type: string): string {
   if (type === "tic-tac-toe") return "Tic-Tac-Toe";
   if (type === "connect-four") return "Connect Four";
+  if (type === "codenames") return "Codenames";
   return type;
+}
+
+function moduleMinPlayers(type: string): number {
+  if (type === "codenames") return 4;
+  return 2;
 }

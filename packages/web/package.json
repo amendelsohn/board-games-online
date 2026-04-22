@@ -20,6 +20,7 @@
   "license": "ISC",
   "dependencies": {
     "@bgo/contracts": "workspace:*",
+    "@bgo/games-codenames": "workspace:*",
     "@bgo/games-connectfour": "workspace:*",
     "@bgo/games-tictactoe": "workspace:*",
     "@bgo/sdk": "workspace:*",

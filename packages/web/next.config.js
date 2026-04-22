@@ -10,6 +10,7 @@ const nextConfig = {
     "@bgo/contracts",
     "@bgo/games-tictactoe",
     "@bgo/games-connectfour",
+    "@bgo/games-codenames",
   ],
 };
 
