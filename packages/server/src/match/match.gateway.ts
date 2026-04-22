@@ -122,6 +122,15 @@ export class MatchGateway
         view: current.view,
         isTerminal: current.isTerminal,
       });
+      // If the match is already terminal (e.g. the client is reconnecting
+      // after disconnect), also replay match_ended so downstream UI can
+      // render the summary.
+      if (current.isTerminal && current.outcome) {
+        client.emit(WS.MATCH_ENDED, {
+          matchId,
+          outcome: current.outcome,
+        });
+      }
     }
   }
 
