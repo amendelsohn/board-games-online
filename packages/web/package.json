@@ -23,6 +23,7 @@
     "@bgo/games-checkers": "workspace:*",
     "@bgo/games-codenames": "workspace:*",
     "@bgo/games-connectfour": "workspace:*",
+    "@bgo/games-gomoku": "workspace:*",
     "@bgo/games-reversi": "workspace:*",
     "@bgo/games-spyfall": "workspace:*",
     "@bgo/games-tictactoe": "workspace:*",
