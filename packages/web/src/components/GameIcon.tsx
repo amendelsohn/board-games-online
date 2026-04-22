@@ -206,6 +206,70 @@ export function GameIcon({
     );
   }
 
+  if (type === "hearts") {
+    // A heart perched atop a stylized Q♠ — the two cards that define Hearts.
+    // The spade is the neutral silhouette behind; the heart pops in error red.
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          <defs>
+            <radialGradient id="hearts-bg" cx="50%" cy="45%" r="75%">
+              <stop
+                offset="0%"
+                stopColor="var(--color-error)"
+                stopOpacity="0.12"
+              />
+              <stop
+                offset="100%"
+                stopColor="var(--color-neutral)"
+                stopOpacity="0.06"
+              />
+            </radialGradient>
+          </defs>
+          <rect width="56" height="56" fill="url(#hearts-bg)" />
+          {/* Q♠ silhouette — spade symbol with a subtle Q inside */}
+          <g fill="var(--color-neutral)" opacity="0.85">
+            {/* spade shape (approx — two mirrored bezier bulbs and a triangle stem) */}
+            <path d="M28 41
+              C 18 33, 10 28, 14 21
+              C 17 16, 24 17, 28 23
+              C 32 17, 39 16, 42 21
+              C 46 28, 38 33, 28 41 Z" />
+            {/* stem */}
+            <path d="M24 43 L32 43 L30 38 L26 38 Z" />
+          </g>
+          {/* subtle "Q" carved into the spade */}
+          <text
+            x="28"
+            y="33"
+            textAnchor="middle"
+            fontSize="11"
+            fontWeight="700"
+            fontFamily="var(--font-display, serif)"
+            fill="color-mix(in oklch, var(--color-base-100) 85%, transparent)"
+            opacity="0.85"
+          >
+            Q
+          </text>
+          {/* heart resting over the crown */}
+          <path
+            d="M28 19
+              C 24 13, 16 14, 16 21
+              C 16 26, 22 29, 28 34
+              C 34 29, 40 26, 40 21
+              C 40 14, 32 13, 28 19 Z"
+            fill="var(--color-error)"
+            stroke="color-mix(in oklch, var(--color-error) 60%, black)"
+            strokeWidth="0.6"
+            style={{
+              filter: "drop-shadow(0 1px 1px oklch(0% 0 0 / 0.25))",
+            }}
+          />
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>
