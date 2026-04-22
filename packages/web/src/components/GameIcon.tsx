@@ -1095,6 +1095,50 @@ export function GameIcon({
     );
   }
 
+  if (type === "avalon") {
+    // Round-table motif: an amber crown over two crossed swords — one
+    // loyal (info-blue), one treacherous (error-red) — ringed by a shield.
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          <defs>
+            <radialGradient id="avalon-bg" cx="50%" cy="40%" r="75%">
+              <stop offset="0%" stopColor="var(--color-warning)" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="var(--color-neutral)" stopOpacity="0.05" />
+            </radialGradient>
+          </defs>
+          <rect width="56" height="56" fill="url(#avalon-bg)" />
+          <circle
+            cx="28"
+            cy="32"
+            r="19"
+            fill="none"
+            stroke="color-mix(in oklch, var(--color-neutral) 45%, transparent)"
+            strokeWidth="1"
+            strokeDasharray="2 2"
+          />
+          <g stroke="var(--color-info)" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="14" y1="44" x2="40" y2="22" />
+          </g>
+          <g stroke="var(--color-error)" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="16" y1="22" x2="42" y2="44" />
+          </g>
+          <circle cx="14" cy="44" r="1.8" fill="var(--color-info)" />
+          <circle cx="42" cy="44" r="1.8" fill="var(--color-error)" />
+          <g>
+            <rect x="18" y="20" width="20" height="5" rx="1" fill="var(--color-warning)" />
+            <polygon points="18,20 22,10 26,20" fill="var(--color-warning)" />
+            <polygon points="24,20 28,8 32,20" fill="var(--color-warning)" />
+            <polygon points="30,20 34,10 38,20" fill="var(--color-warning)" />
+            <circle cx="22" cy="22.5" r="1" fill="var(--color-error)" />
+            <circle cx="28" cy="22.5" r="1.1" fill="var(--color-info)" />
+            <circle cx="34" cy="22.5" r="1" fill="var(--color-success)" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>

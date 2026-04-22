@@ -18,6 +18,7 @@ import { heartsClientModule } from "@bgo/games-hearts/client";
 import { mancalaClientModule } from "@bgo/games-mancala/client";
 import { liarsDiceClientModule } from "@bgo/games-liarsdice/client";
 import { yahtzeeClientModule } from "@bgo/games-yahtzee/client";
+import { avalonClientModule } from "@bgo/games-avalon/client";
 
 let registered = false;
 
@@ -41,5 +42,6 @@ export function registerAllClientGames(): void {
   registerClientModule(mancalaClientModule);
   registerClientModule(liarsDiceClientModule);
   registerClientModule(yahtzeeClientModule);
+  registerClientModule(avalonClientModule);
   registered = true;
 }
