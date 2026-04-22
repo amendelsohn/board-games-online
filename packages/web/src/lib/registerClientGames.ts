@@ -8,6 +8,7 @@ import { spyfallClientModule } from "@bgo/games-spyfall/client";
 import { reversiClientModule } from "@bgo/games-reversi/client";
 import { checkersClientModule } from "@bgo/games-checkers/client";
 import { gomokuClientModule } from "@bgo/games-gomoku/client";
+import { dotsAndBoxesClientModule } from "@bgo/games-dotsandboxes/client";
 
 let registered = false;
 
@@ -21,5 +22,6 @@ export function registerAllClientGames(): void {
   registerClientModule(reversiClientModule);
   registerClientModule(checkersClientModule);
   registerClientModule(gomokuClientModule);
+  registerClientModule(dotsAndBoxesClientModule);
   registered = true;
 }
