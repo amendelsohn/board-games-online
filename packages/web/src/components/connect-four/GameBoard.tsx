@@ -175,7 +175,7 @@ export default function GameBoard({ tableId }: GameBoardProps) {
   }
 
   const connectFourState = gameState as unknown as ConnectFourState;
-  const isHost = table && table.host_player_id === currentPlayerId;
+  const isHost = Boolean(table && table.host_player_id === currentPlayerId);
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4">

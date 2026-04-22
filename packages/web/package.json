@@ -1,14 +1,15 @@
 {
-  "name": "board-games-next",
+  "name": "@bgo/web",
   "version": "1.0.0",
-  "description": "A modern Next.js implementation of board games online",
+  "description": "Board-games-online web client (Next.js)",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "typecheck": "tsc --noEmit",
+    "test": "jest --passWithNoTests"
   },
   "keywords": [
     "board games",
