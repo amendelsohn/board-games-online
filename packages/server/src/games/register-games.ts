@@ -18,6 +18,7 @@ import { yahtzeeServerModule } from '@bgo/games-yahtzee/server';
 import { avalonServerModule } from '@bgo/games-avalon/server';
 import { coupServerModule } from '@bgo/games-coup/server';
 import { loveLetterServerModule } from '@bgo/games-loveletter/server';
+import { secretHitlerServerModule } from '@bgo/games-secrethitler/server';
 import type { GamesRegistry } from './games-registry.service';
 
 /** Registers every installed game module with the registry at bootstrap. */
@@ -42,4 +43,5 @@ export function registerAllGames(registry: GamesRegistry): void {
   registry.register(avalonServerModule);
   registry.register(coupServerModule);
   registry.register(loveLetterServerModule);
+  registry.register(secretHitlerServerModule);
 }

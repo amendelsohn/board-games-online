@@ -21,6 +21,7 @@ import { yahtzeeClientModule } from "@bgo/games-yahtzee/client";
 import { avalonClientModule } from "@bgo/games-avalon/client";
 import { coupClientModule } from "@bgo/games-coup/client";
 import { loveLetterClientModule } from "@bgo/games-loveletter/client";
+import { secretHitlerClientModule } from "@bgo/games-secrethitler/client";
 
 let registered = false;
 
@@ -47,5 +48,6 @@ export function registerAllClientGames(): void {
   registerClientModule(avalonClientModule);
   registerClientModule(coupClientModule);
   registerClientModule(loveLetterClientModule);
+  registerClientModule(secretHitlerClientModule);
   registered = true;
 }
