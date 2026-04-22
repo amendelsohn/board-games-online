@@ -31,6 +31,7 @@
     "@bgo/games-mastermind": "workspace:*",
     "@bgo/games-nim": "workspace:*",
     "@bgo/games-reversi": "workspace:*",
+    "@bgo/games-rps": "workspace:*",
     "@bgo/games-spyfall": "workspace:*",
     "@bgo/games-tictactoe": "workspace:*",
     "@bgo/sdk": "workspace:*",
