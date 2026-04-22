@@ -4,6 +4,9 @@ node_modules
 .next
 .turbo
 
+# Claude Code worktrees + session state
+.claude/
+
 # SQLite database files
 *.sqlite
 *.sqlite3

@@ -6,6 +6,7 @@ import { connectFourClientModule } from "@bgo/games-connectfour/client";
 import { codenamesClientModule } from "@bgo/games-codenames/client";
 import { spyfallClientModule } from "@bgo/games-spyfall/client";
 import { reversiClientModule } from "@bgo/games-reversi/client";
+import { checkersClientModule } from "@bgo/games-checkers/client";
 
 let registered = false;
 
@@ -17,5 +18,6 @@ export function registerAllClientGames(): void {
   registerClientModule(codenamesClientModule);
   registerClientModule(spyfallClientModule);
   registerClientModule(reversiClientModule);
+  registerClientModule(checkersClientModule);
   registered = true;
 }

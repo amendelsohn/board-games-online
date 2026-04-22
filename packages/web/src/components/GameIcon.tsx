@@ -249,6 +249,73 @@ export function GameIcon({
     );
   }
 
+  if (type === "checkers") {
+    // A 4x4 corner of the board with a few red & black discs; one crowned.
+    const dark = "color-mix(in oklch, var(--color-neutral) 55%, var(--color-base-300))";
+    const light = "color-mix(in oklch, var(--color-base-100) 85%, var(--color-base-200))";
+    const discs: Record<number, "r" | "b" | "B"> = {
+      1: "b",
+      3: "b",
+      4: "b",
+      10: "r",
+      13: "B",
+      15: "r",
+    };
+    return (
+      <div className={wrap}>
+        <div
+          className="absolute inset-1.5 grid grid-cols-4 grid-rows-4 gap-0 rounded-md overflow-hidden"
+          style={{ boxShadow: "inset 0 0 0 1.5px oklch(0% 0 0 / 0.3)" }}
+        >
+          {Array.from({ length: 16 }).map((_, i) => {
+            const row = Math.floor(i / 4);
+            const col = i % 4;
+            const isDark = (row + col) % 2 === 1;
+            const disc = discs[i];
+            const discBg =
+              disc === "r"
+                ? "var(--color-error)"
+                : "var(--color-neutral)";
+            return (
+              <span
+                key={i}
+                className="relative flex items-center justify-center"
+                style={{ background: isDark ? dark : light }}
+              >
+                {disc && (
+                  <span
+                    className="rounded-full flex items-center justify-center"
+                    style={{
+                      width: "72%",
+                      height: "72%",
+                      background: `radial-gradient(circle at 35% 30%, color-mix(in oklch, ${discBg} 80%, white) 0%, ${discBg} 55%, color-mix(in oklch, ${discBg} 70%, black) 100%)`,
+                      boxShadow:
+                        "inset 0 -1px 0 oklch(0% 0 0 / 0.25), 0 1px 1.5px oklch(0% 0 0 / 0.3)",
+                    }}
+                  >
+                    {disc === "B" && (
+                      <span
+                        aria-hidden
+                        style={{
+                          fontSize: "0.6rem",
+                          lineHeight: 1,
+                          color: "var(--color-warning)",
+                          textShadow: "0 1px 1px oklch(0% 0 0 / 0.5)",
+                        }}
+                      >
+                        ♛
+                      </span>
+                    )}
+                  </span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>
