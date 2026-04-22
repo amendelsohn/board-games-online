@@ -599,6 +599,74 @@ export function GameIcon({
     );
   }
 
+  if (type === "memory") {
+    // A 3x3 grid of cards: two matching face-up pairs and the rest
+    // diagonally striped backs — hints at "find the match, remember the rest".
+    type Cell =
+      | { kind: "back" }
+      | { kind: "face"; symbol: string; color: string };
+    const cells: Cell[] = [
+      { kind: "back" },
+      { kind: "face", symbol: "★", color: "var(--color-primary)" },
+      { kind: "back" },
+      { kind: "face", symbol: "◆", color: "var(--color-secondary)" },
+      { kind: "back" },
+      { kind: "face", symbol: "◆", color: "var(--color-secondary)" },
+      { kind: "back" },
+      { kind: "face", symbol: "★", color: "var(--color-primary)" },
+      { kind: "back" },
+    ];
+    return (
+      <div className={wrap}>
+        <div
+          className="absolute inset-1.5 grid grid-cols-3 grid-rows-3 gap-[3px] rounded-md p-0.5"
+          style={{
+            background:
+              "color-mix(in oklch, var(--color-base-300) 90%, transparent)",
+          }}
+        >
+          {cells.map((cell, i) => {
+            if (cell.kind === "face") {
+              return (
+                <span
+                  key={i}
+                  className="rounded-[3px] relative flex items-center justify-center"
+                  style={{
+                    background: `color-mix(in oklch, ${cell.color} 20%, var(--color-base-100))`,
+                    boxShadow: `inset 0 0 0 1px ${cell.color}`,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: cell.color,
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {cell.symbol}
+                  </span>
+                </span>
+              );
+            }
+            return (
+              <span
+                key={i}
+                className="rounded-[3px]"
+                style={{
+                  background:
+                    "repeating-linear-gradient(45deg, color-mix(in oklch, var(--color-primary) 32%, transparent) 0 2px, color-mix(in oklch, var(--color-secondary) 24%, transparent) 2px 4px)",
+                  boxShadow:
+                    "inset 0 0 0 0.5px color-mix(in oklch, oklch(0% 0 0) 30%, transparent)",
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   if (type === "rps") {
     // Rock / Paper / Scissors arranged in a triangle — a tiny tactile RPS diorama.
     return (
