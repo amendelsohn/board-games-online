@@ -206,6 +206,71 @@ export function GameIcon({
     );
   }
 
+  if (type === "dots-and-boxes") {
+    // 2×2 grid of boxes: a few drawn edges, one box filled. Dots at every intersection.
+    // Coordinate system: dots at (x ∈ {12, 28, 44}, y ∈ {12, 28, 44}).
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          {/* Filled top-left box — the "captured" one */}
+          <rect
+            x="12"
+            y="12"
+            width="16"
+            height="16"
+            fill="color-mix(in oklch, var(--color-primary) 28%, transparent)"
+          />
+          {/* Drawn edges around the filled box + a couple of extras */}
+          <g
+            stroke="var(--color-primary)"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+          >
+            {/* top-left box — all 4 sides */}
+            <line x1="12" y1="12" x2="28" y2="12" />
+            <line x1="12" y1="28" x2="28" y2="28" />
+            <line x1="12" y1="12" x2="12" y2="28" />
+            <line x1="28" y1="12" x2="28" y2="28" />
+          </g>
+          <g
+            stroke="var(--color-secondary)"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+          >
+            {/* extra edges from the other player */}
+            <line x1="28" y1="28" x2="44" y2="28" />
+            <line x1="44" y1="28" x2="44" y2="44" />
+          </g>
+          {/* Faint edges for the rest of the grid so the structure reads */}
+          <g
+            stroke="color-mix(in oklch, currentColor 18%, transparent)"
+            strokeWidth="1.25"
+            strokeLinecap="round"
+          >
+            <line x1="28" y1="12" x2="44" y2="12" />
+            <line x1="44" y1="12" x2="44" y2="28" />
+            <line x1="12" y1="28" x2="12" y2="44" />
+            <line x1="12" y1="44" x2="28" y2="44" />
+            <line x1="28" y1="44" x2="44" y2="44" />
+            <line x1="28" y1="28" x2="28" y2="44" />
+          </g>
+          {/* Dots */}
+          <g fill="var(--color-base-content)">
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="28" cy="12" r="2" />
+            <circle cx="44" cy="12" r="2" />
+            <circle cx="12" cy="28" r="2" />
+            <circle cx="28" cy="28" r="2" />
+            <circle cx="44" cy="28" r="2" />
+            <circle cx="12" cy="44" r="2" />
+            <circle cx="28" cy="44" r="2" />
+            <circle cx="44" cy="44" r="2" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>
