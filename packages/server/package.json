@@ -29,6 +29,7 @@
     "@bgo/games-dotsandboxes": "workspace:*",
     "@bgo/games-gomoku": "workspace:*",
     "@bgo/games-hearts": "workspace:*",
+    "@bgo/games-liarsdice": "workspace:*",
     "@bgo/games-mancala": "workspace:*",
     "@bgo/games-mastermind": "workspace:*",
     "@bgo/games-memory": "workspace:*",

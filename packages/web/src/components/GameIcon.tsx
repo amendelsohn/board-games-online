@@ -792,18 +792,14 @@ export function GameIcon({
             </radialGradient>
           </defs>
           <rect width="56" height="56" fill="url(#hearts-bg)" />
-          {/* Q♠ silhouette — spade symbol with a subtle Q inside */}
           <g fill="var(--color-neutral)" opacity="0.85">
-            {/* spade shape (approx — two mirrored bezier bulbs and a triangle stem) */}
             <path d="M28 41
               C 18 33, 10 28, 14 21
               C 17 16, 24 17, 28 23
               C 32 17, 39 16, 42 21
               C 46 28, 38 33, 28 41 Z" />
-            {/* stem */}
             <path d="M24 43 L32 43 L30 38 L26 38 Z" />
           </g>
-          {/* subtle "Q" carved into the spade */}
           <text
             x="28"
             y="33"
@@ -816,7 +812,6 @@ export function GameIcon({
           >
             Q
           </text>
-          {/* heart resting over the crown */}
           <path
             d="M28 19
               C 24 13, 16 14, 16 21
@@ -836,8 +831,7 @@ export function GameIcon({
   }
 
   if (type === "mancala") {
-    // Mini Kalah board: oval basin with stores at each end and 3 pits per side
-    // (scaled-down from the real 6). A few warm-tone stones scattered inside.
+    // Mini Kalah board: oval basin with stores at each end and 3 pits per side.
     const pit = (cx: number, cy: number, seeds: { dx: number; dy: number }[]) => (
       <g key={`${cx},${cy}`}>
         <circle
@@ -862,7 +856,6 @@ export function GameIcon({
     return (
       <div className={wrap}>
         <svg viewBox="0 0 56 56" className="h-full w-full">
-          {/* wooden basin */}
           <rect
             x="4"
             y="14"
@@ -873,7 +866,6 @@ export function GameIcon({
             stroke="color-mix(in oklch, oklch(0% 0 0) 30%, transparent)"
             strokeWidth="0.75"
           />
-          {/* left store */}
           <ellipse
             cx="10.5"
             cy="28"
@@ -887,7 +879,6 @@ export function GameIcon({
           <circle cx="11.2" cy="27" r="1" fill="var(--color-warning)" />
           <circle cx="9.8" cy="30" r="1" fill="var(--color-warning)" />
           <circle cx="11" cy="33" r="1" fill="var(--color-warning)" />
-          {/* right store */}
           <ellipse
             cx="45.5"
             cy="28"
@@ -900,7 +891,6 @@ export function GameIcon({
           <circle cx="45" cy="25" r="1" fill="var(--color-warning)" />
           <circle cx="46" cy="28" r="1" fill="var(--color-warning)" />
           <circle cx="45" cy="31" r="1" fill="var(--color-warning)" />
-          {/* top row of 3 pits */}
           {pit(20, 22, [
             { dx: -1, dy: 0 },
             { dx: 1, dy: -0.5 },
@@ -911,7 +901,6 @@ export function GameIcon({
             { dx: 1.1, dy: -0.8 },
           ])}
           {pit(36, 22, [{ dx: 0.2, dy: 0 }])}
-          {/* bottom row of 3 pits */}
           {pit(20, 34, [
             { dx: -0.8, dy: -0.5 },
             { dx: 0.9, dy: 0.9 },
@@ -926,6 +915,117 @@ export function GameIcon({
             { dx: -1, dy: 0.5 },
             { dx: 0.5, dy: -1 },
           ])}
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "liars-dice") {
+    // Three overlapping d6 silhouettes showing different faces — a small
+    // dice cluster in the shadow of a tipped cup. Pips are painted as
+    // small circles on each face.
+    const cube = (
+      x: number,
+      y: number,
+      size: number,
+      tone: string,
+      pipPositions: [number, number][],
+      pipColor: string,
+      tilt = 0,
+    ) => {
+      const pips = pipPositions.map(([px, py], i) => (
+        <circle
+          key={i}
+          cx={x + px * size}
+          cy={y + py * size}
+          r={size * 0.085}
+          fill={pipColor}
+        />
+      ));
+      return (
+        <g transform={`rotate(${tilt} ${x + size / 2} ${y + size / 2})`}>
+          <rect
+            x={x}
+            y={y}
+            width={size}
+            height={size}
+            rx={size * 0.18}
+            fill={tone}
+            stroke="color-mix(in oklch, currentColor 18%, transparent)"
+            strokeWidth="0.6"
+          />
+          {/* top glint */}
+          <rect
+            x={x + size * 0.12}
+            y={y + size * 0.1}
+            width={size * 0.76}
+            height={size * 0.16}
+            rx={size * 0.08}
+            fill="oklch(100% 0 0 / 0.22)"
+          />
+          {pips}
+        </g>
+      );
+    };
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          {/* subtle back glow */}
+          <defs>
+            <radialGradient id="ld-bg" cx="50%" cy="55%" r="75%">
+              <stop
+                offset="0%"
+                stopColor="var(--color-warning)"
+                stopOpacity="0.2"
+              />
+              <stop
+                offset="100%"
+                stopColor="var(--color-neutral)"
+                stopOpacity="0"
+              />
+            </radialGradient>
+          </defs>
+          <rect width="56" height="56" fill="url(#ld-bg)" />
+          {/* back die — a 5, off-primary tone, tilted left */}
+          {cube(
+            6,
+            16,
+            22,
+            "var(--color-secondary)",
+            [
+              [0.25, 0.25],
+              [0.75, 0.25],
+              [0.5, 0.5],
+              [0.25, 0.75],
+              [0.75, 0.75],
+            ],
+            "var(--color-secondary-content)",
+            -12,
+          )}
+          {/* right die — a 3, primary tone, tilted right */}
+          {cube(
+            28,
+            20,
+            22,
+            "var(--color-primary)",
+            [
+              [0.25, 0.25],
+              [0.5, 0.5],
+              [0.75, 0.75],
+            ],
+            "var(--color-primary-content)",
+            8,
+          )}
+          {/* front die — a single pip, ivory */}
+          {cube(
+            17,
+            30,
+            20,
+            "var(--color-base-100)",
+            [[0.5, 0.5]],
+            "var(--color-base-content)",
+            -3,
+          )}
         </svg>
       </div>
     );

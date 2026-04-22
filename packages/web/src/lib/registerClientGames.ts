@@ -16,6 +16,7 @@ import { rpsClientModule } from "@bgo/games-rps/client";
 import { memoryClientModule } from "@bgo/games-memory/client";
 import { heartsClientModule } from "@bgo/games-hearts/client";
 import { mancalaClientModule } from "@bgo/games-mancala/client";
+import { liarsDiceClientModule } from "@bgo/games-liarsdice/client";
 
 let registered = false;
 
@@ -37,5 +38,6 @@ export function registerAllClientGames(): void {
   registerClientModule(memoryClientModule);
   registerClientModule(heartsClientModule);
   registerClientModule(mancalaClientModule);
+  registerClientModule(liarsDiceClientModule);
   registered = true;
 }
