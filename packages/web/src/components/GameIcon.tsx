@@ -1031,6 +1031,70 @@ export function GameIcon({
     );
   }
 
+  if (type === "yahtzee") {
+    // Four dice stacked in a loose pyramid, each showing a different face.
+    const pipLayout: Record<number, [number, number][]> = {
+      1: [[10, 10]],
+      2: [[6, 6], [14, 14]],
+      3: [[6, 6], [10, 10], [14, 14]],
+      5: [[6, 6], [14, 6], [10, 10], [6, 14], [14, 14]],
+      6: [[6, 6], [14, 6], [6, 10], [14, 10], [6, 14], [14, 14]],
+    };
+    const dice: {
+      x: number;
+      y: number;
+      rot: number;
+      face: keyof typeof pipLayout;
+      fill: string;
+    }[] = [
+      { x: 6, y: 26, rot: -9, face: 5, fill: "var(--color-base-100)" },
+      { x: 28, y: 30, rot: 6, face: 2, fill: "color-mix(in oklch, var(--color-warning) 35%, var(--color-base-100))" },
+      { x: 18, y: 7, rot: -3, face: 3, fill: "color-mix(in oklch, var(--color-primary) 30%, var(--color-base-100))" },
+      { x: 35, y: 10, rot: 14, face: 6, fill: "color-mix(in oklch, var(--color-secondary) 28%, var(--color-base-100))" },
+    ];
+    const dieSize = 16;
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          <defs>
+            <radialGradient id="yah-bg" cx="50%" cy="60%" r="70%">
+              <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <rect width="56" height="56" fill="url(#yah-bg)" />
+          {dice.map((d, i) => {
+            const cx = d.x + dieSize / 2;
+            const cy = d.y + dieSize / 2;
+            return (
+              <g key={i} transform={`rotate(${d.rot} ${cx} ${cy})`}>
+                <rect
+                  x={d.x}
+                  y={d.y}
+                  width={dieSize}
+                  height={dieSize}
+                  rx="3"
+                  fill={d.fill}
+                  stroke="color-mix(in oklch, var(--color-base-content) 28%, transparent)"
+                  strokeWidth="0.9"
+                />
+                {pipLayout[d.face]!.map(([px, py], pi) => (
+                  <circle
+                    key={pi}
+                    cx={d.x + (px / 20) * dieSize}
+                    cy={d.y + (py / 20) * dieSize}
+                    r="1.1"
+                    fill="var(--color-base-content)"
+                  />
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>
