@@ -206,6 +206,53 @@ export function GameIcon({
     );
   }
 
+  if (type === "nim") {
+    // Three pile silhouettes — 3, 5, 7 stones, bottom-aligned on a shelf line.
+    const piles: { x: number; count: number; tint: string }[] = [
+      { x: 13, count: 3, tint: "var(--color-primary)" },
+      { x: 28, count: 5, tint: "var(--color-secondary)" },
+      { x: 43, count: 7, tint: "var(--color-accent)" },
+    ];
+    const baseline = 48;
+    const stoneW = 11;
+    const stoneH = 4;
+    const gap = 1.5;
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          {/* shelf line */}
+          <line
+            x1="6"
+            y1="50"
+            x2="50"
+            y2="50"
+            stroke="color-mix(in oklch, currentColor 25%, transparent)"
+            strokeWidth="1"
+            strokeLinecap="round"
+          />
+          {piles.map((p, pi) => (
+            <g key={pi}>
+              {Array.from({ length: p.count }).map((_, k) => {
+                const y = baseline - (k + 1) * (stoneH + gap);
+                return (
+                  <ellipse
+                    key={k}
+                    cx={p.x}
+                    cy={y + stoneH / 2}
+                    rx={stoneW / 2}
+                    ry={stoneH / 2}
+                    fill={p.tint}
+                    opacity={0.9 - k * 0.06}
+                  />
+                );
+              })}
+            </g>
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>
