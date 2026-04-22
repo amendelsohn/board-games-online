@@ -1,0 +1,118 @@
+[
+  {
+    "name": "Airplane",
+    "roles": ["Pilot", "Flight Attendant", "Passenger", "Air Marshal", "Mechanic", "Business Class Snob", "Co-Pilot"]
+  },
+  {
+    "name": "Bank",
+    "roles": ["Armored Car Driver", "Manager", "Consultant", "Customer", "Robber", "Security Guard", "Teller"]
+  },
+  {
+    "name": "Beach",
+    "roles": ["Beach Waitress", "Kite Surfer", "Lifeguard", "Thief", "Beach Goer", "Photographer", "Ice Cream Truck Driver"]
+  },
+  {
+    "name": "Cathedral",
+    "roles": ["Priest", "Beggar", "Sinner", "Tourist", "Sponsor", "Chorister", "Bishop"]
+  },
+  {
+    "name": "Casino",
+    "roles": ["Bartender", "Head of Security", "Bouncer", "Manager", "Hustler", "Dealer", "Gambler"]
+  },
+  {
+    "name": "Circus Tent",
+    "roles": ["Acrobat", "Animal Trainer", "Magician", "Visitor", "Clown", "Fire Eater", "Juggler"]
+  },
+  {
+    "name": "Corporate Party",
+    "roles": ["Entertainer", "Manager", "Unwelcome Guest", "Owner", "Secretary", "Accountant", "Delivery Boy"]
+  },
+  {
+    "name": "Crusader Army",
+    "roles": ["Monk", "Imprisoned Arab", "Servant", "Bishop", "Squire", "Archer", "Knight"]
+  },
+  {
+    "name": "Day Spa",
+    "roles": ["Customer", "Stylist", "Masseuse", "Manicurist", "Makeup Artist", "Dermatologist", "Beautician"]
+  },
+  {
+    "name": "Embassy",
+    "roles": ["Security Guard", "Secretary", "Ambassador", "Government Official", "Tourist", "Refugee", "Diplomat"]
+  },
+  {
+    "name": "Hospital",
+    "roles": ["Nurse", "Doctor", "Anesthesiologist", "Intern", "Patient", "Therapist", "Surgeon"]
+  },
+  {
+    "name": "Hotel",
+    "roles": ["Doorman", "Security Guard", "Manager", "Housekeeper", "Customer", "Bartender", "Bellman"]
+  },
+  {
+    "name": "Military Base",
+    "roles": ["Deserter", "Colonel", "Medic", "Soldier", "Sniper", "Officer", "Tank Engineer"]
+  },
+  {
+    "name": "Movie Studio",
+    "roles": ["Stuntman", "Sound Engineer", "Camera Operator", "Director", "Costume Artist", "Actor", "Producer"]
+  },
+  {
+    "name": "Ocean Liner",
+    "roles": ["Rich Passenger", "Cook", "Captain", "Bartender", "Musician", "Waiter", "Mechanic"]
+  },
+  {
+    "name": "Passenger Train",
+    "roles": ["Mechanic", "Border Patrol", "Train Attendant", "Passenger", "Restaurant Chef", "Engineer", "Stoker"]
+  },
+  {
+    "name": "Pirate Ship",
+    "roles": ["Cook", "Sailor", "Slave", "Cannoneer", "Bound Prisoner", "Cabin Boy", "Brave Captain"]
+  },
+  {
+    "name": "Polar Station",
+    "roles": ["Medic", "Expedition Leader", "Biologist", "Radioman", "Hydrologist", "Meteorologist", "Geologist"]
+  },
+  {
+    "name": "Police Station",
+    "roles": ["Detective", "Lawyer", "Journalist", "Criminalist", "Archivist", "Patrol Officer", "Criminal"]
+  },
+  {
+    "name": "Restaurant",
+    "roles": ["Musician", "Customer", "Bouncer", "Hostess", "Head Chef", "Food Critic", "Waiter"]
+  },
+  {
+    "name": "School",
+    "roles": ["Gym Teacher", "Student", "Principal", "Security Guard", "Janitor", "Lunch Lady", "Maintenance Man"]
+  },
+  {
+    "name": "Service Station",
+    "roles": ["Manager", "Tire Specialist", "Biker", "Car Owner", "Car Wash Operator", "Electrician", "Auto Mechanic"]
+  },
+  {
+    "name": "Space Station",
+    "roles": ["Engineer", "Alien", "Space Tourist", "Pilot", "Commander", "Scientist", "Doctor"]
+  },
+  {
+    "name": "Submarine",
+    "roles": ["Cook", "Commander", "Sonar Technician", "Electronics Technician", "Sailor", "Radioman", "Navigator"]
+  },
+  {
+    "name": "Supermarket",
+    "roles": ["Customer", "Cashier", "Butcher", "Janitor", "Security Guard", "Food Sample Demonstrator", "Shelf Stocker"]
+  },
+  {
+    "name": "Theater",
+    "roles": ["Coat Check Lady", "Prompter", "Cashier", "Visitor", "Director", "Actor", "Usher"]
+  },
+  {
+    "name": "University",
+    "roles": ["Graduate Student", "Professor", "Dean", "Psychologist", "Maintenance Man", "Student", "Janitor"]
+  },
+  {
+    "name": "World War II Squad",
+    "roles": ["Resistance Fighter", "Radioman", "Scout", "Medic", "Cook", "Imprisoned Nazi Officer", "Soldier"]
+  },
+  {
+    "name": "Zoo",
+    "roles": ["Photographer", "Child", "Zookeeper", "Veterinarian", "Tourist", "Food Vendor", "Security Guard"]
+  }
+]

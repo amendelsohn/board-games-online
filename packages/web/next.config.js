@@ -11,6 +11,7 @@ const nextConfig = {
     "@bgo/games-tictactoe",
     "@bgo/games-connectfour",
     "@bgo/games-codenames",
+    "@bgo/games-spyfall",
   ],
 };
 

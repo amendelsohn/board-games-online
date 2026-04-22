@@ -303,10 +303,12 @@ function gameLabel(type: string): string {
   if (type === "tic-tac-toe") return "Tic-Tac-Toe";
   if (type === "connect-four") return "Connect Four";
   if (type === "codenames") return "Codenames";
+  if (type === "spyfall") return "Spyfall";
   return type;
 }
 
 function moduleMinPlayers(type: string): number {
   if (type === "codenames") return 4;
+  if (type === "spyfall") return 3;
   return 2;
 }

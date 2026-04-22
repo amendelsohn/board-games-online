@@ -4,6 +4,7 @@ import { registerClientModule } from "@bgo/sdk-client";
 import { ticTacToeClientModule } from "@bgo/games-tictactoe/client";
 import { connectFourClientModule } from "@bgo/games-connectfour/client";
 import { codenamesClientModule } from "@bgo/games-codenames/client";
+import { spyfallClientModule } from "@bgo/games-spyfall/client";
 
 let registered = false;
 
@@ -13,5 +14,6 @@ export function registerAllClientGames(): void {
   registerClientModule(ticTacToeClientModule);
   registerClientModule(connectFourClientModule);
   registerClientModule(codenamesClientModule);
+  registerClientModule(spyfallClientModule);
   registered = true;
 }

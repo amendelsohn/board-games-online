@@ -36,6 +36,29 @@ export function GameIcon({ type }: { type: string }) {
       </div>
     );
   }
+  if (type === "codenames") {
+    return (
+      <div className="w-14 h-14 rounded-xl bg-primary/10 grid grid-cols-5 grid-rows-5 gap-0.5 p-1.5">
+        {Array.from({ length: 25 }).map((_, i) => {
+          const kind = [0, 3, 6, 9, 12, 15, 18, 21, 24].includes(i)
+            ? "bg-error"
+            : [1, 4, 7, 10, 13, 16, 19, 22].includes(i)
+              ? "bg-info"
+              : i === 8
+                ? "bg-neutral"
+                : "bg-base-300";
+          return <span key={i} className={`rounded-sm ${kind}`} />;
+        })}
+      </div>
+    );
+  }
+  if (type === "spyfall") {
+    return (
+      <div className="w-14 h-14 rounded-xl bg-neutral flex items-center justify-center text-3xl">
+        🕵️
+      </div>
+    );
+  }
   // Generic fallback
   return (
     <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
