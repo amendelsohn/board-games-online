@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
 import {
   CONNECT_FOUR_TYPE,
@@ -6,6 +7,7 @@ import {
   dropRow,
   type ConnectFourMove,
   type ConnectFourView,
+  type Cell,
 } from "./shared";
 
 function ConnectFourBoard({
@@ -13,84 +15,114 @@ function ConnectFourBoard({
   me,
   isMyTurn,
   sendMove,
-  players,
 }: BoardProps<ConnectFourView, ConnectFourMove>) {
   const myColor = view.colors[me];
-  const opponentId = Object.keys(view.colors).find((id) => id !== me);
-  const opponent = players.find((p) => p.id === opponentId);
   const isOver = view.winner !== null || view.isDraw;
+  const [hoverCol, setHoverCol] = useState<number | null>(null);
 
-  const status = (() => {
-    if (view.winner) {
-      const winnerPlayer = players.find((p) => p.id === view.winner);
-      if (view.winner === me) return "You win!";
-      return `${winnerPlayer?.name ?? "Opponent"} wins`;
+  // Animate the most recent drop — remember which cell was just filled so
+  // we apply the drop-in animation on mount of this cell change.
+  const [droppedIndex, setDroppedIndex] = useState<number | null>(null);
+  const prevCellsRef = useRef<readonly Cell[]>(view.cells);
+  useEffect(() => {
+    const prev = prevCellsRef.current;
+    for (let i = 0; i < view.cells.length; i++) {
+      if (prev[i] === null && view.cells[i] !== null) {
+        setDroppedIndex(i);
+        setTimeout(() => setDroppedIndex(null), 400);
+        break;
+      }
     }
-    if (view.isDraw) return "Draw — the board is full";
-    if (isMyTurn) return "Your turn";
-    return `Waiting on ${opponent?.name ?? "opponent"}`;
-  })();
-
-  const colorClass = (c: string | null) => {
-    if (c === "R") return "bg-error";
-    if (c === "Y") return "bg-warning";
-    return "bg-base-100";
-  };
+    prevCellsRef.current = view.cells;
+  }, [view.cells]);
 
   const handleDrop = (col: number) => {
     if (!isMyTurn || isOver) return;
-    const row = dropRow(view.cells, col);
-    if (row < 0) return;
+    if (dropRow(view.cells, col) < 0) return;
     void sendMove({ kind: "drop", col });
+  };
+
+  const nextRowForCol = (col: number) => dropRow(view.cells, col);
+  const previewRow =
+    hoverCol !== null && !isOver && isMyTurn ? nextRowForCol(hoverCol) : -1;
+
+  const cellColor = (c: Cell): string => {
+    if (c === "R") return "bg-error";
+    if (c === "Y") return "bg-warning";
+    return "bg-primary-content/20";
   };
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <div className="flex items-center gap-4">
-        <div className="badge badge-lg badge-error text-white">
-          {myColor === "R" ? "You" : opponent?.name ?? "Opp."}
-        </div>
-        <div className="text-base-content/80">vs</div>
-        <div className="badge badge-lg badge-warning">
-          {myColor === "Y" ? "You" : opponent?.name ?? "Opp."}
-        </div>
+      <div className="text-sm text-base-content/70">
+        You are{" "}
+        <span
+          className={
+            myColor === "R"
+              ? "text-error font-bold"
+              : "text-warning font-bold"
+          }
+        >
+          {myColor === "R" ? "Red" : "Yellow"}
+        </span>
       </div>
 
-      <div className="text-xl font-semibold">{status}</div>
-
-      <div className="bg-primary p-3 rounded-xl shadow-xl">
+      <div className="bg-primary rounded-2xl shadow-xl p-3">
         <div
-          className="grid gap-1"
-          style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
+          className="grid gap-1.5"
+          style={{
+            gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
+          }}
         >
           {Array.from({ length: ROWS * COLS }).map((_, i) => {
+            const row = Math.floor(i / COLS);
             const col = i % COLS;
             const cell = view.cells[i] ?? null;
             const isLast =
               view.lastMove &&
               view.lastMove.row * COLS + view.lastMove.col === i;
             const isWinning = view.winningCells?.includes(i) ?? false;
-            const clickable = !isOver && isMyTurn;
+            const isPreview = row === previewRow && col === hoverCol;
+            const justDropped = droppedIndex === i;
+            const clickable = !isOver && isMyTurn && nextRowForCol(col) >= 0;
+
             return (
               <button
                 key={i}
                 type="button"
                 disabled={!clickable}
+                onMouseEnter={() => setHoverCol(col)}
+                onMouseLeave={() => setHoverCol(null)}
                 onClick={() => handleDrop(col)}
-                className={[
-                  "w-10 h-10 md:w-14 md:h-14 rounded-full transition-all",
-                  colorClass(cell),
-                  cell === null ? "shadow-inner" : "shadow-md",
-                  isLast ? "ring-2 ring-white" : "",
-                  isWinning ? "ring-4 ring-success scale-110" : "",
-                  clickable && cell === null ? "cursor-pointer hover:opacity-90" : "",
-                  !clickable && cell === null ? "cursor-not-allowed opacity-60" : "",
-                ].join(" ")}
+                className="w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center bg-primary-focus/30"
                 aria-label={`drop in column ${col}`}
-              />
+              >
+                <span
+                  className={[
+                    "w-full h-full rounded-full transition-all",
+                    cell !== null ? cellColor(cell) : "bg-base-100",
+                    cell !== null ? "shadow-inner" : "",
+                    isLast ? "ring-2 ring-white" : "",
+                    isWinning ? "ring-4 ring-success bgo-win" : "",
+                    isPreview && cell === null
+                      ? myColor === "R"
+                        ? "bg-error/40"
+                        : "bg-warning/40"
+                      : "",
+                    justDropped ? "bgo-drop" : "",
+                    clickable && cell === null
+                      ? "cursor-pointer"
+                      : "cursor-default",
+                  ].join(" ")}
+                />
+              </button>
             );
           })}
         </div>
+      </div>
+
+      <div className="text-xs text-base-content/50">
+        Click a column to drop your piece.
       </div>
     </div>
   );

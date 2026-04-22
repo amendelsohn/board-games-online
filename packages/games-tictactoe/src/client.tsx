@@ -7,23 +7,9 @@ function TicTacToeBoard({
   me,
   isMyTurn,
   sendMove,
-  players,
 }: BoardProps<TicTacToeView, TicTacToeMove>) {
   const mySymbol = view.symbols[me];
-  const opponentId = Object.keys(view.symbols).find((id) => id !== me);
-  const opponent = players.find((p) => p.id === opponentId);
   const isOver = view.winner !== null || view.isDraw;
-
-  const status = (() => {
-    if (view.winner) {
-      const winnerPlayer = players.find((p) => p.id === view.winner);
-      if (view.winner === me) return "You win!";
-      return `${winnerPlayer?.name ?? "Opponent"} wins`;
-    }
-    if (view.isDraw) return "Draw — no winner";
-    if (isMyTurn) return "Your turn";
-    return `Waiting on ${opponent?.name ?? "opponent"}`;
-  })();
 
   const handleClick = (i: number) => {
     if (!isMyTurn || isOver || view.cells[i] !== null) return;
@@ -32,43 +18,51 @@ function TicTacToeBoard({
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <div className="flex items-center gap-4">
-        <div className="badge badge-lg badge-primary">
-          You: {mySymbol ?? "?"}
-        </div>
-        <div className="text-base-content/80">vs</div>
-        <div className="badge badge-lg badge-secondary">
-          {opponent?.name ?? "Opponent"}: {opponentId ? view.symbols[opponentId] : "?"}
-        </div>
+      <div className="text-sm text-base-content/70">
+        You are{" "}
+        <span
+          className={mySymbol === "X" ? "text-primary font-bold" : "text-secondary font-bold"}
+        >
+          {mySymbol ?? "?"}
+        </span>
       </div>
 
-      <div className="text-xl font-semibold">{status}</div>
-
-      <div className="grid grid-cols-3 gap-2 bg-base-300 p-2 rounded-xl shadow-lg">
-        {view.cells.map((cell, i) => {
-          const isWinning = view.winningLine?.includes(i) ?? false;
-          const disabled =
-            !isMyTurn || isOver || cell !== null;
-          return (
-            <button
-              key={i}
-              type="button"
-              disabled={disabled}
-              onClick={() => handleClick(i)}
-              className={[
-                "w-24 h-24 md:w-28 md:h-28 text-5xl md:text-6xl font-bold rounded-lg",
-                "bg-base-100 hover:bg-base-200 transition-colors",
-                isWinning ? "ring-4 ring-success bg-success/10" : "",
-                cell === "X" ? "text-primary" : "",
-                cell === "O" ? "text-secondary" : "",
-                disabled && cell === null ? "cursor-not-allowed opacity-60" : "cursor-pointer",
-              ].join(" ")}
-              aria-label={`cell ${i}`}
-            >
-              {cell ?? ""}
-            </button>
-          );
-        })}
+      <div className="bg-base-300 p-3 rounded-2xl shadow-xl">
+        <div className="grid grid-cols-3 gap-2">
+          {view.cells.map((cell, i) => {
+            const isWinning = view.winningLine?.includes(i) ?? false;
+            const disabled = !isMyTurn || isOver || cell !== null;
+            return (
+              <button
+                key={i}
+                type="button"
+                disabled={disabled}
+                onClick={() => handleClick(i)}
+                className={[
+                  "relative w-24 h-24 md:w-28 md:h-28 rounded-xl",
+                  "bg-base-100 transition-all duration-150",
+                  !disabled && !isOver
+                    ? "hover:bg-base-200 hover:scale-[1.02] cursor-pointer"
+                    : "cursor-not-allowed",
+                  isWinning ? "bg-success/20 ring-2 ring-success bgo-win" : "",
+                ].join(" ")}
+                aria-label={`cell ${i}`}
+              >
+                {cell && (
+                  <span
+                    className={[
+                      "absolute inset-0 flex items-center justify-center",
+                      "text-6xl md:text-7xl font-black bgo-fade",
+                      cell === "X" ? "text-primary" : "text-secondary",
+                    ].join(" ")}
+                  >
+                    {cell}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

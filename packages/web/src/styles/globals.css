@@ -1,90 +1,90 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 @import "tailwindcss";
-@plugin "daisyui";
-
-:root {
-  --max-width: 1100px;
-  --border-radius: 12px;
-  --font-mono: ui-monospace, Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono",
-    "Roboto Mono", "Oxygen Mono", "Ubuntu Monospace", "Source Code Pro",
-    "Fira Mono", "Droid Sans Mono", "Courier New", monospace;
-
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 255, 255, 255;
-  --primary-color: #0070f3;
-  --secondary-color: #666;
+@plugin "daisyui" {
+  themes:
+    cupcake --default,
+    night --prefersdark;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+:root {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  --font-mono:
+    ui-monospace, Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono",
+    "Roboto Mono", "Oxygen Mono", "Ubuntu Monospace", "Source Code Pro",
+    "Fira Mono", "Droid Sans Mono", "Courier New", monospace;
 }
 
 html,
 body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  height: 100%;
+  font-family: var(--font-sans);
 }
 
+body {
+  background:
+    radial-gradient(
+        at 15% 5%,
+        color-mix(in srgb, var(--color-primary) 14%, transparent) 0%,
+        transparent 45%
+      ),
+    radial-gradient(
+        at 85% 15%,
+        color-mix(in srgb, var(--color-secondary) 12%, transparent) 0%,
+        transparent 50%
+      ),
+    var(--color-base-100);
+  min-height: 100vh;
+}
+
+@keyframes bgoDropIn {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(4%);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bgoFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bgoWinPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@utility bgo-drop {
+  animation: bgoDropIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@utility bgo-fade {
+  animation: bgoFadeIn 0.25s ease-out;
+}
+
+@utility bgo-win {
+  animation: bgoWinPulse 0.8s ease-in-out infinite;
+}
+
+/* Slight link reset so daisyUI buttons don't get underlined by parent anchors. */
 a {
   color: inherit;
-  text-decoration: none;
-}
-
-.container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding: 0 1rem;
-  max-width: var(--max-width);
-  margin: 0 auto;
-}
-
-header {
-  padding: 2rem 0;
-  text-align: center;
-}
-
-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem 0;
-  border-top: 1px solid #eaeaea;
-}
-
-/* Tailwind/DaisyUI extension classes */
-@layer components {
-  /* Layout extension classes */
-  .layout-container {
-    @apply min-h-screen flex flex-col px-4 max-w-[1100px] mx-auto;
-  }
-
-  .flex-center {
-    @apply flex items-center justify-center;
-  }
-
-  .grid-responsive {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
-  }
-
-  /* Custom extension classes not provided by daisyUI */
-  .section-title {
-    @apply text-2xl font-semibold text-center text-gray-700 my-6;
-  }
 }

@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { TableWire } from "@bgo/contracts";
+import type { PlayerWire, TableWire } from "@bgo/contracts";
 import { api } from "@/lib/apiClient";
 import { ensurePlayer, getStoredName, storeName } from "@/lib/playerSession";
+import { PlayerAvatar } from "@/components/PlayerAvatar";
+import { JoinCodeDisplay } from "@/components/JoinCodeDisplay";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -15,9 +17,8 @@ export default function LobbyPage() {
     typeof params.joinCode === "string" ? params.joinCode.toUpperCase() : null;
 
   const [table, setTable] = useState<TableWire | null>(null);
-  const [me, setMe] = useState<{ id: string; name: string } | null>(null);
+  const [me, setMe] = useState<PlayerWire | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const schedulePoll = useCallback(
@@ -65,13 +66,6 @@ export default function LobbyPage() {
       if (pollRef.current) clearTimeout(pollRef.current);
     };
   }, [joinCode, schedulePoll]);
-
-  const copyCode = () => {
-    if (!joinCode) return;
-    void navigator.clipboard.writeText(joinCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
 
   const start = async () => {
     if (!table) return;
@@ -148,29 +142,17 @@ export default function LobbyPage() {
   const canStart = isHost && table.players.length >= 2;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-8">
-      <div className="card bg-base-200 shadow">
-        <div className="card-body">
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="text-sm text-base-content/60">Join code</div>
-              <div className="text-6xl font-mono font-bold tracking-widest">
-                {table.joinCode}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={copyCode}
-              className="btn btn-primary btn-sm"
-            >
-              {copied ? "Copied!" : "Copy"}
-            </button>
-          </div>
-          <div className="text-base-content/70 mt-2">
-            Playing: <span className="font-semibold">{table.gameType}</span>
-          </div>
+    <div className="max-w-3xl mx-auto px-4 py-8 md:py-12 flex flex-col gap-8">
+      <section className="text-center flex flex-col items-center gap-4">
+        <div className="text-sm text-base-content/60 uppercase tracking-widest">
+          Share this code with your friends
         </div>
-      </div>
+        <JoinCodeDisplay code={table.joinCode} />
+        <div className="text-base-content/70">
+          Playing{" "}
+          <span className="font-semibold">{gameLabel(table.gameType)}</span>
+        </div>
+      </section>
 
       {error && (
         <div className="alert alert-warning">
@@ -178,22 +160,37 @@ export default function LobbyPage() {
         </div>
       )}
 
-      <div>
-        <h2 className="text-xl font-bold mb-2">
-          Players ({table.players.length})
-        </h2>
-        <ul className="menu bg-base-200 rounded-box">
+      <section>
+        <div className="flex justify-between items-end mb-3">
+          <h2 className="text-xl font-bold">Players</h2>
+          <span className="text-sm text-base-content/60">
+            {table.players.length}{" "}
+            {table.players.length === 1 ? "player" : "players"}
+          </span>
+        </div>
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {table.players.map((p) => (
-            <li key={p.id}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">{p.name}</span>
-                  {p.id === table.hostPlayerId && (
-                    <span className="badge badge-primary badge-sm">host</span>
-                  )}
-                  {p.id === me.id && (
-                    <span className="badge badge-ghost badge-sm">you</span>
-                  )}
+            <li
+              key={p.id}
+              className="card bg-base-200/60 border border-base-300"
+            >
+              <div className="card-body p-4 flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <PlayerAvatar name={p.name} size="md" />
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{p.name}</div>
+                    <div className="text-xs text-base-content/60 flex gap-1">
+                      {p.id === table.hostPlayerId && (
+                        <span className="badge badge-primary badge-xs">
+                          host
+                        </span>
+                      )}
+                      {p.id === me.id && (
+                        <span className="badge badge-ghost badge-xs">you</span>
+                      )}
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-success" />
+                    </div>
+                  </div>
                 </div>
                 {isHost && p.id !== me.id && (
                   <button
@@ -207,42 +204,62 @@ export default function LobbyPage() {
               </div>
             </li>
           ))}
+          {table.players.length < 2 && (
+            <li className="card bg-base-100 border border-dashed border-base-300 animate-pulse">
+              <div className="card-body p-4 flex-row items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-base-300" />
+                <div className="text-base-content/50 text-sm">
+                  Waiting for another player…
+                </div>
+              </div>
+            </li>
+          )}
         </ul>
-      </div>
+      </section>
 
-      <div className="card bg-base-200 shadow">
-        <div className="card-body">
-          <h2 className="card-title">Your name</h2>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              className="input input-bordered flex-1"
-              defaultValue={me.name}
-              onBlur={(e) => {
-                const v = e.target.value.trim();
-                if (v && v !== me.name) void rename(v);
-              }}
-              maxLength={40}
-            />
-          </div>
+      <section className="card bg-base-200/60 border border-base-300">
+        <div className="card-body gap-2">
+          <h2 className="card-title text-base">Your name</h2>
+          <input
+            type="text"
+            className="input input-bordered"
+            defaultValue={me.name}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v && v !== me.name) void rename(v);
+            }}
+            maxLength={40}
+          />
         </div>
-      </div>
+      </section>
 
-      <div className="flex justify-between">
+      <div className="flex justify-between items-center">
         <button type="button" className="btn btn-ghost" onClick={leave}>
           Leave
         </button>
-        {isHost && (
+        {isHost ? (
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn btn-primary btn-wide"
             disabled={!canStart}
             onClick={start}
           >
-            Start game
+            {canStart
+              ? "Start game"
+              : `Need ${2 - table.players.length} more player${2 - table.players.length === 1 ? "" : "s"}`}
           </button>
+        ) : (
+          <div className="text-sm text-base-content/60">
+            Waiting for the host to start…
+          </div>
         )}
       </div>
     </div>
   );
+}
+
+function gameLabel(type: string): string {
+  if (type === "tic-tac-toe") return "Tic-Tac-Toe";
+  if (type === "connect-four") return "Connect Four";
+  return type;
 }

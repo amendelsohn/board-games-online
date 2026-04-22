@@ -1,27 +1,21 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
+import { ThemeToggle } from "./ThemeToggle";
 
 export default function Navbar() {
   return (
-    <div className="navbar bg-base-200 shadow-md z-10">
-      {/* Left section (empty to help with centering) */}
-      <div className="navbar-start"></div>
-
-      {/* Center section with title */}
-      <div className="navbar-center">
-        <Link href="/" className="text-xl font-bold">
-          Board Games Online
+    <header className="navbar bg-base-100/80 backdrop-blur border-b border-base-300 sticky top-0 z-20">
+      <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4">
+        <Link href="/" className="text-lg md:text-xl font-bold tracking-tight">
+          <span className="text-primary">Board</span>
+          <span className="text-secondary">Games</span>
+          <span className="text-base-content/60">.online</span>
         </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+        </div>
       </div>
-
-      {/* Right section with Join button */}
-      <div className="navbar-end">
-        <Link href="/join" className="btn btn-primary">
-          Join
-        </Link>
-      </div>
-    </div>
+    </header>
   );
 }
