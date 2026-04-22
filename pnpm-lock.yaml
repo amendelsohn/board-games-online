@@ -31,6 +31,62 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  packages/games-connectfour:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
+  packages/games-tictactoe:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
   packages/sdk:
     dependencies:
       zod:
@@ -71,6 +127,12 @@ importers:
       '@bgo/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@bgo/games-connectfour':
+        specifier: workspace:*
+        version: link:../games-connectfour
+      '@bgo/games-tictactoe':
+        specifier: workspace:*
+        version: link:../games-tictactoe
       '@bgo/sdk':
         specifier: workspace:*
         version: link:../sdk
@@ -195,6 +257,21 @@ importers:
 
   packages/web:
     dependencies:
+      '@bgo/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@bgo/games-connectfour':
+        specifier: workspace:*
+        version: link:../games-connectfour
+      '@bgo/games-tictactoe':
+        specifier: workspace:*
+        version: link:../games-tictactoe
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
       '@tailwindcss/postcss':
         specifier: ^4.1.11
         version: 4.1.11
@@ -222,9 +299,15 @@ importers:
       react-icons:
         specifier: ^5.5.0
         version: 5.5.0(react@19.0.0)
+      socket.io-client:
+        specifier: ^4.8.1
+        version: 4.8.3
       typescript:
         specifier: 5.8.2
         version: 5.8.2
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       autoprefixer:
         specifier: ^10.4.21

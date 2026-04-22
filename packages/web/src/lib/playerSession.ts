@@ -1,51 +1,62 @@
 "use client";
 
-import { Player, PlayerId } from "@/types";
-import { createPlayer, getPlayer } from "./api";
+import { api } from "./apiClient";
+import type { PlayerWire } from "@bgo/contracts";
 
-const PLAYER_ID_KEY = "board_games_player_id";
+const SESSION_STORAGE_KEY = "bgo.sessionToken";
+const NAME_STORAGE_KEY = "bgo.playerName";
 
-export const getPlayerSession = async (): Promise<Player> => {
-  // Check if we have a player ID in localStorage
-  if (typeof window !== "undefined") {
-    const playerId = localStorage.getItem(PLAYER_ID_KEY);
+export function getStoredSessionToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(SESSION_STORAGE_KEY);
+}
 
-    if (playerId) {
-      try {
-        // Try to get the player from the server
-        const player = await getPlayer(playerId);
-        return player;
-      } catch (error) {
-        console.error("Failed to get player session:", error);
-        // If player not found, create a new one
-        return createNewPlayerSession();
-      }
-    }
-  }
+export function storeSessionToken(token: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SESSION_STORAGE_KEY, token);
+}
 
-  // If no player ID in localStorage, create a new player
-  return createNewPlayerSession();
-};
+export function getStoredName(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(NAME_STORAGE_KEY);
+}
 
-export const createNewPlayerSession = async (): Promise<Player> => {
+export function storeName(name: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(NAME_STORAGE_KEY, name);
+}
+
+export function clearPlayerSession(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  window.localStorage.removeItem(NAME_STORAGE_KEY);
+}
+
+/** Load or create a persistent player session. */
+export async function ensurePlayer(defaultName?: string): Promise<{
+  player: PlayerWire;
+  sessionToken: string;
+}> {
   try {
-    // Create a new player on the server
-    const player = await createPlayer();
-
-    // Save the player ID to localStorage
-    if (typeof window !== "undefined") {
-      localStorage.setItem(PLAYER_ID_KEY, player.player_id);
-    }
-
-    return player;
-  } catch (error) {
-    console.error("Failed to create new player session:", error);
-    throw error;
+    const me = await api.getMe();
+    const token = getStoredSessionToken();
+    if (token) return { player: me.player, sessionToken: token };
+  } catch {
+    // no session or invalid — fall through and create
   }
-};
 
-export const clearPlayerSession = (): void => {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem(PLAYER_ID_KEY);
-  }
-};
+  const name = defaultName ?? getStoredName() ?? randomName();
+  const created = await api.createPlayer({ name });
+  storeSessionToken(created.sessionToken);
+  storeName(created.player.name);
+  return { player: created.player, sessionToken: created.sessionToken };
+}
+
+function randomName(): string {
+  const adjectives = ["Quick", "Clever", "Lucky", "Bold", "Wise", "Swift"];
+  const nouns = ["Fox", "Hawk", "Otter", "Bear", "Lynx", "Dolphin"];
+  const a = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const n = nouns[Math.floor(Math.random() * nouns.length)];
+  const num = Math.floor(Math.random() * 1000);
+  return `${a}${n}${num}`;
+}

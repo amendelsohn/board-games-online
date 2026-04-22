@@ -4,6 +4,13 @@ const nextConfig = {
   experimental: {
     forceSwcTransforms: true,
   },
+  transpilePackages: [
+    "@bgo/sdk",
+    "@bgo/sdk-client",
+    "@bgo/contracts",
+    "@bgo/games-tictactoe",
+    "@bgo/games-connectfour",
+  ],
 };
 
 module.exports = nextConfig;

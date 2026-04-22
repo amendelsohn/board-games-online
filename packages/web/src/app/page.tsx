@@ -1,151 +1,179 @@
 "use client";
 
-import { JoinGameHome } from "@/components/lobby/JoinGameHome";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useGameSession } from "@/lib/hooks/useGameSession";
-import { createTable } from "@/lib/api";
-import { GameState } from "@/types";
-import GameCard from "@/components/GameCard";
+import type { GameMetaWire } from "@bgo/contracts";
+import { api } from "@/lib/apiClient";
+import { ensurePlayer, getStoredName, storeName } from "@/lib/playerSession";
 
 export default function Home() {
   const router = useRouter();
-  const [isCreating, setIsCreating] = useState<string | null>(null);
-  const [error, setError] = useState("");
+  const [games, setGames] = useState<GameMetaWire[] | null>(null);
+  const [name, setName] = useState<string>("");
+  const [joinCode, setJoinCode] = useState<string>("");
+  const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Use our custom hook just for player session
-  const { player, isLoadingPlayer } = useGameSession("", {
-    // Don't poll for game state, we're just using this for player session
-    pollingInterval: 0,
-  });
+  useEffect(() => {
+    api.listGames().then((r) => setGames(r.games)).catch((err) => {
+      setError((err as Error).message);
+    });
+    setName(getStoredName() ?? "");
+  }, []);
 
-  const games = [
-    {
-      id: "tic-tac-toe",
-      name: "Tic Tac Toe",
-      description: "Classic 3x3 grid game. Get three in a row to win!",
-      image: "/images/tic-tac-toe.svg",
-      players: "2 players",
-      difficulty: "easy" as const,
-    },
-    {
-      id: "chess",
-      name: "Chess",
-      description: "Strategic board game played on an 8x8 grid.",
-      image: "/images/tic-tac-toe.svg", // Replace with chess image
-      players: "2 players",
-      difficulty: "hard" as const,
-      comingSoon: true,
-    },
-    {
-      id: "connect-four",
-      name: "Connect Four",
-      description:
-        "Vertical game where players drop discs to connect 4 in a row.",
-      image: "/images/tic-tac-toe.svg", // Replace with connect four image
-      players: "2 players",
-      difficulty: "medium" as const,
-    },
-  ];
+  const saveName = async (n: string) => {
+    storeName(n);
+    try {
+      await api.updateMe({ name: n });
+    } catch {
+      // no session yet — will be set on first createPlayer
+    }
+  };
 
-  const handleCreateGame = async (gameType: string) => {
-    if (!player) {
-      setError("Player not initialized. Please try again.");
+  const startNewGame = async (gameType: string) => {
+    setError(null);
+    setPending(`create:${gameType}`);
+    try {
+      const playerName = name.trim() || getStoredName() || undefined;
+      await ensurePlayer(playerName);
+      if (playerName) await saveName(playerName);
+      const { table } = await api.createTable({ gameType });
+      router.push(`/lobby/${table.joinCode}`);
+    } catch (err) {
+      setError((err as Error).message);
+      setPending(null);
+    }
+  };
+
+  const joinExisting = async () => {
+    setError(null);
+    const code = joinCode.trim().toUpperCase();
+    if (!/^[A-Z]{4}$/.test(code)) {
+      setError("Join code must be 4 letters");
       return;
     }
-
-    setIsCreating(gameType);
-    setError("");
-
+    setPending("join");
     try {
-      // Prepare initial game state based on game type
-      let initialGameState: Partial<GameState> = {
-        current_player: player.player_id,
-        is_game_over: false,
-        winning_players: [],
-        losing_players: [],
-        game_specific_state: {
-          gameType: gameType,
-        },
-      };
-
-      // Add game-specific initial state
-      if (gameType === "tic-tac-toe") {
-        initialGameState.game_specific_state = {
-          gameType: gameType,
-          board: [
-            ["", "", ""],
-            ["", "", ""],
-            ["", "", ""],
-          ],
-        };
-      } else if (gameType === "connect-four") {
-        // 6 rows x 7 columns for Connect Four
-        initialGameState.game_specific_state = {
-          gameType: gameType,
-          board: Array(6).fill(null).map(() => Array(7).fill("")),
-        };
-      }
-
-      // Create the table with initial game state
-      const table = await createTable(
-        gameType,
-        player.player_id,
-        initialGameState
-      );
-
-      // Redirect to the new lobby
-      router.push(`/lobby/${table.join_code}`);
+      const playerName = name.trim() || getStoredName() || undefined;
+      await ensurePlayer(playerName);
+      if (playerName) await saveName(playerName);
+      const { table } = await api.joinTable(code);
+      router.push(`/lobby/${table.joinCode}`);
     } catch (err) {
-      console.error("Error creating game:", err);
-      setError(err instanceof Error ? err.message : "Failed to create game");
-      setIsCreating(null);
+      setError((err as Error).message);
+      setPending(null);
     }
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
+    <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col gap-10">
+      <section className="text-center">
+        <h1 className="text-4xl md:text-5xl font-bold mb-2">
+          Board Games Online
+        </h1>
+        <p className="text-base-content/70 text-lg">
+          Quick-play social games with friends. No account needed — pick a name,
+          share a code, start playing.
+        </p>
+      </section>
+
       {error && (
-        <div className="alert alert-error mb-6">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="stroke-current shrink-0 h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
+        <div className="alert alert-error">
           <span>{error}</span>
         </div>
       )}
 
-      <JoinGameHome />
-
-      <div className="divider">OR</div>
-
-      <section id="game-selection" className="mb-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games.map((game) => (
-            <div key={game.id} className="relative">
-              {game.comingSoon && (
-                <div className="absolute inset-0 flex items-center justify-center bg-base-200 bg-opacity-80 z-10 rounded-lg">
-                  <span className="badge badge-lg">Coming Soon</span>
-                </div>
-              )}
-              <GameCard
-                {...game}
-                onClick={() => !game.comingSoon && handleCreateGame(game.id)}
-                isLoading={isCreating === game.id}
-                disabled={!!isCreating || isLoadingPlayer || !!game.comingSoon}
-              />
-            </div>
-          ))}
+      <section className="grid md:grid-cols-2 gap-6">
+        <div className="card bg-base-200 shadow">
+          <div className="card-body">
+            <h2 className="card-title">Your name</h2>
+            <input
+              type="text"
+              placeholder="Pick a display name"
+              className="input input-bordered w-full"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => name.trim() && saveName(name.trim())}
+              maxLength={40}
+            />
+            <p className="text-sm text-base-content/60">
+              Other players at your table see this name.
+            </p>
+          </div>
         </div>
+
+        <div className="card bg-base-200 shadow">
+          <div className="card-body">
+            <h2 className="card-title">Join a game</h2>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="ABCD"
+                className="input input-bordered flex-1 uppercase tracking-widest font-mono"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                maxLength={4}
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={joinExisting}
+                disabled={pending !== null}
+              >
+                {pending === "join" ? (
+                  <span className="loading loading-spinner loading-sm" />
+                ) : (
+                  "Join"
+                )}
+              </button>
+            </div>
+            <p className="text-sm text-base-content/60">
+              Enter the 4-letter code from the host.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-2xl font-bold mb-4">Start a new game</h2>
+        {games === null ? (
+          <div className="flex justify-center py-10">
+            <span className="loading loading-spinner loading-lg" />
+          </div>
+        ) : games.length === 0 ? (
+          <div className="alert alert-info">
+            <span>No games installed on this server.</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {games.map((g) => (
+              <button
+                key={g.type}
+                type="button"
+                onClick={() => startNewGame(g.type)}
+                disabled={pending !== null}
+                className="card bg-base-100 shadow hover:shadow-xl transition-shadow text-left p-6 disabled:opacity-60"
+              >
+                <div className="card-title mb-2">{g.displayName}</div>
+                <div className="text-sm text-base-content/70 mb-4">
+                  {g.description}
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="badge badge-outline">
+                    {g.minPlayers === g.maxPlayers
+                      ? `${g.minPlayers} players`
+                      : `${g.minPlayers}–${g.maxPlayers} players`}
+                  </span>
+                  {pending === `create:${g.type}` ? (
+                    <span className="loading loading-spinner loading-sm" />
+                  ) : (
+                    <span className="text-primary font-semibold">Start →</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
