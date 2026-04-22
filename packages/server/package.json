@@ -22,18 +22,13 @@
   },
   "dependencies": {
     "@bgo/contracts": "workspace:*",
+    "@bgo/games-battleship": "workspace:*",
     "@bgo/games-checkers": "workspace:*",
     "@bgo/games-codenames": "workspace:*",
     "@bgo/games-connectfour": "workspace:*",
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "@bgo/games-reversi": "workspace:*",
-=======
-    "@bgo/games-gomoku": "workspace:*",
->>>>>>> game/gomoku
-=======
     "@bgo/games-dotsandboxes": "workspace:*",
->>>>>>> game/dotsandboxes
+    "@bgo/games-gomoku": "workspace:*",
+    "@bgo/games-reversi": "workspace:*",
     "@bgo/games-spyfall": "workspace:*",
     "@bgo/games-tictactoe": "workspace:*",
     "@bgo/sdk": "workspace:*",

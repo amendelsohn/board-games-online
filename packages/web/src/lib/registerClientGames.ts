@@ -9,6 +9,7 @@ import { reversiClientModule } from "@bgo/games-reversi/client";
 import { checkersClientModule } from "@bgo/games-checkers/client";
 import { gomokuClientModule } from "@bgo/games-gomoku/client";
 import { dotsAndBoxesClientModule } from "@bgo/games-dotsandboxes/client";
+import { battleshipClientModule } from "@bgo/games-battleship/client";
 
 let registered = false;
 
@@ -23,5 +24,6 @@ export function registerAllClientGames(): void {
   registerClientModule(checkersClientModule);
   registerClientModule(gomokuClientModule);
   registerClientModule(dotsAndBoxesClientModule);
+  registerClientModule(battleshipClientModule);
   registered = true;
 }
