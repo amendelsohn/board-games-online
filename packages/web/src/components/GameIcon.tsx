@@ -206,6 +206,67 @@ export function GameIcon({
     );
   }
 
+  if (type === "gomoku") {
+    // Mini 5x5 intersection of a Go board with a diagonal of five stones
+    // (black+white alternating) cutting across — evokes the winning line.
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          <rect
+            width="56"
+            height="56"
+            fill="color-mix(in oklch, var(--color-warning) 32%, var(--color-base-300) 68%)"
+          />
+          {/* 5x5 grid lines — cell centers at 8,18,28,38,48 */}
+          <g
+            stroke="color-mix(in oklch, var(--color-neutral) 55%, transparent)"
+            strokeWidth="1"
+            strokeLinecap="round"
+          >
+            {[8, 18, 28, 38, 48].map((pos) => (
+              <g key={pos}>
+                <line x1="8" y1={pos} x2="48" y2={pos} />
+                <line x1={pos} y1="8" x2={pos} y2="48" />
+              </g>
+            ))}
+          </g>
+          <circle
+            cx="28"
+            cy="28"
+            r="1.8"
+            fill="color-mix(in oklch, var(--color-neutral) 80%, transparent)"
+          />
+          {/* Diagonal winning line of 5 alternating stones */}
+          {[
+            { x: 8, y: 8, c: "B" },
+            { x: 18, y: 18, c: "W" },
+            { x: 28, y: 28, c: "B" },
+            { x: 38, y: 38, c: "W" },
+            { x: 48, y: 48, c: "B" },
+          ].map((s, i) => (
+            <circle
+              key={i}
+              cx={s.x}
+              cy={s.y}
+              r="5"
+              fill={
+                s.c === "B"
+                  ? "var(--color-neutral)"
+                  : "var(--color-base-100)"
+              }
+              stroke={
+                s.c === "W"
+                  ? "color-mix(in oklch, var(--color-neutral) 40%, transparent)"
+                  : "none"
+              }
+              strokeWidth="0.75"
+            />
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>
