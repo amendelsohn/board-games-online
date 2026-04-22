@@ -1139,6 +1139,216 @@ export function GameIcon({
     );
   }
 
+  if (type === "coup") {
+    // A short coin stack on the left, a fanned pair of face-down cards on
+    // the right — bluffing + bankroll, the two things Coup is about.
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          <defs>
+            <radialGradient id="coup-bg" cx="50%" cy="55%" r="75%">
+              <stop
+                offset="0%"
+                stopColor="var(--color-warning)"
+                stopOpacity="0.18"
+              />
+              <stop
+                offset="100%"
+                stopColor="var(--color-neutral)"
+                stopOpacity="0.04"
+              />
+            </radialGradient>
+            <linearGradient id="coup-card-back" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="var(--color-primary)" />
+              <stop offset="100%" stopColor="var(--color-secondary)" />
+            </linearGradient>
+          </defs>
+          <rect width="56" height="56" fill="url(#coup-bg)" />
+          {/* coin tower (left) — 4 stacked coins */}
+          <g>
+            {[40, 34, 28, 22].map((cy, i) => (
+              <g key={i}>
+                <ellipse
+                  cx="15"
+                  cy={cy}
+                  rx="8"
+                  ry="2.6"
+                  fill="var(--color-warning)"
+                  stroke="color-mix(in oklch, oklch(0% 0 0) 35%, transparent)"
+                  strokeWidth="0.6"
+                />
+                <ellipse
+                  cx="15"
+                  cy={cy - 0.8}
+                  rx="6"
+                  ry="1.2"
+                  fill="oklch(100% 0 0 / 0.25)"
+                />
+              </g>
+            ))}
+            {/* the topmost coin gets a subtle rim */}
+            <ellipse
+              cx="15"
+              cy="22"
+              rx="3"
+              ry="0.9"
+              fill="color-mix(in oklch, var(--color-warning) 65%, black)"
+              opacity="0.3"
+            />
+          </g>
+          {/* fanned card pair (right) */}
+          <g transform="translate(32 14)">
+            {/* back card — tilted left */}
+            <g transform="rotate(-15 8 18)">
+              <rect
+                x="0"
+                y="0"
+                width="16"
+                height="22"
+                rx="2"
+                fill="url(#coup-card-back)"
+                stroke="color-mix(in oklch, oklch(0% 0 0) 35%, transparent)"
+                strokeWidth="0.75"
+              />
+              <rect
+                x="1.5"
+                y="1.5"
+                width="13"
+                height="19"
+                rx="1.5"
+                fill="none"
+                stroke="oklch(100% 0 0 / 0.3)"
+                strokeWidth="0.7"
+              />
+              {/* ornamental dot pattern on the back */}
+              <circle cx="8" cy="11" r="1.6" fill="oklch(100% 0 0 / 0.55)" />
+              <circle cx="8" cy="7" r="0.7" fill="oklch(100% 0 0 / 0.35)" />
+              <circle cx="8" cy="15" r="0.7" fill="oklch(100% 0 0 / 0.35)" />
+            </g>
+            {/* front card — tilted right, overlapping */}
+            <g transform="rotate(14 14 18)">
+              <rect
+                x="6"
+                y="2"
+                width="16"
+                height="22"
+                rx="2"
+                fill="url(#coup-card-back)"
+                stroke="color-mix(in oklch, oklch(0% 0 0) 35%, transparent)"
+                strokeWidth="0.75"
+              />
+              <rect
+                x="7.5"
+                y="3.5"
+                width="13"
+                height="19"
+                rx="1.5"
+                fill="none"
+                stroke="oklch(100% 0 0 / 0.3)"
+                strokeWidth="0.7"
+              />
+              <circle cx="14" cy="13" r="1.6" fill="oklch(100% 0 0 / 0.55)" />
+              <circle cx="14" cy="9" r="0.7" fill="oklch(100% 0 0 / 0.35)" />
+              <circle cx="14" cy="17" r="0.7" fill="oklch(100% 0 0 / 0.35)" />
+            </g>
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "love-letter") {
+    // Sealed love letter — an envelope with a crimson heart-shaped wax seal
+    // and a pale pink ribbon flourish.
+    return (
+      <div className={wrap}>
+        <svg viewBox="0 0 56 56" className="h-full w-full">
+          <defs>
+            <radialGradient id="ll-bg" cx="50%" cy="35%" r="80%">
+              <stop
+                offset="0%"
+                stopColor="var(--color-error)"
+                stopOpacity="0.12"
+              />
+              <stop
+                offset="100%"
+                stopColor="var(--color-base-300)"
+                stopOpacity="0.05"
+              />
+            </radialGradient>
+          </defs>
+          <rect width="56" height="56" fill="url(#ll-bg)" />
+          {/* envelope body */}
+          <rect
+            x="8"
+            y="16"
+            width="40"
+            height="28"
+            rx="2.5"
+            fill="var(--color-base-100)"
+            stroke="color-mix(in oklch, var(--color-neutral) 45%, transparent)"
+            strokeWidth="1.2"
+          />
+          {/* envelope flap (triangle at top) */}
+          <path
+            d="M8 18.5 L28 33 L48 18.5"
+            fill="color-mix(in oklch, var(--color-base-200) 80%, var(--color-neutral) 10%)"
+            stroke="color-mix(in oklch, var(--color-neutral) 45%, transparent)"
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+          {/* envelope bottom folds (faint) */}
+          <g
+            stroke="color-mix(in oklch, var(--color-neutral) 25%, transparent)"
+            strokeWidth="0.8"
+            fill="none"
+          >
+            <line x1="8" y1="44" x2="22" y2="32" />
+            <line x1="48" y1="44" x2="34" y2="32" />
+          </g>
+          {/* heart wax seal in the center */}
+          <g
+            style={{
+              filter: "drop-shadow(0 1px 1px oklch(0% 0 0 / 0.3))",
+            }}
+          >
+            <path
+              d="M28 36
+                C 22 31, 18 28, 20 24
+                C 22 21, 26 21.5, 28 25
+                C 30 21.5, 34 21, 36 24
+                C 38 28, 34 31, 28 36 Z"
+              fill="var(--color-error)"
+              stroke="color-mix(in oklch, var(--color-error) 55%, black)"
+              strokeWidth="0.75"
+            />
+            {/* seal highlight */}
+            <ellipse
+              cx="25"
+              cy="25"
+              rx="1.6"
+              ry="1"
+              fill="oklch(100% 0 0 / 0.35)"
+            />
+            {/* a subtle "8" stamped into the seal — nods to Princess rank */}
+            <text
+              x="28"
+              y="32.5"
+              textAnchor="middle"
+              fontSize="5"
+              fontWeight="700"
+              fontFamily="var(--font-display, serif)"
+              fill="color-mix(in oklch, var(--color-error) 45%, black)"
+              opacity="0.8"
+            >
+              8
+            </text>
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>

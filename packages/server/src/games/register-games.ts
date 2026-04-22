@@ -16,6 +16,8 @@ import { mancalaServerModule } from '@bgo/games-mancala/server';
 import { liarsDiceServerModule } from '@bgo/games-liarsdice/server';
 import { yahtzeeServerModule } from '@bgo/games-yahtzee/server';
 import { avalonServerModule } from '@bgo/games-avalon/server';
+import { coupServerModule } from '@bgo/games-coup/server';
+import { loveLetterServerModule } from '@bgo/games-loveletter/server';
 import type { GamesRegistry } from './games-registry.service';
 
 /** Registers every installed game module with the registry at bootstrap. */
@@ -38,4 +40,6 @@ export function registerAllGames(registry: GamesRegistry): void {
   registry.register(liarsDiceServerModule);
   registry.register(yahtzeeServerModule);
   registry.register(avalonServerModule);
+  registry.register(coupServerModule);
+  registry.register(loveLetterServerModule);
 }

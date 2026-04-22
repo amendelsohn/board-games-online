@@ -16,6 +16,7 @@ export type ConnectionState =
   | "idle"
   | "connecting"
   | "connected"
+  | "reconnecting"
   | "disconnected"
   | "error";
 
@@ -27,6 +28,8 @@ export interface MatchSocketState<V = unknown> {
   isTerminal: boolean;
   outcome: MatchEndedPayload["outcome"] | null;
   connectionState: ConnectionState;
+  /** Number of reconnection attempts since the last successful connect. */
+  reconnectAttempt: number;
   error: string | null;
   sendMove: (move: unknown) => Promise<void>;
   addEventListener: (fn: (event: MatchEventPayload["event"]) => void) => () => void;
@@ -42,6 +45,11 @@ export interface UseMatchSocketOptions {
  * Subscribes a client to a live match over WebSocket. Emits the per-player
  * `view` returned by the server's GameModule.view() projection on every
  * state change. Unmounts cleanly; safe to toggle matchId.
+ *
+ * Resilience: socket.io's built-in manager handles reconnection with
+ * exponential backoff + jitter (configured below: 1s → 30s cap, ±50%
+ * randomization, unlimited attempts). On each successful (re)connect we
+ * re-emit SUBSCRIBE_MATCH so the server replays the current view.
  */
 export function useMatchSocket<V = unknown>({
   matchId,
@@ -56,6 +64,7 @@ export function useMatchSocket<V = unknown>({
   const [outcome, setOutcome] =
     useState<MatchEndedPayload["outcome"] | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
@@ -67,14 +76,26 @@ export function useMatchSocket<V = unknown>({
     if (!matchId || !playerId || !sessionToken) return;
 
     setConnectionState("connecting");
+    setReconnectAttempt(0);
     const socket = io(BASE_WS_URL, {
       transports: ["websocket"],
       auth: { playerId, sessionToken },
+      // Exponential backoff with jitter, capped at 30s. Unlimited retries —
+      // the user can leave the page to abort.
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1_000,
+      reconnectionDelayMax: 30_000,
+      randomizationFactor: 0.5,
+      timeout: 10_000,
     });
     socketRef.current = socket;
 
+    // Both the initial handshake and every reconnect fire `connect`.
+    // Re-emitting subscribe_match lets the server replay the current view.
     socket.on("connect", () => {
       setConnectionState("connected");
+      setReconnectAttempt(0);
       setError(null);
       socket.emit(WS.SUBSCRIBE_MATCH, {
         matchId,
@@ -83,11 +104,40 @@ export function useMatchSocket<V = unknown>({
       });
     });
 
-    socket.on("disconnect", () => setConnectionState("disconnected"));
-    socket.on("connect_error", (err) => {
-      setConnectionState("error");
-      setError(err.message);
+    socket.on("disconnect", (reason) => {
+      // "io client disconnect" = we called socket.disconnect() ourselves;
+      // anything else means the transport dropped and the manager will retry.
+      if (reason === "io client disconnect") {
+        setConnectionState("idle");
+      } else {
+        setConnectionState("reconnecting");
+      }
     });
+
+    socket.on("connect_error", (err) => {
+      // First failed handshake — manager will keep retrying. Surface the
+      // reason once so the UI can show something useful.
+      setError(err.message);
+      setConnectionState((s) => (s === "reconnecting" ? s : "reconnecting"));
+    });
+
+    // Manager-level events (reconnection state machine).
+    const manager = socket.io;
+    const onReconnectAttempt = (attempt: number) => {
+      setConnectionState("reconnecting");
+      setReconnectAttempt(attempt);
+    };
+    const onReconnect = () => {
+      // Followed by `connect` on the socket, which will flip us to "connected".
+      setReconnectAttempt(0);
+    };
+    const onReconnectFailed = () => {
+      setConnectionState("error");
+      setError("Could not reconnect to match.");
+    };
+    manager.on("reconnect_attempt", onReconnectAttempt);
+    manager.on("reconnect", onReconnect);
+    manager.on("reconnect_failed", onReconnectFailed);
 
     socket.on(WS.VIEW_UPDATED, (payload: ViewUpdatedPayload) => {
       if (payload.matchId !== matchId) return;
@@ -115,10 +165,18 @@ export function useMatchSocket<V = unknown>({
     });
 
     return () => {
-      socket.emit(WS.LEAVE_MATCH, { matchId });
+      // Leave cleanly if we're actually connected; otherwise just shut down
+      // the manager so any pending reconnect timer is cancelled.
+      if (socket.connected) {
+        socket.emit(WS.LEAVE_MATCH, { matchId });
+      }
+      manager.off("reconnect_attempt", onReconnectAttempt);
+      manager.off("reconnect", onReconnect);
+      manager.off("reconnect_failed", onReconnectFailed);
       socket.disconnect();
       socketRef.current = null;
       setConnectionState("idle");
+      setReconnectAttempt(0);
     };
   }, [matchId, playerId, sessionToken]);
 
@@ -163,6 +221,7 @@ export function useMatchSocket<V = unknown>({
       isTerminal,
       outcome,
       connectionState,
+      reconnectAttempt,
       error,
       sendMove,
       addEventListener,
@@ -175,6 +234,7 @@ export function useMatchSocket<V = unknown>({
       isTerminal,
       outcome,
       connectionState,
+      reconnectAttempt,
       error,
       sendMove,
       addEventListener,

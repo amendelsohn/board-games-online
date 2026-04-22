@@ -171,6 +171,34 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  packages/games-coup:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
   packages/games-dotsandboxes:
     dependencies:
       '@bgo/sdk':
@@ -256,6 +284,34 @@ importers:
         version: 5.8.2
 
   packages/games-liarsdice:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
+  packages/games-loveletter:
     dependencies:
       '@bgo/sdk':
         specifier: workspace:*
@@ -590,6 +646,9 @@ importers:
       '@bgo/games-connectfour':
         specifier: workspace:*
         version: link:../games-connectfour
+      '@bgo/games-coup':
+        specifier: workspace:*
+        version: link:../games-coup
       '@bgo/games-dotsandboxes':
         specifier: workspace:*
         version: link:../games-dotsandboxes
@@ -602,6 +661,9 @@ importers:
       '@bgo/games-liarsdice':
         specifier: workspace:*
         version: link:../games-liarsdice
+      '@bgo/games-loveletter':
+        specifier: workspace:*
+        version: link:../games-loveletter
       '@bgo/games-mancala':
         specifier: workspace:*
         version: link:../games-mancala
@@ -771,6 +833,9 @@ importers:
       '@bgo/games-connectfour':
         specifier: workspace:*
         version: link:../games-connectfour
+      '@bgo/games-coup':
+        specifier: workspace:*
+        version: link:../games-coup
       '@bgo/games-dotsandboxes':
         specifier: workspace:*
         version: link:../games-dotsandboxes
@@ -783,6 +848,9 @@ importers:
       '@bgo/games-liarsdice':
         specifier: workspace:*
         version: link:../games-liarsdice
+      '@bgo/games-loveletter':
+        specifier: workspace:*
+        version: link:../games-loveletter
       '@bgo/games-mancala':
         specifier: workspace:*
         version: link:../games-mancala
