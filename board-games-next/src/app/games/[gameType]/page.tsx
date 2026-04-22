@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { getPlayerSession } from "@/lib/playerSession";
 import { getTable } from "@/lib/api";
 import { Player, Table, TableStatus } from "@/types";
-import GameBoard from "@/components/tic-tac-toe/GameBoard";
+import TicTacToeGameBoard from "@/components/tic-tac-toe/GameBoard";
+import ConnectFourGameBoard from "@/components/connect-four/GameBoard";
 import Link from "next/link";
 
 interface GamePageProps {
@@ -128,7 +129,9 @@ export default function GamePage({ params }: GamePageProps) {
     if (tableId) {
       switch (gameType) {
         case "tic-tac-toe":
-          return <GameBoard tableId={tableId} />;
+          return <TicTacToeGameBoard tableId={tableId} />;
+        case "connect-four":
+          return <ConnectFourGameBoard tableId={tableId} />;
         default:
           return (
             <div className="alert alert-error">

@@ -45,7 +45,6 @@ export default function Home() {
       image: "/images/tic-tac-toe.svg", // Replace with connect four image
       players: "2 players",
       difficulty: "medium" as const,
-      comingSoon: true,
     },
   ];
 
@@ -79,6 +78,12 @@ export default function Home() {
             ["", "", ""],
             ["", "", ""],
           ],
+        };
+      } else if (gameType === "connect-four") {
+        // 6 rows x 7 columns for Connect Four
+        initialGameState.game_specific_state = {
+          gameType: gameType,
+          board: Array(6).fill(null).map(() => Array(7).fill("")),
         };
       }
 

@@ -155,6 +155,26 @@ export const startGame = async (
   return response.json();
 };
 
+export const resetGame = async (
+  tableId: string,
+  playerId: PlayerId
+): Promise<Table> => {
+  const response = await fetch(`${API_URL}/table/${tableId}/reset`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ player_id: playerId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to reset game");
+  }
+
+  return response.json();
+};
+
 // Game State API
 export const getGameState = async (tableId: string): Promise<GameState> => {
   const response = await fetch(`${API_URL}/table/${tableId}/game-state`);
@@ -162,6 +182,33 @@ export const getGameState = async (tableId: string): Promise<GameState> => {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || "Failed to fetch game state");
+  }
+
+  return response.json();
+};
+
+export const makeMove = async (
+  tableId: string,
+  playerId: PlayerId,
+  move: any
+): Promise<GameState> => {
+  const response = await fetch(
+    `${API_URL}/table/${tableId}/move`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        player_id: playerId,
+        move,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to make move");
   }
 
   return response.json();

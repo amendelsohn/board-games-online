@@ -134,6 +134,35 @@ export class TableController {
     }
   }
 
+  @Post(':table_id/move')
+  async makeMove(
+    @Param('table_id') table_id: string,
+    @Body('player_id') player_id: PlayerId,
+    @Body('move') move: any,
+    @Res() response: Response,
+  ): Promise<void> {
+    try {
+      // Get the table
+      const table = await this.tableService.getTable(table_id);
+
+      if (!table.game_state_id) {
+        response.status(400).json({ message: 'Game not started' });
+        return;
+      }
+
+      // Process the move using the game service
+      const updatedGameState = await this.gameStateService.processMove(
+        table.game_state_id,
+        player_id,
+        move,
+      );
+
+      response.json(updatedGameState);
+    } catch (error) {
+      response.status(400).json({ message: error.message });
+    }
+  }
+
   @Post(':table_id/game-state/update')
   async updateGameState(
     @Param('table_id') table_id: string,
@@ -163,6 +192,36 @@ export class TableController {
       );
 
       response.json(updatedGameState);
+    } catch (error) {
+      response.status(400).json({ message: error.message });
+    }
+  }
+
+  @Post(':table_id/reset')
+  async resetGame(
+    @Param('table_id') table_id: string,
+    @Body('player_id') player_id: PlayerId,
+    @Res() response: Response,
+  ): Promise<void> {
+    try {
+      const table = await this.tableService.getTable(table_id);
+
+      // Only allow players in the game to reset
+      if (!table.player_ids.includes(player_id)) {
+        response.status(403).json({ message: 'Only players in the game can reset it' });
+        return;
+      }
+
+      // Get current game state to check if game is actually over
+      const gameState = await this.gameStateService.getGameStateFromTable(table_id);
+      if (!gameState.is_game_over) {
+        response.status(400).json({ message: 'Game is not over yet' });
+        return;
+      }
+
+      // Reset the game with randomized starting player
+      const resetTable = await this.tableService.resetGame(table_id);
+      response.json(resetTable);
     } catch (error) {
       response.status(400).json({ message: error.message });
     }

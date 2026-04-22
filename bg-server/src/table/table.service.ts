@@ -112,6 +112,11 @@ export class TableService {
           ['', '', ''],
         ],
       };
+    } else if (table.game_type === 'connect-four') {
+      // Initialize with empty 6x7 board for Connect Four
+      initialState = {
+        board: Array(6).fill(null).map(() => Array(7).fill('')),
+      };
     }
 
     // Only create a game state if one doesn't exist yet
@@ -158,6 +163,62 @@ export class TableService {
       );
     }
     return result;
+  }
+
+  // Reset a game to initial state with randomized starting player
+  async resetGame(table_id: string): Promise<TableType> {
+    const table = await this.getTableById(table_id);
+
+    if (table.status !== TableStatus.PLAYING) {
+      throw new BadRequestException('Can only reset games that are currently playing');
+    }
+
+    // Delete old game state if it exists
+    if (table.game_state_id) {
+      // The game state service should handle cleanup
+      // For now, we'll just create a new one
+    }
+
+    // Create initial state based on game type
+    let initialState = {};
+
+    if (table.game_type === 'tic-tac-toe') {
+      // Initialize with empty 3x3 board for Tic-Tac-Toe
+      initialState = {
+        board: [
+          ['', '', ''],
+          ['', '', ''],
+          ['', '', ''],
+        ],
+      };
+    } else if (table.game_type === 'connect-four') {
+      // Initialize with empty 6x7 board for Connect Four
+      initialState = {
+        board: Array(6).fill(null).map(() => Array(7).fill('')),
+      };
+    }
+
+    // Randomize starting player
+    const randomIndex = Math.floor(Math.random() * table.player_ids.length);
+    const shuffledPlayers = [...table.player_ids];
+    
+    // Simple shuffle to randomize player order
+    for (let i = shuffledPlayers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledPlayers[i], shuffledPlayers[j]] = [shuffledPlayers[j], shuffledPlayers[i]];
+    }
+
+    // Create new game state with randomized starting player
+    table.game_state_id = await this.gameStateService.createGameState(
+      shuffledPlayers,
+      table.game_type,
+      initialState,
+    );
+
+    // Keep status as PLAYING
+    await this.tableRepository.save(table);
+
+    return (table as unknown) as TableType;
   }
 
   // Helper method to get a table by ID
