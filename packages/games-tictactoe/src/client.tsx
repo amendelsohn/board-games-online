@@ -17,17 +17,30 @@ function TicTacToeBoard({
   };
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <div className="text-sm text-base-content/70">
-        You are{" "}
+    <div className="flex flex-col items-center gap-5">
+      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+        You play as{" "}
         <span
-          className={mySymbol === "X" ? "text-primary font-bold" : "text-secondary font-bold"}
+          className={
+            mySymbol === "X"
+              ? "text-primary font-bold"
+              : "text-secondary font-bold"
+          }
+          style={{ letterSpacing: "0" }}
         >
           {mySymbol ?? "?"}
         </span>
       </div>
 
-      <div className="bg-base-300 p-3 rounded-2xl shadow-xl">
+      <div
+        className="relative rounded-2xl p-3 md:p-4"
+        style={{
+          background:
+            "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
+          boxShadow:
+            "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
+        }}
+      >
         <div className="grid grid-cols-3 gap-2">
           {view.cells.map((cell, i) => {
             const isWinning = view.winningLine?.includes(i) ?? false;
@@ -39,22 +52,32 @@ function TicTacToeBoard({
                 disabled={disabled}
                 onClick={() => handleClick(i)}
                 className={[
-                  "relative w-24 h-24 md:w-28 md:h-28 rounded-xl",
-                  "bg-base-100 transition-all duration-150",
+                  "relative h-24 w-24 md:h-28 md:w-28 rounded-xl",
+                  "bg-base-100",
+                  "transition-all duration-200",
                   !disabled && !isOver
-                    ? "hover:bg-base-200 hover:scale-[1.02] cursor-pointer"
-                    : "cursor-not-allowed",
-                  isWinning ? "bg-success/20 ring-2 ring-success bgo-win" : "",
+                    ? "hover:scale-[1.03] hover:bg-base-200 cursor-pointer"
+                    : "cursor-default",
+                  isWinning
+                    ? "bg-success/15 ring-2 ring-success parlor-win"
+                    : "",
                 ].join(" ")}
+                style={{
+                  boxShadow: isWinning
+                    ? "0 0 0 2px var(--color-success), 0 10px 24px color-mix(in oklch, var(--color-success) 25%, transparent)"
+                    : "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
+                }}
                 aria-label={`cell ${i}`}
               >
                 {cell && (
                   <span
                     className={[
                       "absolute inset-0 flex items-center justify-center",
-                      "text-6xl md:text-7xl font-black bgo-fade",
+                      "font-display leading-none parlor-fade",
+                      "text-6xl md:text-7xl",
                       cell === "X" ? "text-primary" : "text-secondary",
                     ].join(" ")}
+                    style={{ fontVariationSettings: "'wght' 700" }}
                   >
                     {cell}
                   </span>

@@ -40,3 +40,7 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Playwright MCP verification artifacts
+.playwright-mcp/
+/*.png

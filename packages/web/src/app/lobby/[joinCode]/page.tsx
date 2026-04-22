@@ -130,31 +130,28 @@ export default function LobbyPage() {
 
   if (!joinCode) {
     return (
-      <div className="alert alert-error max-w-md mx-auto mt-10">
-        <span>No join code in URL</span>
+      <div className="max-w-md mx-auto mt-16 px-6">
+        <div className="surface-ivory p-5 text-error">No join code in URL.</div>
       </div>
     );
   }
 
   if (error && !table) {
     return (
-      <div className="max-w-md mx-auto mt-10 flex flex-col gap-4">
-        <div className="alert alert-error">
-          <span>{error}</span>
-        </div>
-        <button className="btn" onClick={() => router.push("/")}>
-          Back home
+      <div className="max-w-md mx-auto mt-16 px-6 flex flex-col gap-4">
+        <div className="surface-ivory p-5 text-error">{error}</div>
+        <button
+          className="btn btn-ghost self-start"
+          onClick={() => router.push("/")}
+        >
+          ← Back home
         </button>
       </div>
     );
   }
 
   if (!table || !me) {
-    return (
-      <div className="flex justify-center items-center mt-20">
-        <span className="loading loading-spinner loading-lg" />
-      </div>
-    );
+    return <LobbyLoading />;
   }
 
   const isHost = me.id === table.hostPlayerId;
@@ -163,107 +160,124 @@ export default function LobbyPage() {
   const LobbyPanel = module_?.LobbyPanel;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 flex flex-col gap-8">
-      <section className="text-center flex flex-col items-center gap-4">
-        <div className="text-sm text-base-content/60 uppercase tracking-widest">
-          Share this code with your friends
+    <div className="max-w-4xl mx-auto px-5 md:px-8 pt-8 md:pt-12 pb-20 flex flex-col gap-12">
+      {/* ========== Header: game + code ========== */}
+      <section className="flex flex-col items-center gap-5 text-center parlor-rise">
+        <div className="rule-ornament">
+          <span className="rule-ornament-line" />
+          <span>◆ {gameLabel(table.gameType)} ◆</span>
+          <span className="rule-ornament-line" />
         </div>
-        <JoinCodeDisplay code={table.joinCode} />
-        <div className="text-base-content/70">
-          Playing{" "}
-          <span className="font-semibold">{gameLabel(table.gameType)}</span>
+        <h1
+          className="font-display"
+          style={{ fontSize: "var(--text-display-sm)" }}
+        >
+          Table's set. Waiting on friends.
+        </h1>
+        <p className="text-base-content/65 max-w-md">
+          Share this code with anyone you'd like to join. Anyone with it can
+          walk right in — no account needed.
+        </p>
+        <div className="mt-2">
+          <JoinCodeDisplay code={table.joinCode} />
         </div>
       </section>
 
       {error && (
-        <div className="alert alert-warning">
-          <span>{error}</span>
+        <div
+          role="alert"
+          className="border border-warning/40 bg-warning/10 text-warning-content px-4 py-3 rounded-lg text-sm"
+        >
+          {error}
         </div>
       )}
 
-      <section>
-        <div className="flex justify-between items-end mb-3">
-          <h2 className="text-xl font-bold">Players</h2>
-          <span className="text-sm text-base-content/60">
-            {table.players.length}{" "}
-            {table.players.length === 1 ? "player" : "players"}
+      {/* ========== Players ========== */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl tracking-tight">At the table</h2>
+          <span className="text-xs tabular uppercase tracking-[0.2em] text-base-content/50">
+            {table.players.length} / {minPlayers}
+            {minPlayers === 2 ? "+ needed" : " min"}
           </span>
         </div>
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {table.players.map((p) => (
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {table.players.map((p, i) => (
             <li
               key={p.id}
-              className="card bg-base-200/60 border border-base-300"
+              className="parlor-rise rise-stagger surface-ivory p-4 flex items-center justify-between gap-3"
+              style={{ ["--i" as string]: i }}
             >
-              <div className="card-body p-4 flex-row items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <PlayerAvatar name={p.name} size="md" />
-                  <div className="min-w-0">
-                    <div className="font-semibold truncate">{p.name}</div>
-                    <div className="text-xs text-base-content/60 flex gap-1">
-                      {p.id === table.hostPlayerId && (
-                        <span className="badge badge-primary badge-xs">
-                          host
-                        </span>
-                      )}
-                      {p.id === me.id && (
-                        <span className="badge badge-ghost badge-xs">you</span>
-                      )}
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-success" />
-                    </div>
+              <div className="flex items-center gap-3 min-w-0">
+                <PlayerAvatar name={p.name} size="md" />
+                <div className="min-w-0">
+                  <div className="font-display text-lg leading-tight truncate">
+                    {p.name}
+                  </div>
+                  <div className="text-xs text-base-content/55 flex items-center gap-2 mt-0.5">
+                    <span
+                      className="inline-block h-1.5 w-1.5 rounded-full bg-success"
+                      aria-hidden
+                    />
+                    {p.id === table.hostPlayerId ? "host" : "player"}
+                    {p.id === me.id ? " · you" : ""}
                   </div>
                 </div>
-                {isHost && p.id !== me.id && (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-xs text-error"
-                    onClick={() => kick(p.id)}
-                  >
-                    kick
-                  </button>
-                )}
               </div>
+              {isHost && p.id !== me.id && (
+                <button
+                  type="button"
+                  className="text-xs uppercase tracking-[0.18em] text-base-content/45 hover:text-error transition-colors"
+                  onClick={() => kick(p.id)}
+                >
+                  kick
+                </button>
+              )}
             </li>
           ))}
           {table.players.length < minPlayers && (
-            <li className="card bg-base-100 border border-dashed border-base-300 animate-pulse">
-              <div className="card-body p-4 flex-row items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-base-300" />
-                <div className="text-base-content/50 text-sm">
-                  Waiting for{" "}
-                  {minPlayers - table.players.length === 1
-                    ? "another player"
-                    : `${minPlayers - table.players.length} more players`}
-                  …
-                </div>
-              </div>
+            <li
+              className="surface-felt p-4 flex items-center gap-3"
+              style={{
+                borderStyle: "dashed",
+              }}
+            >
+              <div className="h-10 w-10 rounded-full bg-base-300/80 animate-pulse" />
+              <span className="text-sm text-base-content/55 italic">
+                Waiting for{" "}
+                {minPlayers - table.players.length === 1
+                  ? "one more"
+                  : `${minPlayers - table.players.length} more`}
+                …
+              </span>
             </li>
           )}
         </ul>
       </section>
 
       {LobbyPanel && (
-        <section>
-          <h2 className="text-xl font-bold mb-3">Game settings</h2>
-          <div className="card bg-base-200/60 border border-base-300">
-            <div className="card-body p-4">
-              <LobbyPanel
-                config={table.config ?? {}}
-                onChange={updateConfig}
-                players={table.players}
-                isHost={isHost}
-              />
-            </div>
+        <section className="flex flex-col gap-4">
+          <h2 className="font-display text-2xl tracking-tight">Game setup</h2>
+          <div className="surface-ivory p-5 md:p-6">
+            <LobbyPanel
+              config={table.config ?? {}}
+              onChange={updateConfig}
+              players={table.players}
+              isHost={isHost}
+            />
           </div>
         </section>
       )}
 
-      <section className="card bg-base-200/60 border border-base-300">
-        <div className="card-body gap-2">
-          <h2 className="card-title text-base">Your name</h2>
+      {/* ========== Your name (inline edit) ========== */}
+      <section className="surface-felt p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5">
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 mb-1">
+            You'll appear as
+          </div>
           <input
             type="text"
-            className="input input-bordered"
+            className="w-full bg-transparent border-0 outline-none font-display text-2xl"
             defaultValue={me.name}
             onBlur={(e) => {
               const v = e.target.value.trim();
@@ -272,28 +286,61 @@ export default function LobbyPage() {
             maxLength={40}
           />
         </div>
+        <div className="hidden sm:block w-px self-stretch bg-base-300/70" />
+        <button
+          type="button"
+          className="text-xs uppercase tracking-[0.2em] text-base-content/50 hover:text-base-content transition-colors"
+          onClick={leave}
+        >
+          Leave table
+        </button>
       </section>
 
-      <div className="flex justify-between items-center">
-        <button type="button" className="btn btn-ghost" onClick={leave}>
-          Leave
-        </button>
-        {isHost ? (
+      {/* ========== Start CTA — sticky-feeling footer row ========== */}
+      <section className="flex items-center justify-between gap-3 pt-2">
+        <div className="text-sm text-base-content/60">
+          {canStart
+            ? "Everyone's ready when you are."
+            : isHost
+              ? `Need ${minPlayers - table.players.length} more to begin.`
+              : "Waiting for the host to start…"}
+        </div>
+        {isHost && (
           <button
             type="button"
-            className="btn btn-primary btn-wide"
+            className={[
+              "btn btn-primary",
+              "px-7 rounded-full font-semibold tracking-wide",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+            ].join(" ")}
             disabled={!canStart}
             onClick={start}
           >
-            {canStart
-              ? "Start game"
-              : `Need ${minPlayers - table.players.length} more`}
+            Begin →
           </button>
-        ) : (
-          <div className="text-sm text-base-content/60">
-            Waiting for the host to start…
-          </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+function LobbyLoading() {
+  return (
+    <div className="max-w-md mx-auto mt-24 px-6 flex flex-col items-center gap-4">
+      <div className="flex gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="h-2 w-2 rounded-full bg-primary"
+            style={{
+              animation: "parlorWinPulse 1.2s ease-in-out infinite",
+              animationDelay: `${i * 0.12}s`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="text-sm text-base-content/60 uppercase tracking-[0.2em]">
+        Setting the table…
       </div>
     </div>
   );

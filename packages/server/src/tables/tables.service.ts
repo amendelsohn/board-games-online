@@ -41,21 +41,22 @@ export class TablesService {
         `Table ${table.id} is not accepting new players`,
       );
     }
+    // Idempotent: if the player is already seated, just return the table.
+    // Important because the lobby page re-calls join on mount after the
+    // home page already joined — without this the second call fails "full".
+    if (table.playerIds.includes(playerId)) return table;
     const mod = this.games.get(table.gameType);
     if (table.playerIds.length >= mod.maxPlayers) {
       throw new BadRequestException(
         `Table is full (max ${mod.maxPlayers} players)`,
       );
     }
-    if (!table.playerIds.includes(playerId)) {
-      const next: StoredTable = {
-        ...table,
-        playerIds: [...table.playerIds, playerId],
-      };
-      this.lobby.saveTable(next);
-      return next;
-    }
-    return table;
+    const next: StoredTable = {
+      ...table,
+      playerIds: [...table.playerIds, playerId],
+    };
+    this.lobby.saveTable(next);
+    return next;
   }
 
   updateConfig(

@@ -70,43 +70,34 @@ export default function PlayPage() {
 
   if (loadError) {
     return (
-      <div className="alert alert-error max-w-md mx-auto mt-10">
-        <span>{loadError}</span>
-      </div>
+      <CenterMessage tone="error">
+        <div>{loadError}</div>
+      </CenterMessage>
     );
   }
 
   if (!matchId || !tableId) {
     return (
-      <div className="alert alert-warning max-w-md mx-auto mt-10">
-        <span>Missing match or table identifier.</span>
-      </div>
+      <CenterMessage tone="warning">
+        <div>Missing match or table identifier.</div>
+      </CenterMessage>
     );
   }
 
   if (!table || !player || !sessionToken) {
-    return (
-      <div className="flex justify-center items-center mt-20">
-        <span className="loading loading-spinner loading-lg" />
-      </div>
-    );
+    return <ConnectingState label="Sitting down…" />;
   }
 
   if (!module_) {
     return (
-      <div className="alert alert-error max-w-md mx-auto mt-10">
-        <span>Unknown game type: {table.gameType}</span>
-      </div>
+      <CenterMessage tone="error">
+        <div>Unknown game type: {table.gameType}</div>
+      </CenterMessage>
     );
   }
 
   if (connectionState === "connecting" || !view) {
-    return (
-      <div className="flex flex-col items-center gap-4 mt-20">
-        <span className="loading loading-spinner loading-lg" />
-        <div className="text-base-content/70">Connecting to match…</div>
-      </div>
-    );
+    return <ConnectingState label="Connecting to match…" />;
   }
 
   const Board = module_.Board;
@@ -114,7 +105,7 @@ export default function PlayPage() {
   const isMyTurn = currentActors.includes(player.id);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-16">
       <MatchHeader
         gameType={table.gameType}
         players={table.players}
@@ -125,8 +116,11 @@ export default function PlayPage() {
       />
 
       {error && (
-        <div className="alert alert-warning my-4">
-          <span>{error}</span>
+        <div
+          role="alert"
+          className="mt-4 border border-warning/40 bg-warning/10 text-warning-content px-4 py-3 rounded-lg text-sm"
+        >
+          {error}
         </div>
       )}
 
@@ -138,7 +132,7 @@ export default function PlayPage() {
         />
       )}
 
-      <div className="flex flex-col items-center mt-6">
+      <div className="mt-6 md:mt-8 flex flex-col items-center">
         <Board
           view={view}
           phase={phase ?? "unknown"}
@@ -160,15 +154,19 @@ export default function PlayPage() {
       <div className="mt-10 flex justify-center">
         <button
           type="button"
-          className="btn btn-ghost"
+          className="text-xs uppercase tracking-[0.2em] text-base-content/45 hover:text-base-content transition-colors"
           onClick={() => router.push("/")}
         >
-          Back to home
+          ← Back home
         </button>
       </div>
     </div>
   );
 }
+
+/* =================================================================
+   In-match chrome. Compressed so it never competes with the board.
+   ================================================================= */
 
 function MatchHeader({
   gameType,
@@ -186,52 +184,74 @@ function MatchHeader({
   connected: boolean;
 }) {
   return (
-    <div className="card bg-base-200/60 border border-base-300">
-      <div className="card-body p-4 gap-3">
-        <div className="flex justify-between items-center flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <span className="badge badge-primary">{gameLabel(gameType)}</span>
-            {phase && (
-              <span className="badge badge-ghost">{phaseLabel(phase)}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-base-content/70">
-            <span
-              className={`inline-block w-2 h-2 rounded-full ${connected ? "bg-success" : "bg-error"}`}
-              aria-label={connected ? "connected" : "disconnected"}
-            />
-            {connected ? "connected" : "disconnected"}
-          </div>
+    <div
+      className={[
+        "flex flex-col gap-3",
+        "border-b border-base-300/70",
+        "pb-4",
+      ].join(" ")}
+    >
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-baseline gap-3 min-w-0">
+          <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+            {phase ? phaseLabel(phase) : "—"}
+          </span>
+          <h1 className="font-display text-xl md:text-2xl tracking-tight truncate">
+            {gameLabel(gameType)}
+          </h1>
         </div>
-        <div className="flex gap-3 flex-wrap">
-          {players.map((p) => {
-            const isActive = currentActors.includes(p.id);
-            return (
-              <div
-                key={p.id}
-                className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-all ${
-                  isActive
-                    ? "bg-primary/10 ring-1 ring-primary"
-                    : "bg-base-100"
-                }`}
-              >
-                <PlayerAvatar name={p.name} size="sm" />
-                <div className="text-sm">
-                  <div className="font-semibold">{p.name}</div>
-                  <div className="text-xs text-base-content/60">
-                    {p.id === me ? "you" : ""}
-                  </div>
-                </div>
+        <span
+          className={[
+            "flex items-center gap-1.5 text-xs tabular",
+            connected ? "text-base-content/60" : "text-error",
+          ].join(" ")}
+          aria-live="polite"
+        >
+          <span
+            className={[
+              "inline-block h-1.5 w-1.5 rounded-full",
+              connected ? "bg-success" : "bg-error",
+            ].join(" ")}
+            aria-hidden
+          />
+          {connected ? "connected" : "disconnected"}
+        </span>
+      </div>
+
+      <ul className="flex gap-2 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+        {players.map((p) => {
+          const isActive = currentActors.includes(p.id);
+          return (
+            <li
+              key={p.id}
+              className={[
+                "flex items-center gap-2 px-2.5 py-1.5 rounded-full shrink-0",
+                "transition-all",
+                isActive
+                  ? "bg-primary/10 text-base-content"
+                  : "bg-base-200/60 text-base-content/70",
+              ].join(" ")}
+            >
+              <PlayerAvatar name={p.name} size="sm" active={isActive} />
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-semibold text-sm leading-none">
+                  {p.name}
+                </span>
+                {p.id === me && (
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-base-content/45">
+                    you
+                  </span>
+                )}
                 {isActive && (
-                  <span className="badge badge-primary badge-xs ml-1">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
                     turn
                   </span>
                 )}
               </div>
-            );
-          })}
-        </div>
-      </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -247,28 +267,101 @@ function OutcomeBanner({
 }) {
   let heading = "Game over";
   let sub = "";
-  let tone = "alert-info";
+  let eyebrow = "◆ Result ◆";
+  let tone: "good" | "bad" | "neutral" = "neutral";
+
   if (outcome.kind === "draw") {
-    heading = "Draw!";
-    sub = "No winner this time.";
-    tone = "alert-info";
+    heading = "A draw.";
+    sub = "No one claims this one.";
   } else if (outcome.kind === "solo" && outcome.winners) {
     const winnerId = outcome.winners[0];
     const winner = players.find((p) => p.id === winnerId);
     if (winnerId === me) {
-      heading = "You win!";
-      tone = "alert-success";
+      heading = "You win.";
+      sub = "A well-played round.";
+      eyebrow = "◆ Victory ◆";
+      tone = "good";
     } else {
-      heading = `${winner?.name ?? "Opponent"} wins`;
-      tone = "alert-warning";
+      heading = `${winner?.name ?? "Opponent"} takes it.`;
+      sub = "Better luck next round.";
+      eyebrow = "◆ Outcome ◆";
+      tone = "bad";
     }
   }
+
   return (
-    <div className={`alert ${tone} my-4`}>
-      <div>
-        <div className="font-bold text-lg">{heading}</div>
-        {sub && <div className="text-sm opacity-80">{sub}</div>}
+    <div
+      className={[
+        "mt-5 parlor-fade",
+        "surface-ivory",
+        "px-6 py-6 md:py-7",
+        "flex flex-col items-center gap-2 text-center",
+      ].join(" ")}
+      style={{
+        borderColor:
+          tone === "good"
+            ? "color-mix(in oklch, var(--color-success) 50%, var(--color-base-300))"
+            : tone === "bad"
+              ? "color-mix(in oklch, var(--color-error) 40%, var(--color-base-300))"
+              : undefined,
+      }}
+    >
+      <div
+        className={[
+          "text-[10px] uppercase tracking-[0.3em] font-semibold",
+          tone === "good"
+            ? "text-success"
+            : tone === "bad"
+              ? "text-error"
+              : "text-base-content/50",
+        ].join(" ")}
+      >
+        {eyebrow}
       </div>
+      <h2
+        className="font-display tracking-tight"
+        style={{ fontSize: "var(--text-display-md)" }}
+      >
+        {heading}
+      </h2>
+      {sub && <div className="text-sm text-base-content/60">{sub}</div>}
+    </div>
+  );
+}
+
+function ConnectingState({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-5 mt-24">
+      <div className="flex gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="h-2 w-2 rounded-full bg-primary"
+            style={{
+              animation: "parlorWinPulse 1.2s ease-in-out infinite",
+              animationDelay: `${i * 0.12}s`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="text-sm uppercase tracking-[0.22em] text-base-content/55">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function CenterMessage({
+  tone,
+  children,
+}: {
+  tone: "error" | "warning";
+  children: React.ReactNode;
+}) {
+  const color = tone === "error" ? "text-error" : "text-warning-content";
+  return (
+    <div className="max-w-md mx-auto mt-16 px-6">
+      <div className={`surface-ivory p-5 ${color}`}>{children}</div>
     </div>
   );
 }
@@ -276,11 +369,16 @@ function OutcomeBanner({
 function gameLabel(type: string): string {
   if (type === "tic-tac-toe") return "Tic-Tac-Toe";
   if (type === "connect-four") return "Connect Four";
+  if (type === "codenames") return "Codenames";
+  if (type === "spyfall") return "Spyfall";
   return type;
 }
 
 function phaseLabel(phase: string): string {
-  if (phase === "play") return "In progress";
+  if (phase === "play") return "In play";
+  if (phase === "cluing") return "Giving clue";
+  if (phase === "guessing") return "Guessing";
   if (phase === "gameOver") return "Finished";
+  if (phase === "setup") return "Setup";
   return phase;
 }

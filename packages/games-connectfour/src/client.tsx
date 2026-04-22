@@ -20,8 +20,6 @@ function ConnectFourBoard({
   const isOver = view.winner !== null || view.isDraw;
   const [hoverCol, setHoverCol] = useState<number | null>(null);
 
-  // Animate the most recent drop — remember which cell was just filled so
-  // we apply the drop-in animation on mount of this cell change.
   const [droppedIndex, setDroppedIndex] = useState<number | null>(null);
   const prevCellsRef = useRef<readonly Cell[]>(view.cells);
   useEffect(() => {
@@ -29,7 +27,7 @@ function ConnectFourBoard({
     for (let i = 0; i < view.cells.length; i++) {
       if (prev[i] === null && view.cells[i] !== null) {
         setDroppedIndex(i);
-        setTimeout(() => setDroppedIndex(null), 400);
+        setTimeout(() => setDroppedIndex(null), 420);
         break;
       }
     }
@@ -46,33 +44,36 @@ function ConnectFourBoard({
   const previewRow =
     hoverCol !== null && !isOver && isMyTurn ? nextRowForCol(hoverCol) : -1;
 
-  const cellColor = (c: Cell): string => {
-    if (c === "R") return "bg-error";
-    if (c === "Y") return "bg-warning";
-    return "bg-primary-content/20";
+  const pieceColor = (c: Cell): string => {
+    if (c === "R") return "var(--color-error)";
+    if (c === "Y") return "var(--color-warning)";
+    return "transparent";
   };
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <div className="text-sm text-base-content/70">
+    <div className="flex flex-col items-center gap-5">
+      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
         You are{" "}
         <span
           className={
-            myColor === "R"
-              ? "text-error font-bold"
-              : "text-warning font-bold"
+            myColor === "R" ? "text-error font-bold" : "text-warning font-bold"
           }
         >
-          {myColor === "R" ? "Red" : "Yellow"}
+          {myColor === "R" ? "Red" : "Gold"}
         </span>
       </div>
 
-      <div className="bg-primary rounded-2xl shadow-xl p-3">
+      <div
+        className="relative rounded-2xl p-3 md:p-4"
+        style={{
+          background: "var(--color-primary)",
+          boxShadow:
+            "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -2px 0 oklch(0% 0 0 / 0.12), 0 16px 40px color-mix(in oklch, var(--color-primary) 30%, transparent)",
+        }}
+      >
         <div
           className="grid gap-1.5"
-          style={{
-            gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
-          }}
+          style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
         >
           {Array.from({ length: ROWS * COLS }).map((_, i) => {
             const row = Math.floor(i / COLS);
@@ -86,6 +87,13 @@ function ConnectFourBoard({
             const justDropped = droppedIndex === i;
             const clickable = !isOver && isMyTurn && nextRowForCol(col) >= 0;
 
+            const pieceBg =
+              cell !== null
+                ? pieceColor(cell)
+                : isPreview
+                  ? `color-mix(in oklch, ${pieceColor(myColor ?? "R")} 35%, transparent)`
+                  : "oklch(100% 0 0 / 0.08)";
+
             return (
               <button
                 key={i}
@@ -94,26 +102,29 @@ function ConnectFourBoard({
                 onMouseEnter={() => setHoverCol(col)}
                 onMouseLeave={() => setHoverCol(null)}
                 onClick={() => handleDrop(col)}
-                className="w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center bg-primary-focus/30"
+                className="h-9 w-9 md:h-12 md:w-12 rounded-full flex items-center justify-center"
+                style={{
+                  background:
+                    "color-mix(in oklch, var(--color-primary-content) 12%, transparent)",
+                  boxShadow: "inset 0 2px 4px oklch(0% 0 0 / 0.25)",
+                }}
                 aria-label={`drop in column ${col}`}
               >
                 <span
                   className={[
-                    "w-full h-full rounded-full transition-all",
-                    cell !== null ? cellColor(cell) : "bg-base-100",
-                    cell !== null ? "shadow-inner" : "",
-                    isLast ? "ring-2 ring-white" : "",
-                    isWinning ? "ring-4 ring-success bgo-win" : "",
-                    isPreview && cell === null
-                      ? myColor === "R"
-                        ? "bg-error/40"
-                        : "bg-warning/40"
+                    "h-full w-full rounded-full transition-all",
+                    cell !== null
+                      ? "shadow-[inset_0_-2px_0_oklch(0%_0_0_/_0.15),inset_0_1px_0_oklch(100%_0_0_/_0.25)]"
                       : "",
-                    justDropped ? "bgo-drop" : "",
-                    clickable && cell === null
-                      ? "cursor-pointer"
-                      : "cursor-default",
+                    isWinning ? "ring-[3px] ring-success parlor-win" : "",
+                    isLast && !isWinning
+                      ? "ring-2 ring-base-100/70"
+                      : "",
+                    justDropped ? "parlor-drop" : "",
                   ].join(" ")}
+                  style={{
+                    background: pieceBg,
+                  }}
                 />
               </button>
             );
@@ -121,8 +132,8 @@ function ConnectFourBoard({
         </div>
       </div>
 
-      <div className="text-xs text-base-content/50">
-        Click a column to drop your piece.
+      <div className="text-xs text-base-content/50 tracking-wide">
+        Tap a column to drop a piece.
       </div>
     </div>
   );

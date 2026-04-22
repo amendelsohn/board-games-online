@@ -1,49 +1,285 @@
 @import "tailwindcss";
+
+/* Scan game packages so Tailwind sees the classes used in their Boards. */
+@source "../../../games-tictactoe/src/**/*.{ts,tsx}";
+@source "../../../games-connectfour/src/**/*.{ts,tsx}";
+@source "../../../games-codenames/src/**/*.{ts,tsx}";
+@source "../../../games-spyfall/src/**/*.{ts,tsx}";
+
 @plugin "daisyui" {
   themes:
-    cupcake --default,
-    night --prefersdark;
+    parlor-day --default,
+    parlor-night --prefersdark;
+  root: ":root";
 }
 
-:root {
+/* =========================================================================
+   Parlor — Day (light theme)
+   A warm-ivory parlor in afternoon light. Amber primary, plum secondary.
+   All neutrals tinted toward amber hue (h≈60) for subconscious cohesion.
+   ========================================================================= */
+@plugin "daisyui/theme" {
+  name: "parlor-day";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: oklch(98.6% 0.012 80);
+  --color-base-200: oklch(95.8% 0.018 78);
+  --color-base-300: oklch(91% 0.024 75);
+  --color-base-content: oklch(23% 0.03 60);
+
+  --color-primary: oklch(66% 0.158 60);
+  --color-primary-content: oklch(99% 0.01 80);
+
+  --color-secondary: oklch(44% 0.13 340);
+  --color-secondary-content: oklch(98% 0.012 340);
+
+  --color-accent: oklch(55% 0.12 170);
+  --color-accent-content: oklch(98% 0.012 170);
+
+  --color-neutral: oklch(32% 0.02 60);
+  --color-neutral-content: oklch(97% 0.012 80);
+
+  --color-info: oklch(58% 0.13 225);
+  --color-info-content: oklch(98% 0.012 225);
+
+  --color-success: oklch(58% 0.14 145);
+  --color-success-content: oklch(98% 0.012 145);
+
+  --color-warning: oklch(78% 0.15 75);
+  --color-warning-content: oklch(25% 0.05 60);
+
+  --color-error: oklch(58% 0.2 25);
+  --color-error-content: oklch(98% 0.012 25);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* =========================================================================
+   Parlor — Night (dark theme)
+   A dim study, amber reading-lamp glow on deep teal-charcoal surfaces.
+   Neutrals tinted slightly cool (h≈220) to contrast the amber brand.
+   ========================================================================= */
+@plugin "daisyui/theme" {
+  name: "parlor-night";
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(18% 0.018 220);
+  --color-base-200: oklch(22% 0.02 220);
+  --color-base-300: oklch(27% 0.022 220);
+  --color-base-content: oklch(94% 0.015 80);
+
+  --color-primary: oklch(78% 0.14 75);
+  --color-primary-content: oklch(18% 0.03 60);
+
+  --color-secondary: oklch(72% 0.12 340);
+  --color-secondary-content: oklch(18% 0.03 340);
+
+  --color-accent: oklch(72% 0.11 170);
+  --color-accent-content: oklch(18% 0.03 170);
+
+  --color-neutral: oklch(30% 0.02 220);
+  --color-neutral-content: oklch(94% 0.015 80);
+
+  --color-info: oklch(72% 0.12 225);
+  --color-info-content: oklch(18% 0.03 225);
+
+  --color-success: oklch(74% 0.14 145);
+  --color-success-content: oklch(18% 0.03 145);
+
+  --color-warning: oklch(82% 0.14 75);
+  --color-warning-content: oklch(18% 0.03 60);
+
+  --color-error: oklch(70% 0.18 25);
+  --color-error-content: oklch(18% 0.03 25);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* =========================================================================
+   Tailwind v4 design tokens — fonts, spacing, motion, and named shadows.
+   Exposed as utilities (font-display, shadow-letterpress, ease-parlor...).
+   ========================================================================= */
+@theme {
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    var(--font-hanken), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", sans-serif;
+  --font-display:
+    var(--font-young-serif), "Iowan Old Style", "Palatino Linotype", Georgia,
+    serif;
   --font-mono:
-    ui-monospace, Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono",
-    "Roboto Mono", "Oxygen Mono", "Ubuntu Monospace", "Source Code Pro",
-    "Fira Mono", "Droid Sans Mono", "Courier New", monospace;
+    var(--font-jetbrains-mono), ui-monospace, "SF Mono", "Cascadia Mono",
+    "Roboto Mono", monospace;
+
+  /* Editorial display scale, fluid on heroes */
+  --text-display-lg: clamp(2.75rem, 6.5vw + 1rem, 5.25rem);
+  --text-display-md: clamp(2.25rem, 4vw + 1rem, 3.5rem);
+  --text-display-sm: clamp(1.75rem, 2.5vw + 1rem, 2.375rem);
+
+  /* Layered tonal shadows — no gray drop-shadows, ever */
+  --shadow-soft: 0 1px 0 oklch(60% 0.05 60 / 0.06), 0 8px 24px
+    oklch(25% 0.05 60 / 0.05);
+  --shadow-float: 0 1px 0 oklch(60% 0.05 60 / 0.08), 0 14px 40px
+    oklch(25% 0.05 60 / 0.12);
+  --shadow-letterpress: inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0
+    oklch(0% 0 0 / 0.12), 0 1px 0 oklch(0% 0 0 / 0.06);
+
+  --ease-parlor: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-parlor-in: cubic-bezier(0.64, 0, 0.78, 0);
 }
 
+/* =========================================================================
+   Global baseline.
+   ========================================================================= */
 html,
 body {
   height: 100%;
-  font-family: var(--font-sans);
 }
 
 body {
-  background:
-    radial-gradient(
-        at 15% 5%,
-        color-mix(in srgb, var(--color-primary) 14%, transparent) 0%,
-        transparent 45%
-      ),
-    radial-gradient(
-        at 85% 15%,
-        color-mix(in srgb, var(--color-secondary) 12%, transparent) 0%,
-        transparent 50%
-      ),
-    var(--color-base-100);
+  font-family: var(--font-sans);
+  font-feature-settings:
+    "ss01",
+    "cv01",
+    "cv11";
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
   min-height: 100vh;
+  position: relative;
 }
 
-@keyframes bgoDropIn {
+/* Paper-grain overlay. A whisper, not a texture. Respects theme. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+  background-image:
+    radial-gradient(
+      at 12% 8%,
+      color-mix(in oklch, var(--color-primary) 10%, transparent) 0%,
+      transparent 42%
+    ),
+    radial-gradient(
+      at 88% 6%,
+      color-mix(in oklch, var(--color-secondary) 8%, transparent) 0%,
+      transparent 48%
+    ),
+    radial-gradient(
+      at 50% 100%,
+      color-mix(in oklch, var(--color-accent) 6%, transparent) 0%,
+      transparent 55%
+    );
+}
+
+[data-theme="parlor-night"] body::before {
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  background-image:
+    radial-gradient(
+      at 15% 5%,
+      color-mix(in oklch, var(--color-primary) 18%, transparent) 0%,
+      transparent 42%
+    ),
+    radial-gradient(
+      at 85% 15%,
+      color-mix(in oklch, var(--color-secondary) 14%, transparent) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      at 50% 100%,
+      color-mix(in oklch, var(--color-accent) 10%, transparent) 0%,
+      transparent 55%
+    );
+}
+
+/* Everything above the grain */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Editorial headings */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+}
+
+/* Readable body */
+p {
+  line-height: 1.55;
+}
+
+/* Links inherit color so DaisyUI buttons don't pick up parent underlines */
+a {
+  color: inherit;
+}
+
+/* Numbers and codes always want tabular alignment */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Subtle focus ring using the amber primary, not the default browser color */
+:where(button, [role="button"], a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* Prefers-reduced-motion: strip animation, but keep transforms for state */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================================================================
+   Motion — a small library of named, replayable animations.
+   ========================================================================= */
+@keyframes parlorDropIn {
   0% {
     transform: translateY(-120%);
     opacity: 0;
   }
-  70% {
-    transform: translateY(4%);
+  60% {
+    transform: translateY(6%);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(-2%);
   }
   100% {
     transform: translateY(0);
@@ -51,40 +287,128 @@ body {
   }
 }
 
-@keyframes bgoFadeIn {
+@keyframes parlorFadeIn {
   from {
     opacity: 0;
-    transform: scale(0.7);
+    transform: translateY(6px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
-@keyframes bgoWinPulse {
+@keyframes parlorRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes parlorWinPulse {
   0%,
   100% {
     transform: scale(1);
   }
   50% {
-    transform: scale(1.1);
+    transform: scale(1.08);
   }
 }
 
+@keyframes parlorShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@utility parlor-drop {
+  animation: parlorDropIn 0.42s var(--ease-parlor);
+}
+@utility parlor-fade {
+  animation: parlorFadeIn 0.3s var(--ease-parlor);
+}
+@utility parlor-rise {
+  animation: parlorRiseIn 0.5s var(--ease-parlor) both;
+}
+@utility parlor-win {
+  animation: parlorWinPulse 0.9s ease-in-out infinite;
+}
+
+/* Stagger helpers — set --i on a child to delay its rise */
+@utility rise-stagger {
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+/* Backward-compatible aliases (game client code still uses bgo-*) */
 @utility bgo-drop {
-  animation: bgoDropIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: parlorDropIn 0.42s var(--ease-parlor);
 }
-
 @utility bgo-fade {
-  animation: bgoFadeIn 0.25s ease-out;
+  animation: parlorFadeIn 0.3s var(--ease-parlor);
 }
-
 @utility bgo-win {
-  animation: bgoWinPulse 0.8s ease-in-out infinite;
+  animation: parlorWinPulse 0.9s ease-in-out infinite;
 }
 
-/* Slight link reset so daisyUI buttons don't get underlined by parent anchors. */
-a {
-  color: inherit;
+/* =========================================================================
+   Parlor primitives — surface layering and tactile details.
+   ========================================================================= */
+
+/* A "card" without the card. Transparent surface with a felt tone and
+   a hairline border that catches the eye without dominating. */
+@utility surface-felt {
+  background-color: color-mix(in oklch, var(--color-base-200) 70%, transparent);
+  border: 1px solid
+    color-mix(in oklch, var(--color-base-300) 85%, transparent);
+  border-radius: var(--radius-box);
+  backdrop-filter: blur(6px);
+}
+
+/* A raised, ivory cardstock surface for prominent content blocks. */
+@utility surface-ivory {
+  background-color: var(--color-base-100);
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  box-shadow: var(--shadow-soft);
+}
+
+/* A stamped tile — used for join code characters and numeric tokens.
+   Letterpress impression effect (inner highlight + inner shadow). */
+@utility tile-stamp {
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
+  border-radius: calc(var(--radius-field) + 0.25rem);
+  box-shadow: var(--shadow-letterpress);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Decorative editorial section-head rule. "◆ Section title ◆" */
+@utility rule-ornament {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: color-mix(in oklch, var(--color-base-content) 55%, transparent);
+}
+@utility rule-ornament-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in oklch, var(--color-base-content) 20%, transparent),
+    transparent
+  );
 }

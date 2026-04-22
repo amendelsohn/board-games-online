@@ -15,20 +15,22 @@ import {
   type Team,
 } from "./shared";
 
-function roleColor(role: CardRole | null | undefined): string {
-  if (role === "red") return "bg-error text-white";
-  if (role === "blue") return "bg-info text-white";
-  if (role === "neutral") return "bg-base-300 text-base-content";
-  if (role === "assassin") return "bg-neutral text-neutral-content";
-  return "bg-base-100";
+function cardFill(role: CardRole | null | undefined, revealed: boolean): string {
+  if (!revealed && role == null) return "var(--color-base-100)";
+  if (role === "red") return "var(--color-error)";
+  if (role === "blue") return "var(--color-info)";
+  if (role === "neutral")
+    return "color-mix(in oklch, var(--color-base-300) 90%, transparent)";
+  if (role === "assassin") return "var(--color-neutral)";
+  return "var(--color-base-100)";
 }
 
-function roleLabel(role: CardRole | null | undefined): string {
-  if (role === "red") return "Red";
-  if (role === "blue") return "Blue";
-  if (role === "neutral") return "Neutral";
-  if (role === "assassin") return "Assassin";
-  return "?";
+function cardText(role: CardRole | null | undefined, revealed: boolean): string {
+  if (!revealed && role == null) return "var(--color-base-content)";
+  if (role === "red") return "var(--color-error-content)";
+  if (role === "blue") return "var(--color-info-content)";
+  if (role === "assassin") return "var(--color-neutral-content)";
+  return "var(--color-base-content)";
 }
 
 function CodenamesBoard({
@@ -67,44 +69,41 @@ function CodenamesBoard({
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full">
-      <TurnIndicator view={view} players={players} me={me} />
+    <div className="flex flex-col items-center gap-5 w-full">
+      <TurnIndicator view={view} />
 
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex items-center gap-4 md:gap-6 text-sm">
         <div
-          className={`text-sm font-semibold ${
-            myTeam === "red" ? "text-error" : myTeam === "blue" ? "text-info" : ""
-          }`}
+          className={[
+            "text-xs uppercase tracking-[0.18em] font-semibold",
+            myTeam === "red"
+              ? "text-error"
+              : myTeam === "blue"
+                ? "text-info"
+                : "text-base-content/50",
+          ].join(" ")}
         >
-          You are on team {myTeam ?? "—"} (
-          {myRole === "spymaster" ? "Spymaster" : "Operative"})
+          {myTeam ? `${myTeam} team` : "observer"}
+          {myRole === "spymaster" ? " · spymaster" : " · operative"}
         </div>
-        <div className="flex gap-6 text-sm">
-          <div>
-            <span className="font-bold text-error">Red:</span>{" "}
-            {view.remaining.red}
-          </div>
-          <div>
-            <span className="font-bold text-info">Blue:</span>{" "}
-            {view.remaining.blue}
-          </div>
-        </div>
+        <div className="h-4 w-px bg-base-300" aria-hidden />
+        <ScoreDot color="var(--color-error)" label="Red" value={view.remaining.red} />
+        <ScoreDot color="var(--color-info)" label="Blue" value={view.remaining.blue} />
       </div>
 
       <div
-        className="grid gap-2 w-full max-w-3xl"
-        style={{
-          gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))`,
-        }}
+        className="grid gap-1.5 md:gap-2 w-full max-w-3xl"
+        style={{ gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))` }}
       >
         {view.grid.map((card, i) => {
           const clickable =
             !isOver && isMyTurn && !amSpymaster && isGuessing && !card.revealed;
-          const base = card.revealed
-            ? roleColor(card.role)
-            : amSpymaster && card.role
-              ? `${roleColor(card.role)} opacity-95`
-              : "bg-base-100";
+          const showColor = card.revealed || (amSpymaster && card.role != null);
+          const bg = cardFill(
+            showColor ? card.role : null,
+            card.revealed,
+          );
+          const fg = cardText(showColor ? card.role : null, card.revealed);
           return (
             <button
               key={i}
@@ -112,127 +111,168 @@ function CodenamesBoard({
               disabled={!clickable}
               onClick={() => guess(i)}
               className={[
-                "relative min-h-[60px] md:min-h-[80px] px-2 py-3 rounded-lg font-bold text-center transition-all",
-                "border border-base-300 shadow-sm",
-                base,
-                clickable ? "hover:scale-[1.03] cursor-pointer" : "",
-                card.revealed ? "bgo-fade" : "",
+                "relative min-h-[62px] md:min-h-[82px] px-2 py-3 rounded-lg",
+                "text-center transition-all duration-200",
+                "border border-base-300/70",
+                "font-display tracking-tight",
+                clickable ? "hover:-translate-y-0.5 cursor-pointer" : "",
+                card.revealed ? "parlor-fade" : "",
               ].join(" ")}
+              style={{
+                background: bg,
+                color: fg,
+                boxShadow: card.revealed
+                  ? "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -2px 0 oklch(0% 0 0 / 0.15)"
+                  : "inset 0 1px 0 oklch(100% 0 0 / 0.15), 0 1px 2px oklch(0% 0 0 / 0.06)",
+                opacity: amSpymaster && showColor && !card.revealed ? 0.9 : 1,
+              }}
               aria-label={card.word}
             >
               <span
                 className={[
-                  "block text-xs md:text-sm leading-tight",
+                  "block text-sm md:text-base leading-tight",
                   card.revealed ? "line-through opacity-80" : "",
                 ].join(" ")}
               >
                 {card.word}
               </span>
-              {card.revealed && card.role && (
-                <span className="absolute bottom-0.5 right-1 text-[9px] opacity-70">
-                  {roleLabel(card.role)}
-                </span>
-              )}
             </button>
           );
         })}
       </div>
 
       {!isOver && (
-        <div className="w-full max-w-xl card bg-base-200/60 border border-base-300">
-          <div className="card-body p-4 gap-3">
-            {isCluing && isMyTurn && amSpymaster && (
-              <>
-                <div className="text-sm text-base-content/70">
-                  Give your team a one-word clue:
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    className="input input-bordered flex-1"
-                    placeholder="clue word"
-                    value={clueWord}
-                    onChange={(e) => setClueWord(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void submitClue();
-                    }}
-                    maxLength={40}
-                  />
-                  <input
-                    type="number"
-                    className="input input-bordered w-20"
-                    min={0}
-                    max={9}
-                    value={clueCount}
-                    onChange={(e) => setClueCount(parseInt(e.target.value, 10) || 0)}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={submitClue}
-                  >
-                    Give clue
-                  </button>
-                </div>
-              </>
-            )}
-            {isCluing && !(isMyTurn && amSpymaster) && (
-              <div className="text-sm text-base-content/70 text-center">
-                Waiting for the {view.turn === "red" ? "red" : "blue"} spymaster
-                to give a clue…
+        <div className="w-full max-w-xl surface-ivory px-5 py-4 flex flex-col gap-3">
+          {isCluing && isMyTurn && amSpymaster && (
+            <>
+              <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+                Give a one-word clue
               </div>
-            )}
-            {isGuessing && (
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <div className="text-sm text-base-content/70">Clue:</div>
-                  <div className="text-xl font-bold">
-                    <span>{view.clue?.word}</span>
-                    <span className="ml-2 text-base-content/60">
-                      ({view.clue?.count})
-                    </span>
-                  </div>
-                  <div className="text-xs text-base-content/60">
-                    {view.guessesLeft} guess{view.guessesLeft === 1 ? "" : "es"} remaining
-                  </div>
-                </div>
-                {isMyTurn && !amSpymaster && (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={endGuessing}
-                  >
-                    End guessing
-                  </button>
-                )}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="input input-bordered flex-1 rounded-lg"
+                  placeholder="clue word"
+                  value={clueWord}
+                  onChange={(e) => setClueWord(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void submitClue();
+                  }}
+                  maxLength={40}
+                />
+                <input
+                  type="number"
+                  className="input input-bordered w-20 text-center tabular rounded-lg"
+                  min={0}
+                  max={9}
+                  value={clueCount}
+                  onChange={(e) =>
+                    setClueCount(parseInt(e.target.value, 10) || 0)
+                  }
+                />
+                <button
+                  type="button"
+                  className="btn btn-primary rounded-full px-5 font-semibold"
+                  onClick={submitClue}
+                >
+                  Give
+                </button>
               </div>
-            )}
-          </div>
+            </>
+          )}
+          {isCluing && !(isMyTurn && amSpymaster) && (
+            <div className="text-sm text-base-content/65 text-center">
+              Waiting on the{" "}
+              <span
+                className={
+                  view.turn === "red"
+                    ? "text-error font-semibold"
+                    : "text-info font-semibold"
+                }
+              >
+                {view.turn}
+              </span>{" "}
+              spymaster's clue…
+            </div>
+          )}
+          {isGuessing && (
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+                  Clue
+                </div>
+                <div className="text-2xl font-display tracking-tight mt-0.5">
+                  {view.clue?.word}
+                  <span className="ml-2 text-base-content/50 tabular">
+                    {view.clue?.count}
+                  </span>
+                </div>
+                <div className="text-xs text-base-content/55 mt-1">
+                  {view.guessesLeft} guess
+                  {view.guessesLeft === 1 ? "" : "es"} remaining
+                </div>
+              </div>
+              {isMyTurn && !amSpymaster && (
+                <button
+                  type="button"
+                  className="text-xs uppercase tracking-[0.2em] text-base-content/55 hover:text-base-content transition-colors"
+                  onClick={endGuessing}
+                >
+                  End guessing →
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function TurnIndicator({
-  view,
-  players,
-  me,
+function ScoreDot({
+  color,
+  label,
+  value,
 }: {
-  view: CodenamesView;
-  players: { id: string; name: string }[];
-  me: string;
+  color: string;
+  label: string;
+  value: number;
 }) {
+  return (
+    <div className="flex items-center gap-1.5 text-sm">
+      <span
+        aria-hidden
+        className="inline-block h-2 w-2 rounded-full"
+        style={{ background: color }}
+      />
+      <span className="text-base-content/60">{label}</span>
+      <span className="font-semibold tabular">{value}</span>
+    </div>
+  );
+}
+
+function TurnIndicator({ view }: { view: CodenamesView }) {
   if (view.phase === "gameOver") return null;
   const team = view.turn;
-  const color =
-    team === "red"
-      ? "bg-error text-white"
-      : "bg-info text-white";
+  const color = team === "red" ? "var(--color-error)" : "var(--color-info)";
+  const contentColor =
+    team === "red" ? "var(--color-error-content)" : "var(--color-info-content)";
   return (
-    <div className={`px-4 py-2 rounded-full font-bold text-lg ${color}`}>
-      {team === "red" ? "Red" : "Blue"} team's turn —{" "}
-      {view.phase === "cluing" ? "Spymaster giving clue" : "Operatives guessing"}
+    <div
+      className="px-5 py-2 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2.5"
+      style={{
+        background: color,
+        color: contentColor,
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -1px 0 oklch(0% 0 0 / 0.15)",
+      }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+      {team === "red" ? "Red" : "Blue"} team{" "}
+      <span className="opacity-70">·</span>{" "}
+      <span className="uppercase tracking-[0.16em] text-xs">
+        {view.phase === "cluing" ? "clue" : "guess"}
+      </span>
     </div>
   );
 }
@@ -247,12 +287,8 @@ function CodenamesLobbyPanel({
   const spymasters = config.spymasters ?? {};
 
   const setTeam = (playerId: string, team: Team) => {
-    onChange({
-      ...config,
-      teams: { ...teams, [playerId]: team },
-    });
+    onChange({ ...config, teams: { ...teams, [playerId]: team } });
   };
-
   const setSpymaster = (team: Team, playerId: string | undefined) => {
     onChange({
       ...config,
@@ -274,15 +310,15 @@ function CodenamesLobbyPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="text-sm text-base-content/70">
+      <div className="text-sm text-base-content/65">
         {isHost
-          ? "As host, assign teams and pick a spymaster for each side before starting."
-          : "The host controls team and spymaster assignments."}
+          ? "Pick teams and assign a spymaster for each side."
+          : "The host is assigning teams."}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <TeamColumn
           label="Red team"
-          accent="bg-error"
+          dot="var(--color-error)"
           members={red}
           spymasterId={spymasters.red}
           onSetSpymaster={(id) => isHost && setSpymaster("red", id)}
@@ -293,7 +329,7 @@ function CodenamesLobbyPanel({
         />
         <TeamColumn
           label="Blue team"
-          accent="bg-info"
+          dot="var(--color-info)"
           members={blue}
           spymasterId={spymasters.blue}
           onSetSpymaster={(id) => isHost && setSpymaster("blue", id)}
@@ -306,24 +342,29 @@ function CodenamesLobbyPanel({
 
       {unassigned.length > 0 && (
         <div>
-          <div className="text-sm font-semibold mb-2">Unassigned</div>
+          <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 mb-2">
+            Unassigned
+          </div>
           <div className="flex flex-wrap gap-2">
             {unassigned.map((p) => (
-              <div key={p.id} className="badge badge-lg gap-2">
-                {p.name}
+              <div
+                key={p.id}
+                className="inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-100 pl-3 pr-1.5 py-1"
+              >
+                <span className="font-semibold text-sm">{p.name}</span>
                 {isHost && (
                   <>
                     <button
                       type="button"
                       onClick={() => setTeam(p.id, "red")}
-                      className="btn btn-error btn-xs"
+                      className="text-xs px-2 py-0.5 rounded-full bg-error text-error-content font-semibold"
                     >
                       Red
                     </button>
                     <button
                       type="button"
                       onClick={() => setTeam(p.id, "blue")}
-                      className="btn btn-info btn-xs"
+                      className="text-xs px-2 py-0.5 rounded-full bg-info text-info-content font-semibold"
                     >
                       Blue
                     </button>
@@ -340,7 +381,7 @@ function CodenamesLobbyPanel({
 
 function TeamColumn({
   label,
-  accent,
+  dot,
   members,
   spymasterId,
   onSetSpymaster,
@@ -350,7 +391,7 @@ function TeamColumn({
   missingSpymaster,
 }: {
   label: string;
-  accent: string;
+  dot: string;
   members: { id: string; name: string }[];
   spymasterId: string | undefined;
   onSetSpymaster: (id: string) => void;
@@ -360,65 +401,67 @@ function TeamColumn({
   missingSpymaster: boolean;
 }) {
   return (
-    <div className="card bg-base-200/60 border border-base-300">
-      <div className="card-body p-4 gap-3">
-        <div className="flex items-center gap-2">
-          <span className={`w-3 h-3 rounded-full ${accent}`} />
-          <h3 className="font-bold">{label}</h3>
-          <span className="text-sm text-base-content/60 ml-auto">
-            {members.length} player{members.length === 1 ? "" : "s"}
-          </span>
+    <div className="rounded-xl border border-base-300 bg-base-100 p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <span
+          className="h-3 w-3 rounded-full"
+          aria-hidden
+          style={{ background: dot }}
+        />
+        <h3 className="font-display text-lg tracking-tight">{label}</h3>
+        <span className="text-xs text-base-content/50 ml-auto tabular">
+          {members.length} player{members.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      {missingSpymaster && (
+        <div className="text-xs text-warning-content/80">
+          ◆ No spymaster picked — one will be auto-assigned on start.
         </div>
-        {missingSpymaster && (
-          <div className="text-xs text-warning">
-            No spymaster picked yet — one will be auto-assigned on start.
-          </div>
+      )}
+      <ul className="flex flex-col gap-1">
+        {members.length === 0 && (
+          <li className="text-sm text-base-content/45 italic">empty</li>
         )}
-        <ul className="flex flex-col gap-1">
-          {members.length === 0 && (
-            <li className="text-sm text-base-content/50 italic">empty</li>
-          )}
-          {members.map((p) => {
-            const isSpy = p.id === spymasterId;
-            return (
-              <li
-                key={p.id}
-                className="flex items-center justify-between gap-2"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">{p.name}</span>
-                  {isSpy && (
-                    <span className="badge badge-primary badge-xs">
-                      spymaster
-                    </span>
-                  )}
-                </div>
-                {isHost && (
-                  <div className="flex gap-1">
-                    {!isSpy && (
-                      <button
-                        type="button"
-                        onClick={() => onSetSpymaster(p.id)}
-                        className="btn btn-ghost btn-xs"
-                        title="Make spymaster"
-                      >
-                        ★
-                      </button>
-                    )}
+        {members.map((p) => {
+          const isSpy = p.id === spymasterId;
+          return (
+            <li
+              key={p.id}
+              className="flex items-center justify-between gap-2 py-1"
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">{p.name}</span>
+                {isSpy && (
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-primary font-semibold">
+                    spymaster
+                  </span>
+                )}
+              </div>
+              {isHost && (
+                <div className="flex gap-1">
+                  {!isSpy && (
                     <button
                       type="button"
-                      onClick={() => onMove(p.id)}
-                      className="btn btn-ghost btn-xs"
+                      onClick={() => onSetSpymaster(p.id)}
+                      className="text-xs px-2 py-0.5 rounded-full bg-base-200 hover:bg-base-300 transition-colors"
+                      title="Make spymaster"
                     >
-                      {moveLabel}
+                      ★
                     </button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onMove(p.id)}
+                    className="text-xs px-2 py-0.5 rounded-full bg-base-200 hover:bg-base-300 transition-colors"
+                  >
+                    {moveLabel}
+                  </button>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -427,23 +470,40 @@ function CodenamesSummary({ view }: SummaryProps<CodenamesView>) {
   if (view.phase !== "gameOver" || !view.winner) return null;
   const reasonLabel =
     view.winReason === "assassin"
-      ? "— the other team picked the assassin!"
+      ? "— the other team picked the assassin."
       : view.winReason === "lastCard"
-        ? "— found all their agents."
+        ? "— all agents found."
         : "";
   return (
-    <div className="card bg-base-200/60 border border-base-300 max-w-xl mx-auto">
-      <div className="card-body p-4 text-center gap-1">
-        <div className="text-2xl font-bold">
-          <span
-            className={view.winner === "red" ? "text-error" : "text-info"}
-          >
-            {view.winner === "red" ? "Red" : "Blue"}
-          </span>{" "}
-          wins
-        </div>
-        <div className="text-sm text-base-content/70">{reasonLabel}</div>
+    <div className="surface-ivory max-w-xl mx-auto px-6 py-5 text-center">
+      <div
+        className="text-[10px] uppercase tracking-[0.3em] font-semibold mb-1"
+        style={{
+          color:
+            view.winner === "red" ? "var(--color-error)" : "var(--color-info)",
+        }}
+      >
+        ◆ Victory ◆
       </div>
+      <div
+        className="font-display tracking-tight"
+        style={{ fontSize: "var(--text-display-sm)" }}
+      >
+        <span
+          style={{
+            color:
+              view.winner === "red"
+                ? "var(--color-error)"
+                : "var(--color-info)",
+          }}
+        >
+          {view.winner === "red" ? "Red" : "Blue"}
+        </span>{" "}
+        takes it.
+      </div>
+      {reasonLabel && (
+        <div className="text-sm text-base-content/60 mt-1">{reasonLabel}</div>
+      )}
     </div>
   );
 }

@@ -15,7 +15,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en" data-theme="light">
+    <html lang="en" data-theme="parlor-day">
       <body>
         <div className="min-h-screen flex flex-col items-center justify-center bg-base-100 p-4">
           <div className="card w-full max-w-md bg-base-200 shadow-xl">

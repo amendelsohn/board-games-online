@@ -51,7 +51,7 @@ export default function Home() {
     setError(null);
     const code = joinCode.trim().toUpperCase();
     if (!/^[A-Z]{4}$/.test(code)) {
-      setError("Join code must be 4 letters");
+      setError("Join code must be 4 letters (e.g. ABCD).");
       return;
     }
     setPending("join");
@@ -68,142 +68,265 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10 md:py-16 flex flex-col gap-12">
-      <section className="text-center flex flex-col items-center gap-4">
-        <div className="badge badge-primary badge-outline">
-          Real-time · no signups · play instantly
+    <div className="max-w-5xl mx-auto px-5 md:px-8 pt-10 md:pt-16 pb-20 flex flex-col gap-16">
+      {/* ============ Hero ============ */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-end">
+        <div className="lg:col-span-7 flex flex-col gap-6 parlor-rise">
+          <div className="rule-ornament" style={{ justifyContent: "flex-start" }}>
+            <span>◆ Parlor No. 01</span>
+            <span className="rule-ornament-line" />
+          </div>
+          <h1
+            className="font-display leading-[0.98] tracking-tight"
+            style={{ fontSize: "var(--text-display-lg)" }}
+          >
+            A quiet corner of the internet
+            <span className="text-primary"> to play </span>
+            with friends.
+          </h1>
+          <p className="text-base md:text-lg text-base-content/70 max-w-[54ch] leading-relaxed">
+            Pick a game. Share a four-letter code. Everyone's in, in seconds.
+            No signups, no clutter, no distractions — just an unhurried room for
+            whatever you feel like playing tonight.
+          </p>
         </div>
-        <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
-          Board games,{" "}
-          <span className="text-primary">right in your browser</span>.
-        </h1>
-        <p className="text-base-content/70 text-lg md:text-xl max-w-2xl">
-          Pick a game, share a 4-letter code, and play with anyone in seconds.
-        </p>
+
+        {/* Identity + join card: inset panel with two subtle fields */}
+        <div className="lg:col-span-5 flex flex-col gap-4 parlor-rise" style={{ animationDelay: "120ms" }}>
+          <div className="surface-ivory p-5 md:p-6 flex flex-col gap-5">
+            <Field label="Your name" htmlFor="name-input">
+              <input
+                id="name-input"
+                type="text"
+                placeholder="How should others see you?"
+                className="w-full bg-transparent border-0 outline-none font-display text-xl placeholder:text-base-content/30 placeholder:font-sans placeholder:text-base"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={() => name.trim() && saveName(name.trim())}
+                maxLength={40}
+              />
+            </Field>
+            <div className="h-px bg-base-300/70" />
+            <Field label="Have a code?" htmlFor="code-input">
+              <div className="flex items-center gap-2">
+                <input
+                  id="code-input"
+                  type="text"
+                  placeholder="ABCD"
+                  className={[
+                    "w-full bg-transparent border-0 outline-none",
+                    "font-mono uppercase tracking-[0.4em] text-2xl",
+                    "placeholder:text-base-content/25",
+                    "tabular",
+                  ].join(" ")}
+                  value={joinCode}
+                  onChange={(e) =>
+                    setJoinCode(e.target.value.replace(/[^A-Za-z]/g, "").toUpperCase())
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void joinExisting();
+                  }}
+                  maxLength={4}
+                />
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm rounded-full px-4 font-semibold tracking-wide"
+                  onClick={joinExisting}
+                  disabled={pending !== null}
+                >
+                  {pending === "join" ? (
+                    <span className="loading loading-spinner loading-xs" />
+                  ) : (
+                    "Join →"
+                  )}
+                </button>
+              </div>
+            </Field>
+          </div>
+          <p className="text-xs text-base-content/50 text-center">
+            Your name saves to this device — no account needed.
+          </p>
+        </div>
       </section>
 
       {error && (
-        <div className="alert alert-error max-w-2xl mx-auto">
-          <span>{error}</span>
+        <div
+          role="alert"
+          className="-mt-8 border border-error/40 bg-error/10 text-error px-4 py-3 rounded-lg text-sm"
+        >
+          {error}
         </div>
       )}
 
-      <section className="grid md:grid-cols-2 gap-4 max-w-3xl w-full mx-auto">
-        <div className="card bg-base-200/60 border border-base-300">
-          <div className="card-body gap-3">
-            <h2 className="card-title text-base">Your display name</h2>
-            <input
-              type="text"
-              placeholder="How should others see you?"
-              className="input input-bordered w-full"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => name.trim() && saveName(name.trim())}
-              maxLength={40}
-            />
-          </div>
+      {/* ============ Catalog ============ */}
+      <section className="flex flex-col gap-6">
+        <div className="rule-ornament">
+          <span className="rule-ornament-line" />
+          <span>◆ Tonight's games ◆</span>
+          <span className="rule-ornament-line" />
         </div>
+        <h2
+          className="font-display text-center"
+          style={{ fontSize: "var(--text-display-sm)" }}
+        >
+          Start a new one.
+        </h2>
 
-        <div className="card bg-base-200/60 border border-base-300">
-          <div className="card-body gap-3">
-            <h2 className="card-title text-base">Have a code?</h2>
-            <div className="join w-full">
-              <input
-                type="text"
-                placeholder="ABCD"
-                className="input input-bordered join-item flex-1 uppercase tracking-[0.3em] font-mono text-center"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void joinExisting();
-                }}
-                maxLength={4}
-              />
-              <button
-                type="button"
-                className="btn btn-primary join-item"
-                onClick={joinExisting}
-                disabled={pending !== null}
-              >
-                {pending === "join" ? (
-                  <span className="loading loading-spinner loading-sm" />
-                ) : (
-                  "Join"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div className="flex items-baseline justify-between mb-4">
-          <h2 className="text-2xl md:text-3xl font-bold">Start a new game</h2>
-          {games && games.length > 0 && (
-            <span className="text-sm text-base-content/60">
-              {games.length} game{games.length === 1 ? "" : "s"} available
-            </span>
-          )}
-        </div>
         {games === null ? (
-          <div className="flex justify-center py-16">
-            <span className="loading loading-spinner loading-lg" />
-          </div>
+          <CatalogSkeleton />
         ) : games.length === 0 ? (
-          <div className="alert alert-info">
-            <span>No games installed on this server yet.</span>
+          <div className="surface-felt p-6 text-center text-base-content/70">
+            No games installed on this server yet.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {games.map((g) => (
-              <button
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            {games.map((g, i) => (
+              <li
                 key={g.type}
-                type="button"
-                onClick={() => startNewGame(g.type)}
-                disabled={pending !== null}
-                className="group card bg-base-100 border border-base-300 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all text-left disabled:opacity-60 disabled:pointer-events-none"
+                className="parlor-rise rise-stagger"
+                style={{ ["--i" as string]: i }}
               >
-                <div className="card-body gap-3">
-                  <GameIcon type={g.type} />
-                  <div>
-                    <div className="card-title text-xl">{g.displayName}</div>
-                    <div className="text-sm text-base-content/70 mt-1">
-                      {g.description}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="badge badge-outline">
-                      {g.minPlayers === g.maxPlayers
-                        ? `${g.minPlayers} players`
-                        : `${g.minPlayers}–${g.maxPlayers} players`}
-                    </span>
-                    {pending === `create:${g.type}` ? (
-                      <span className="loading loading-spinner loading-sm" />
-                    ) : (
-                      <span className="text-primary font-semibold group-hover:translate-x-1 transition-transform">
-                        Start →
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
+                <GameCard
+                  game={g}
+                  pending={pending === `create:${g.type}`}
+                  disabled={pending !== null}
+                  onStart={() => startNewGame(g.type)}
+                />
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        <Step n={1} title="Pick a game">
-          Choose from the catalog above. Each game runs in its own module.
-        </Step>
-        <Step n={2} title="Share the code">
-          You'll get a 4-letter code. Send it to friends — no accounts needed.
-        </Step>
-        <Step n={3} title="Play in real-time">
-          Every move syncs instantly over WebSockets. Play from any device.
-        </Step>
+      {/* ============ How it works ============ */}
+      <section className="flex flex-col gap-6">
+        <div className="rule-ornament">
+          <span className="rule-ornament-line" />
+          <span>◆ How it works ◆</span>
+          <span className="rule-ornament-line" />
+        </div>
+        <ol className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8">
+          <Step n="I" title="Pick a game">
+            Choose from the catalog above. Each game runs in its own module, so
+            more can be added without changing anything else.
+          </Step>
+          <Step n="II" title="Share the code">
+            You'll get a four-letter code. Send it over whatever you already use
+            — no accounts to create, no app to install.
+          </Step>
+          <Step n="III" title="Play in real-time">
+            Every move syncs instantly over WebSockets. Play from laptop, phone,
+            or tablet — your seat follows you between devices.
+          </Step>
+        </ol>
       </section>
     </div>
+  );
+}
+
+/* -------------------------- Subcomponents -------------------------- */
+
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label
+        htmlFor={htmlFor}
+        className="text-[10px] font-semibold uppercase tracking-[0.22em] text-base-content/55"
+      >
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function GameCard({
+  game,
+  pending,
+  disabled,
+  onStart,
+}: {
+  game: GameMetaWire;
+  pending: boolean;
+  disabled: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onStart}
+      disabled={disabled}
+      className={[
+        "group block w-full text-left",
+        "surface-ivory",
+        "px-5 py-5",
+        "transition-all duration-200",
+        "hover:-translate-y-0.5 hover:shadow-[var(--shadow-float)]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        "disabled:opacity-60 disabled:pointer-events-none",
+      ].join(" ")}
+    >
+      <div className="flex items-start gap-4">
+        <GameIcon type={game.type} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="font-display text-xl md:text-2xl tracking-tight">
+              {game.displayName}
+            </h3>
+            <span className="text-xs tabular text-base-content/50 shrink-0">
+              {game.minPlayers === game.maxPlayers
+                ? `${game.minPlayers} pl`
+                : `${game.minPlayers}–${game.maxPlayers} pl`}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-base-content/65 leading-relaxed">
+            {game.description}
+          </p>
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-xs uppercase tracking-[0.18em] text-base-content/45">
+              {pending ? "Opening…" : "Open a table"}
+            </span>
+            <span
+              aria-hidden
+              className="text-primary font-semibold text-sm transition-transform group-hover:translate-x-1"
+            >
+              →
+            </span>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function CatalogSkeleton() {
+  return (
+    <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <li
+          key={i}
+          className="surface-ivory p-5 h-[9.5rem] relative overflow-hidden"
+        >
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(90deg, transparent, color-mix(in oklch, var(--color-base-content) 6%, transparent), transparent)",
+              backgroundSize: "200% 100%",
+              animation: "parlorShimmer 1.8s infinite linear",
+            }}
+          />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -212,21 +335,24 @@ function Step({
   title,
   children,
 }: {
-  n: number;
+  n: string;
   title: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="card bg-base-100/60 border border-base-300">
-      <div className="card-body gap-2">
-        <div className="flex items-center gap-2 text-primary font-bold">
-          <span className="w-7 h-7 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm">
-            {n}
-          </span>
-          <span>{title}</span>
-        </div>
-        <p className="text-sm text-base-content/70">{children}</p>
+    <li className="flex gap-4">
+      <span
+        aria-hidden
+        className="font-display text-primary text-3xl md:text-4xl leading-none tabular mt-0.5"
+      >
+        {n}.
+      </span>
+      <div className="flex-1">
+        <h3 className="font-display text-xl tracking-tight">{title}</h3>
+        <p className="mt-1.5 text-sm text-base-content/65 leading-relaxed">
+          {children}
+        </p>
       </div>
-    </div>
+    </li>
   );
 }

@@ -3,20 +3,28 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
-      <div className="card bg-base-100 shadow-lg max-w-md mx-auto">
-        <div className="card-body">
-          <h1 className="text-5xl font-bold text-primary mb-2">404</h1>
-          <h2 className="text-2xl font-semibold mb-6">Page Not Found</h2>
-          <p className="mb-6 text-base-content/70">
-            Sorry, we couldn't find the page you're looking for. It might have
-            been removed, had its name changed, or is temporarily unavailable.
-          </p>
-          <div className="card-actions justify-center">
-            <Link href="/" className="btn btn-primary">
-              Return Home
-            </Link>
-          </div>
+    <div className="flex items-center justify-center min-h-[70vh] px-6">
+      <div className="surface-ivory max-w-md w-full px-7 py-8 text-center flex flex-col gap-3 parlor-fade">
+        <div className="text-[10px] uppercase tracking-[0.3em] font-semibold text-primary">
+          ◆ Four oh four ◆
+        </div>
+        <h1
+          className="font-display tracking-tight"
+          style={{ fontSize: "var(--text-display-md)" }}
+        >
+          Nothing here.
+        </h1>
+        <p className="text-sm text-base-content/65 leading-relaxed">
+          The room you're looking for has either packed up for the night or was
+          never set. Head back to the lobby and pick a game.
+        </p>
+        <div className="mt-2">
+          <Link
+            href="/"
+            className="btn btn-primary rounded-full px-6 font-semibold"
+          >
+            Back home →
+          </Link>
         </div>
       </div>
     </div>
