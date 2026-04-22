@@ -41,6 +41,20 @@ export class MatchGateway
   /** Map socket.id → { matchId → unsubscribe } so we can clean up on disconnect. */
   private readonly subscriptions = new Map<string, Map<string, () => void>>();
 
+  /**
+   * Per-socket move timestamps for sliding-window rate limiting. Capped at
+   * MOVE_RATE_MAX entries and pruned on every check; memory is O(sockets ×
+   * MOVE_RATE_MAX) which for any realistic traffic is tiny.
+   */
+  private readonly moveTimestamps = new Map<string, number[]>();
+
+  /** Max moves allowed per MOVE_RATE_WINDOW_MS per socket. */
+  private static readonly MOVE_RATE_MAX = 10;
+  private static readonly MOVE_RATE_WINDOW_MS = 1_000;
+
+  /** Reject move payloads larger than this to shed abuse cheaply. */
+  private static readonly MOVE_PAYLOAD_MAX_BYTES = 8_192;
+
   constructor(
     private readonly match: MatchService,
     private readonly lobby: LobbyStore,
@@ -76,6 +90,7 @@ export class MatchGateway
       for (const off of subs.values()) off();
       this.subscriptions.delete(client.id);
     }
+    this.moveTimestamps.delete(client.id);
   }
 
   @SubscribeMessage(WS.SUBSCRIBE_MATCH)
@@ -139,6 +154,23 @@ export class MatchGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() raw: unknown,
   ): Promise<{ ok: boolean; reason?: string }> {
+    // Cheap size guard — rejects abusive payloads before we spend cycles on
+    // Zod validation or state lookup.
+    const size = raw === undefined ? 0 : JSON.stringify(raw).length;
+    if (size > MatchGateway.MOVE_PAYLOAD_MAX_BYTES) {
+      const reason = `Move payload too large (${size} > ${MatchGateway.MOVE_PAYLOAD_MAX_BYTES} bytes)`;
+      client.emit(WS.ERROR, { code: 'PAYLOAD_TOO_LARGE', message: reason });
+      return { ok: false, reason };
+    }
+
+    // Per-socket sliding-window rate limit. Returns structured error but
+    // leaves the socket connected so legitimate play recovers naturally.
+    if (!this.allowMoveForSocket(client.id)) {
+      const reason = `Rate limit exceeded (max ${MatchGateway.MOVE_RATE_MAX}/${MatchGateway.MOVE_RATE_WINDOW_MS}ms)`;
+      client.emit(WS.ERROR, { code: 'RATE_LIMITED', message: reason });
+      return { ok: false, reason };
+    }
+
     const payload = this.parse(submitMovePayload, raw);
     const player = this.resolvePlayerBySocket(client);
     const result = await this.match.submitMove(
@@ -150,6 +182,18 @@ export class MatchGateway
       client.emit(WS.ERROR, { code: 'MOVE_REJECTED', message: result.reason });
     }
     return result;
+  }
+
+  private allowMoveForSocket(socketId: string): boolean {
+    const now = Date.now();
+    const windowStart = now - MatchGateway.MOVE_RATE_WINDOW_MS;
+    const ts = this.moveTimestamps.get(socketId) ?? [];
+    // Drop timestamps older than the window.
+    while (ts.length > 0 && ts[0]! < windowStart) ts.shift();
+    if (ts.length >= MatchGateway.MOVE_RATE_MAX) return false;
+    ts.push(now);
+    this.moveTimestamps.set(socketId, ts);
+    return true;
   }
 
   @SubscribeMessage(WS.LEAVE_MATCH)
