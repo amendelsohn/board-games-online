@@ -7,6 +7,7 @@ import { checkersServerModule } from '@bgo/games-checkers/server';
 import { gomokuServerModule } from '@bgo/games-gomoku/server';
 import { dotsAndBoxesServerModule } from '@bgo/games-dotsandboxes/server';
 import { battleshipServerModule } from '@bgo/games-battleship/server';
+import { mastermindServerModule } from '@bgo/games-mastermind/server';
 import type { GamesRegistry } from './games-registry.service';
 
 /** Registers every installed game module with the registry at bootstrap. */
@@ -20,4 +21,5 @@ export function registerAllGames(registry: GamesRegistry): void {
   registry.register(gomokuServerModule);
   registry.register(dotsAndBoxesServerModule);
   registry.register(battleshipServerModule);
+  registry.register(mastermindServerModule);
 }

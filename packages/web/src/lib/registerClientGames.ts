@@ -10,6 +10,7 @@ import { checkersClientModule } from "@bgo/games-checkers/client";
 import { gomokuClientModule } from "@bgo/games-gomoku/client";
 import { dotsAndBoxesClientModule } from "@bgo/games-dotsandboxes/client";
 import { battleshipClientModule } from "@bgo/games-battleship/client";
+import { mastermindClientModule } from "@bgo/games-mastermind/client";
 
 let registered = false;
 
@@ -25,5 +26,6 @@ export function registerAllClientGames(): void {
   registerClientModule(gomokuClientModule);
   registerClientModule(dotsAndBoxesClientModule);
   registerClientModule(battleshipClientModule);
+  registerClientModule(mastermindClientModule);
   registered = true;
 }
