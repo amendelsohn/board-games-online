@@ -84,6 +84,13 @@ export const startTableResponse = z.object({
 });
 export type StartTableResponse = z.infer<typeof startTableResponse>;
 
+// POST /tables/:id/rematch — resets a finished table back to "waiting"
+// so the same group can start a new match without re-entering the lobby.
+export const rematchTableResponse = z.object({
+  table: tableSchema,
+});
+export type RematchTableResponse = z.infer<typeof rematchTableResponse>;
+
 // POST /tables/:id/kick
 export const kickBody = z.object({
   playerId: playerIdSchema,

@@ -23,6 +23,7 @@ export default function PlayPage() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [table, setTable] = useState<TableWire | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [rematchPending, setRematchPending] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +69,48 @@ export default function PlayPage() {
     if (!table) return null;
     return getClientModule(table.gameType) ?? null;
   }, [table]);
+
+  // After the match ends, poll the table so we notice the host kicking off
+  // a rematch (which resets table.status back to "waiting"). When that
+  // happens, everyone — host included — redirects back to the lobby.
+  useEffect(() => {
+    if (!tableId || !isTerminal || !table) return;
+    if (table.status === "waiting" && table.matchId === null) {
+      router.push(`/lobby/${table.joinCode}`);
+      return;
+    }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const r = await api.getTable(tableId);
+        if (cancelled) return;
+        setTable(r.table);
+        if (r.table.status === "waiting" && r.table.matchId === null) {
+          router.push(`/lobby/${r.table.joinCode}`);
+        }
+      } catch {
+        // transient — next tick will retry
+      }
+    };
+    const id = setInterval(tick, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [tableId, isTerminal, table, router]);
+
+  const startRematch = async () => {
+    if (!tableId) return;
+    setRematchPending(true);
+    try {
+      const r = await api.rematchTable(tableId);
+      setTable(r.table);
+      router.push(`/lobby/${r.table.joinCode}`);
+    } catch (err) {
+      setLoadError((err as Error).message);
+      setRematchPending(false);
+    }
+  };
 
   if (loadError) {
     return (
@@ -131,6 +174,9 @@ export default function PlayPage() {
           outcome={outcome}
           me={player.id}
           players={table.players}
+          isHost={player.id === table.hostPlayerId}
+          rematchPending={rematchPending}
+          onRematch={startRematch}
         />
       )}
 
@@ -269,10 +315,16 @@ function OutcomeBanner({
   outcome,
   me,
   players,
+  isHost,
+  rematchPending,
+  onRematch,
 }: {
   outcome: { kind: string; winners?: string[]; losers?: string[] };
   me: string;
   players: PlayerWire[];
+  isHost: boolean;
+  rematchPending: boolean;
+  onRematch: () => void;
 }) {
   let heading = "Game over";
   let sub = "";
@@ -334,6 +386,22 @@ function OutcomeBanner({
         {heading}
       </h2>
       {sub && <div className="text-sm text-base-content/60">{sub}</div>}
+      <div className="mt-4 flex items-center gap-3">
+        {isHost ? (
+          <button
+            type="button"
+            onClick={onRematch}
+            disabled={rematchPending}
+            className="btn btn-primary rounded-full px-6 font-semibold disabled:opacity-60"
+          >
+            {rematchPending ? "Opening…" : "Play again →"}
+          </button>
+        ) : (
+          <span className="text-xs uppercase tracking-[0.22em] text-base-content/50">
+            Waiting for the host to call a rematch…
+          </span>
+        )}
+      </div>
     </div>
   );
 }

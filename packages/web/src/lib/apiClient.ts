@@ -9,6 +9,7 @@ import type {
   JoinTableResponse,
   KickBody,
   ListGamesResponse,
+  RematchTableResponse,
   StartTableResponse,
   TableWire,
   UpdateConfigBody,
@@ -76,6 +77,9 @@ export const api = {
 
   startTable: (id: string) =>
     request<StartTableResponse>(`/tables/${id}/start`, { method: "POST" }),
+
+  rematchTable: (id: string) =>
+    request<RematchTableResponse>(`/tables/${id}/rematch`, { method: "POST" }),
 
   updateConfig: (id: string, body: UpdateConfigBody) =>
     request<GetTableResponse>(`/tables/${id}/config`, {

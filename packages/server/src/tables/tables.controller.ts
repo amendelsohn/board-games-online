@@ -15,6 +15,7 @@ import {
   type GetTableResponse,
   type JoinTableResponse,
   type KickBody,
+  type RematchTableResponse,
   type StartTableResponse,
   type TableWire,
   type UpdateConfigBody,
@@ -76,6 +77,15 @@ export class TablesController {
     @CurrentPlayer() player: StoredPlayer,
   ): Promise<StartTableResponse> {
     const table = await this.match.startMatch(id, player.id);
+    return { table: this.hydrate(table) };
+  }
+
+  @Post(':id/rematch')
+  rematch(
+    @Param('id') id: string,
+    @CurrentPlayer() player: StoredPlayer,
+  ): RematchTableResponse {
+    const table = this.tables.rematch(id, player.id);
     return { table: this.hydrate(table) };
   }
 

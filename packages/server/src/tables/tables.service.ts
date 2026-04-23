@@ -90,6 +90,32 @@ export class TablesService {
     return next;
   }
 
+  /**
+   * Reset a table back to "waiting" so the same group can play again with
+   * the same config. Preserves players, join code, gameType, and config;
+   * drops matchId. Host-only. Valid once the current match has finished
+   * (or while still "waiting" — that's a no-op).
+   */
+  rematch(tableId: TableId, hostPlayerId: PlayerId): StoredTable {
+    const table = this.requireTable(tableId);
+    this.requireHost(table, hostPlayerId);
+    if (table.status === 'playing') {
+      throw new BadRequestException(
+        'Cannot rematch while the current match is still in progress',
+      );
+    }
+    if (table.status === 'waiting' && table.matchId === null) {
+      return table; // nothing to do
+    }
+    const next: StoredTable = {
+      ...table,
+      status: 'waiting',
+      matchId: null,
+    };
+    this.lobby.saveTable(next);
+    return next;
+  }
+
   kick(
     tableId: TableId,
     hostPlayerId: PlayerId,
