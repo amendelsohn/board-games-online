@@ -106,8 +106,19 @@ export interface NominationResult {
 
 export interface OpenVote {
   nominationId: string;
-  /** Per-player vote, keyed by PlayerId. Undefined = not yet voted. */
+  /**
+   * Per-player vote, keyed by PlayerId. Undefined = not yet voted.
+   *
+   * In the Storyteller view this is the full map. In the player view
+   * it is redacted to the viewer's own entry (so a player can confirm
+   * they voted but can't see who voted yes / no in real time and
+   * fence-sit to the deciding ballot). Spectators get an empty map.
+   *
+   * The public `votedCount` below is the only running info exposed.
+   */
   votes: Record<PlayerId, "yes" | "no">;
+  /** How many seats have voted so far. Always public. */
+  votedCount: number;
 }
 
 export interface ExecutionRecord {

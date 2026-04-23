@@ -100,6 +100,26 @@ function publicNomination(
   return { ...n, result: publicResult };
 }
 
+/**
+ * Project the open vote for a non-ST viewer. Strips the per-player
+ * votes map down to (a) the viewer's own entry, if they've voted; or
+ * (b) empty for spectators. The public votedCount is preserved so the
+ * UI can show "x of n have voted" without revealing how each one
+ * cast.
+ */
+function projectOpenVote(
+  openVote: BotCState["openVote"],
+  viewer: PlayerId | null,
+): BotCState["openVote"] {
+  if (!openVote) return null;
+  const myVote = viewer ? openVote.votes[viewer] : undefined;
+  return {
+    nominationId: openVote.nominationId,
+    votes: myVote !== undefined && viewer ? { [viewer]: myVote } : {},
+    votedCount: openVote.votedCount,
+  };
+}
+
 function makePlayerView(state: BotCState, viewer: PlayerId): PlayerView {
   const seat = state.grimoire[viewer];
   const me = seat
@@ -119,7 +139,7 @@ function makePlayerView(state: BotCState, viewer: PlayerId): PlayerView {
     phase: state.phase,
     dayNumber: state.dayNumber,
     nominations: state.nominations.map(publicNomination),
-    openVote: state.openVote ? { ...state.openVote, votes: { ...state.openVote.votes } } : null,
+    openVote: projectOpenVote(state.openVote, viewer),
     executions: state.executions.map((e) => ({ ...e })),
     fabled: [...state.fabled],
     seats: { ...state.seats },
@@ -141,7 +161,7 @@ function makeSpectatorView(state: BotCState): SpectatorView {
     phase: state.phase,
     dayNumber: state.dayNumber,
     nominations: state.nominations.map(publicNomination),
-    openVote: state.openVote ? { ...state.openVote, votes: { ...state.openVote.votes } } : null,
+    openVote: projectOpenVote(state.openVote, null),
     executions: state.executions.map((e) => ({ ...e })),
     fabled: [...state.fabled],
     seats: { ...state.seats },
@@ -548,6 +568,17 @@ function countLiving(state: BotCState): number {
  * and may have a reason to allow a re-nomination (e.g. to fix an
  * accidental misclick by the player).
  */
+function makeOpenVote(
+  nominationId: string,
+  votes: Record<PlayerId, "yes" | "no">,
+): BotCState["openVote"] {
+  return {
+    nominationId,
+    votes,
+    votedCount: Object.keys(votes).length,
+  };
+}
+
 function openNomination(
   state: BotCState,
   nominator: PlayerId,
@@ -589,7 +620,7 @@ function openNomination(
     state: {
       ...state,
       nominations: [...state.nominations, nomination],
-      openVote: { nominationId: nomination.id, votes: {} },
+      openVote: makeOpenVote(nomination.id, {}),
     },
     events: [
       {
@@ -626,10 +657,8 @@ function handleCastVote(
   if (state.openVote.votes[voter] !== undefined) {
     return { ok: false, reason: "You've already voted on this nomination" };
   }
-  const nextOpenVote = {
-    ...state.openVote,
-    votes: { ...state.openVote.votes, [voter]: vote },
-  };
+  const newVotes = { ...state.openVote.votes, [voter]: vote };
+  const nextOpenVote = makeOpenVote(state.openVote.nominationId, newVotes);
   let grimoire = state.grimoire;
   let seats = state.seats;
   if (!seat.isAlive) {
