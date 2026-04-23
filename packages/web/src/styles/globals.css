@@ -263,6 +263,18 @@ a {
   font-feature-settings: "tnum";
 }
 
+/* Force emoji glyphs through whichever emoji font is available. Prefer
+   the OS's native color emoji where possible; fall back to the shipped
+   Noto Emoji web font so tofu boxes never appear on Linux/Chromium,
+   Chromebooks, or any other host without a system emoji font. */
+.emoji {
+  font-family:
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji", "Twemoji Mozilla", "EmojiOne Color",
+    "Android Emoji", var(--font-emoji), sans-serif;
+  font-variant-emoji: emoji;
+}
+
 /* Subtle focus ring using the amber primary, not the default browser color */
 :where(button, [role="button"], a, input, select, textarea):focus-visible {
   outline: 2px solid var(--color-primary);

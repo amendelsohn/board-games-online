@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, JetBrains_Mono, Young_Serif } from "next/font/google";
+import {
+  Hanken_Grotesk,
+  JetBrains_Mono,
+  Noto_Emoji,
+  Young_Serif,
+} from "next/font/google";
 import "@/styles/globals.css";
 import { QueryProvider } from "@/lib/providers/QueryProvider";
 import Navbar from "@/components/Navbar";
@@ -25,6 +30,16 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+// Guarantees emoji glyphs render on hosts without a system emoji font
+// (Linux/Chromium, some Chromebooks, headless CI). Monochrome, but on-
+// brand since the Parlor look leans letterpress/ink anyway.
+const notoEmoji = Noto_Emoji({
+  subsets: ["emoji"],
+  weight: "400",
+  variable: "--font-emoji",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "BoardGames.online — play with friends, instantly",
   description:
@@ -43,7 +58,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${hanken.variable} ${youngSerif.variable} ${jetbrainsMono.variable}`}
+      className={`${hanken.variable} ${youngSerif.variable} ${jetbrainsMono.variable} ${notoEmoji.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />

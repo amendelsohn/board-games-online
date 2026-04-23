@@ -32,7 +32,10 @@ function ThrowGlyph({ t, size = "md" }: { t: Throw; size?: "sm" | "md" | "lg" })
         ? "text-xl"
         : "text-3xl md:text-4xl";
   return (
-    <span className={`${cls} leading-none select-none`} aria-label={THROW_LABEL[t]}>
+    <span
+      className={`${cls} emoji leading-none select-none`}
+      aria-label={THROW_LABEL[t]}
+    >
       {THROW_GLYPH[t]}
     </span>
   );
