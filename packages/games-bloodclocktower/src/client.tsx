@@ -403,6 +403,72 @@ function StorytellerGrimoire({
   );
 }
 
+function CharactersMultiPicker({
+  scriptCharacterIds,
+  inPlayCharacterIds,
+  picked,
+  onToggle,
+}: {
+  scriptCharacterIds: readonly string[];
+  inPlayCharacterIds: ReadonlySet<string>;
+  picked: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  // For Demon bluffs, the canonical pick is 3 not-in-play characters
+  // — show those first, with the in-play ones below behind a separator
+  // so the ST can still grab one if they want to bluff something
+  // that's actually in play (advanced ST decision).
+  const notInPlay = scriptCharacterIds.filter((id) => !inPlayCharacterIds.has(id));
+  const inPlay = scriptCharacterIds.filter((id) => inPlayCharacterIds.has(id));
+  const Chip = ({ id, dim }: { id: string; dim?: boolean }) => {
+    const c = TROUBLE_BREWING_BY_ID[id];
+    const on = picked.has(id);
+    return (
+      <button
+        type="button"
+        onClick={() => onToggle(id)}
+        className={`px-1.5 py-0.5 rounded-full border ${
+          on
+            ? `${TEAM_TINT[c?.team ?? "townsfolk"]} bg-base-content/8 border-base-content/30`
+            : `${dim ? "opacity-50" : ""} border-base-content/15 text-base-content/55`
+        }`}
+      >
+        {c?.name ?? id}
+      </button>
+    );
+  };
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-base-content/55">
+        bluffs (Demon learns 3 not-in-play characters):
+      </span>
+      <div className="flex flex-wrap gap-1">
+        {notInPlay.map((id) => (
+          <Chip key={id} id={id} />
+        ))}
+      </div>
+      {inPlay.length > 0 && (
+        <details className="mt-1">
+          <summary className="cursor-pointer text-base-content/45">
+            in-play characters (rarely picked as bluffs)
+          </summary>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {inPlay.map((id) => (
+              <Chip key={id} id={id} dim />
+            ))}
+          </div>
+        </details>
+      )}
+      {picked.size > 0 && (
+        <span className="text-base-content/45 italic">
+          {picked.size} picked{" "}
+          {picked.size > 3 && "(BotC standard is exactly 3)"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function NightOrderPanel({
   state,
   playerById,
@@ -417,6 +483,13 @@ function NightOrderPanel({
     () => tonightOrder(state.grimoire, isFirstNight),
     [state.grimoire, isFirstNight],
   );
+  const inPlayCharacterIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const seat of Object.values(state.grimoire)) {
+      if (seat.characterId) set.add(seat.characterId);
+    }
+    return set;
+  }, [state.grimoire]);
 
   if (order.length === 0) {
     return (
@@ -445,6 +518,7 @@ function NightOrderPanel({
             isCurrent={i === currentIndex}
             playerById={playerById}
             scriptCharacterIds={state.scriptCharacterIds}
+            inPlayCharacterIds={inPlayCharacterIds}
             onSelect={() =>
               void sendMove({ kind: "st.setNightStep", index: i })
             }
@@ -468,6 +542,7 @@ function NightOrderItem({
   isCurrent,
   playerById,
   scriptCharacterIds,
+  inPlayCharacterIds,
   onSelect,
   onSendInfo,
 }: {
@@ -476,6 +551,7 @@ function NightOrderItem({
   isCurrent: boolean;
   playerById: Record<string, SeatPlayer>;
   scriptCharacterIds: readonly string[];
+  inPlayCharacterIds: ReadonlySet<string>;
   onSelect: () => void;
   onSendInfo: (target: string, info: SendInfoPayload) => Promise<void> | void;
 }) {
@@ -519,6 +595,7 @@ function NightOrderItem({
           step={step}
           playerById={playerById}
           scriptCharacterIds={scriptCharacterIds}
+          inPlayCharacterIds={inPlayCharacterIds}
           onSend={(target, info) => {
             void onSendInfo(target, info);
           }}
@@ -532,17 +609,20 @@ function SendInfoForm({
   step,
   playerById,
   scriptCharacterIds,
+  inPlayCharacterIds,
   onSend,
 }: {
   step: NightStep;
   playerById: Record<string, SeatPlayer>;
   scriptCharacterIds: readonly string[];
+  inPlayCharacterIds: ReadonlySet<string>;
   onSend: (target: string, info: SendInfoPayload) => void;
 }) {
   const [target, setTarget] = useState(step.seatIds[0] ?? "");
   const [text, setText] = useState("");
   const [pickedSeats, setPickedSeats] = useState<Set<string>>(new Set());
   const [characterId, setCharacterId] = useState("");
+  const [pickedCharacters, setPickedCharacters] = useState<Set<string>>(new Set());
   const [yesNo, setYesNo] = useState<"" | "yes" | "no">("");
   const [number, setNumber] = useState<string>("");
 
@@ -555,6 +635,7 @@ function SendInfoForm({
     setText("");
     setPickedSeats(new Set());
     setCharacterId("");
+    setPickedCharacters(new Set());
     setYesNo("");
     setNumber("");
   };
@@ -564,6 +645,8 @@ function SendInfoForm({
     if (text.trim()) info.text = text.trim().slice(0, 500);
     if (pickedSeats.size > 0) info.seats = Array.from(pickedSeats);
     if (characterId) info.character = characterId;
+    if (pickedCharacters.size > 0)
+      info.characters = Array.from(pickedCharacters);
     if (yesNo) info.yesNo = yesNo === "yes";
     if (number !== "" && Number.isFinite(Number(number))) {
       info.number = Math.max(0, Math.floor(Number(number)));
@@ -661,6 +744,21 @@ function SendInfoForm({
               })}
             </select>
           </label>
+          {step.kind === "demon-info" && (
+            <CharactersMultiPicker
+              scriptCharacterIds={scriptCharacterIds}
+              inPlayCharacterIds={inPlayCharacterIds}
+              picked={pickedCharacters}
+              onToggle={(id) =>
+                setPickedCharacters((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(id)) next.delete(id);
+                  else next.add(id);
+                  return next;
+                })
+              }
+            />
+          )}
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5">
               <span className="text-base-content/55">yes/no:</span>
@@ -1578,6 +1676,28 @@ function PrivateInfoModal({
               {TEAM_LABEL[character.team].slice(0, -1)}
             </span>
             <span className="font-display text-lg">{character.name}</span>
+          </div>
+        )}
+        {info.characters && info.characters.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+              {info.characters.length === 3 ? "Your bluffs" : "Characters"}
+            </span>
+            <ul className="flex flex-wrap gap-1.5">
+              {info.characters.map((id) => {
+                const c = TROUBLE_BREWING_BY_ID[id];
+                return (
+                  <li
+                    key={id}
+                    className={`px-2 py-0.5 rounded-full bg-base-content/8 text-sm font-display ${
+                      c ? TEAM_TINT[c.team] : ""
+                    }`}
+                  >
+                    {c?.name ?? id}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
         {info.yesNo !== undefined && (

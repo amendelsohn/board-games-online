@@ -238,6 +238,12 @@ const stMoveSchema = z.discriminatedUnion("kind", [
       text: z.string().max(500).optional(),
       seats: z.array(playerIdField).optional(),
       character: z.string().optional(),
+      /**
+       * Multi-character info — used for the Demon's first-night bluffs
+       * (3 not-in-play characters they can claim) and similar
+       * multi-character reveals.
+       */
+      characters: z.array(z.string()).max(10).optional(),
       yesNo: z.boolean().optional(),
       number: z.number().int().nonnegative().optional(),
     }),
