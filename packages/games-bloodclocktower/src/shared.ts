@@ -182,12 +182,27 @@ export const SCRIPT_LABELS: Readonly<Record<BuiltInScriptId, string>> = {
   "sects-and-violets": "Sects & Violets",
 };
 
+/**
+ * A custom script — the ST pasted a homebrew script JSON in the lobby.
+ * v1 only stores resolved character IDs (every entry must reference a
+ * character we already ship). Future versions may accept inline
+ * character definitions for fully-homebrew characters.
+ */
+export const customScriptSchema = z.object({
+  name: z.string().min(1).max(100),
+  characterIds: z.array(z.string().min(1)).min(5).max(40),
+});
+export type CustomScript = z.infer<typeof customScriptSchema>;
+
 export const configSchema = z.object({
-  /**
-   * Which canonical script to play. Custom JSON scripts come in Phase 3
-   * and will use a different config shape.
-   */
+  /** Which canonical script to play. Ignored when customScript is set. */
   scriptId: z.enum(BUILT_IN_SCRIPT_IDS).default("trouble-brewing"),
+  /**
+   * If set, replaces scriptId — the ST pasted a homebrew script. The
+   * character IDs are validated against ALL_CHARACTERS_BY_ID before
+   * being accepted (unknown IDs reject the move).
+   */
+  customScript: customScriptSchema.optional(),
 });
 export type BotCConfig = z.infer<typeof configSchema>;
 
@@ -402,6 +417,8 @@ export {
 } from "./characters/all";
 
 export { tonightOrder, type NightStep } from "./characters/night-order";
+
+export { parseScriptJson } from "./script-parser";
 
 // ============================================================================
 // Trouble Brewing setup distribution

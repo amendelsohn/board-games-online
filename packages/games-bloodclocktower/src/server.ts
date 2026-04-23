@@ -29,8 +29,13 @@ import {
  * Resolve the character pool for a script id. Phase 1 ships only Trouble
  * Brewing; later phases will branch on BMR / S&V / custom-script ids.
  */
-function scriptIdsFor(scriptId: string): string[] {
-  switch (scriptId) {
+function scriptIdsFor(cfg: BotCConfig): string[] {
+  // Custom scripts win — the ST pasted a homebrew, ignore the
+  // built-in scriptId entirely.
+  if (cfg.customScript) {
+    return [...cfg.customScript.characterIds];
+  }
+  switch (cfg.scriptId) {
     case "trouble-brewing":
       return [...TROUBLE_BREWING_IDS];
     case "bad-moon-rising":
@@ -40,7 +45,7 @@ function scriptIdsFor(scriptId: string): string[] {
     default:
       // Defensive: configSchema validates the enum so this branch is
       // unreachable for now. Throwing makes a future typo loud.
-      throw new Error(`Unknown BotC script: ${scriptId}`);
+      throw new Error(`Unknown BotC script: ${cfg.scriptId}`);
   }
 }
 
@@ -52,7 +57,7 @@ function scriptIdsFor(scriptId: string): string[] {
 function emptyState(
   storytellerId: PlayerId,
   players: Player[],
-  scriptId: string,
+  cfg: BotCConfig,
 ): BotCState {
   const seatOrder = players.map((p) => p.id);
   const seats: BotCState["seats"] = {};
@@ -68,9 +73,12 @@ function emptyState(
       ghostVoteUsed: false,
     };
   }
+  // The displayed scriptId is either the custom script's name (so the
+  // grimoire header reads "script My Homebrew") or the built-in id.
+  const scriptId = cfg.customScript ? cfg.customScript.name : cfg.scriptId;
   return {
     scriptId,
-    scriptCharacterIds: scriptIdsFor(scriptId),
+    scriptCharacterIds: scriptIdsFor(cfg),
     storytellerId,
     seatOrder,
     phase: "setup",
@@ -894,7 +902,7 @@ export const bloodClocktowerServerModule: GameModule<
         "Blood on the Clocktower requires a non-playing Storyteller (table.hostIsPlayer === false)",
       );
     }
-    return emptyState(ctx.storytellerId, players, cfg.scriptId);
+    return emptyState(ctx.storytellerId, players, cfg);
   },
 
   handleMove(

@@ -19,6 +19,7 @@ import {
   SCRIPT_LABELS,
   TB_DISTRIBUTION,
   ALL_CHARACTERS_BY_ID,
+  parseScriptJson,
   tonightOrder,
   type BotCConfig,
   type BotCMove,
@@ -1952,6 +1953,34 @@ function BotCLobbyPanel({
   onChange,
 }: LobbyPanelProps<BotCConfig>) {
   const scriptId = (config?.scriptId as BuiltInScriptId) ?? "trouble-brewing";
+  const customScript = config?.customScript;
+  const [showPaste, setShowPaste] = useState(false);
+  const [paste, setPaste] = useState("");
+  const [parseError, setParseError] = useState<string | null>(null);
+
+  const pickBuiltIn = (id: BuiltInScriptId) => {
+    onChange({ ...(config ?? {}), scriptId: id, customScript: undefined });
+  };
+
+  const submitCustom = () => {
+    const result = parseScriptJson(paste);
+    if ("error" in result) {
+      setParseError(result.error);
+      return;
+    }
+    onChange({
+      ...(config ?? { scriptId: "trouble-brewing" }),
+      customScript: result.script,
+    });
+    setParseError(null);
+    setShowPaste(false);
+    setPaste("");
+  };
+
+  const clearCustom = () => {
+    onChange({ ...(config ?? {}), customScript: undefined });
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="text-sm text-base-content/65">
@@ -1961,13 +1990,13 @@ function BotCLobbyPanel({
       </div>
       <div className="flex flex-wrap gap-2">
         {BUILT_IN_SCRIPT_IDS.map((id) => {
-          const active = scriptId === id;
+          const active = !customScript && scriptId === id;
           return (
             <button
               key={id}
               type="button"
               disabled={!isHost}
-              onClick={() => onChange({ ...(config ?? {}), scriptId: id })}
+              onClick={() => pickBuiltIn(id)}
               className={`px-3 py-1.5 rounded-full text-sm border ${
                 active
                   ? "bg-primary/15 text-primary border-primary/40"
@@ -1978,7 +2007,77 @@ function BotCLobbyPanel({
             </button>
           );
         })}
+        {customScript ? (
+          <span
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border bg-primary/15 text-primary border-primary/40"
+            title={`${customScript.characterIds.length} characters`}
+          >
+            {customScript.name}
+            {isHost && (
+              <button
+                type="button"
+                onClick={clearCustom}
+                className="text-primary/60 hover:text-primary"
+                aria-label="Clear custom script"
+              >
+                ×
+              </button>
+            )}
+          </span>
+        ) : (
+          isHost && (
+            <button
+              type="button"
+              onClick={() => setShowPaste((s) => !s)}
+              className="px-3 py-1.5 rounded-full text-sm border border-dashed border-base-content/25 text-base-content/55 hover:bg-base-content/5"
+            >
+              {showPaste ? "Cancel" : "+ Paste custom script…"}
+            </button>
+          )
+        )}
       </div>
+      {showPaste && isHost && !customScript && (
+        <div className="flex flex-col gap-2">
+          <textarea
+            className="bg-base-100/60 border border-base-content/15 rounded px-3 py-2 text-xs font-mono min-h-[120px] resize-y"
+            placeholder='Paste a script JSON, e.g. [{"id":"_meta","name":"My Script"},"washerwoman","empath",...]'
+            value={paste}
+            onChange={(e) => {
+              setPaste(e.target.value);
+              setParseError(null);
+            }}
+          />
+          {parseError && (
+            <p className="text-xs text-error">{parseError}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowPaste(false);
+                setPaste("");
+                setParseError(null);
+              }}
+              className="text-xs px-3 py-1.5 rounded-full text-base-content/55 hover:bg-base-content/5"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!paste.trim()}
+              onClick={submitCustom}
+              className="text-xs px-3 py-1.5 rounded-full bg-primary/15 text-primary disabled:opacity-40"
+            >
+              Use this script
+            </button>
+          </div>
+          <p className="text-[11px] text-base-content/45 italic">
+            v1 only supports characters that ship in Trouble Brewing, Bad
+            Moon Rising, and Sects & Violets — homebrew characters with
+            inline definitions aren't supported yet.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
