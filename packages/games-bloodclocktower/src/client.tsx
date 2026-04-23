@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -2510,6 +2511,31 @@ function phaseAdvanceLabel(phase: BotCPhase, dayNumber: number): string | null {
 // Player
 // ============================================================================
 
+type PlayerTab = "me" | "seats" | "script";
+
+interface InfoEvent {
+  info: SendInfoPayload;
+  sentAt: number;
+  /** Auto-incrementing id for stable React keys. */
+  id: number;
+}
+
+/**
+ * Phone-first player surface. Three tabs:
+ *   - Me: role token, status, day actions (vote UI), and the running
+ *     log of every private info the ST has whispered (incl. demon
+ *     bluffs, evil-team reveals, character info, etc.)
+ *   - Seats: read-only town-square showing who's alive/dead. Names +
+ *     alive shroud only — character identities stay hidden until the
+ *     match ends and the post-mortem grimoire is revealed.
+ *   - Script: every character in the active script grouped by team,
+ *     for looking up other players' possible abilities.
+ *
+ * The PrivateInfoModal still pops the moment a new info arrives so
+ * the player notices, AND that info is appended to the Me-tab log
+ * so they can review it later (no more "wait, what did the ST tell
+ * me on night 1?").
+ */
 function PlayerSurface({
   view,
   players,
@@ -2522,8 +2548,8 @@ function PlayerSurface({
   onEvent: OnEvent;
 }) {
   const pool = useCharacterPool();
-  const character = view.me?.characterId
-    ? pool[view.me.characterId]
+  const character: Character | null = view.me?.characterId
+    ? (pool[view.me.characterId] ?? null)
     : null;
 
   const playerById = useMemo(
@@ -2532,12 +2558,27 @@ function PlayerSurface({
   );
 
   const [pending, setPending] = useState<SendInfoPayload | null>(null);
+  const [infoLog, setInfoLog] = useState<InfoEvent[]>([]);
+  const [tab, setTab] = useState<PlayerTab>("me");
+  const infoIdRef = useRef(0);
 
   useEffect(() => {
     return onEvent((e) => {
       if (e.kind !== "botc.privateInfo") return;
-      const payload = e.payload as { info?: SendInfoPayload } | undefined;
-      if (payload?.info) setPending(payload.info);
+      const payload = e.payload as
+        | { info?: SendInfoPayload; sentAt?: number }
+        | undefined;
+      if (!payload?.info) return;
+      setPending(payload.info);
+      infoIdRef.current += 1;
+      setInfoLog((prev) => [
+        ...prev,
+        {
+          info: payload.info!,
+          sentAt: payload.sentAt ?? Date.now(),
+          id: infoIdRef.current,
+        },
+      ]);
     });
   }, [onEvent]);
 
@@ -2546,49 +2587,152 @@ function PlayerSurface({
     void sendMove({ kind: "p.acknowledgeWake" });
   };
 
+  const isFinished = view.phase === "finished";
+
   return (
-    <div className="surface-ivory p-6 max-w-md w-full flex flex-col gap-4">
+    <div className="surface-ivory w-full max-w-md flex flex-col gap-3 p-4 sm:p-6">
       <header className="flex flex-col gap-1">
         <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
           {scriptDisplayName(view.scriptId)} ·{" "}
           {view.phase === "setup"
             ? "setup"
             : phaseLabel(view.phase, view.dayNumber)}
+          {view.me && !view.me.isAlive ? " · ghost" : ""}
         </span>
         <h2 className="font-display text-2xl tracking-tight">
           {view.me ? "Your seat" : "Watching"}
         </h2>
       </header>
-      {view.phase === "setup" && !character && (
+
+      {/* Tabs — only visible once the match is in progress. During setup
+          there's nothing else to look at. */}
+      {view.phase !== "setup" && (
+        <nav
+          role="tablist"
+          aria-label="Player view"
+          className="flex gap-1 -mt-1 border-b border-base-content/10"
+        >
+          {(
+            [
+              { id: "me" as const, label: "You" },
+              { id: "seats" as const, label: "Seats" },
+              { id: "script" as const, label: "Script" },
+            ]
+          ).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-3 py-1.5 text-xs font-display border-b-2 -mb-[1px] transition-colors ${
+                tab === t.id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-base-content/55 hover:text-base-content/85"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+          {infoLog.length > 0 && tab !== "me" && (
+            <span className="ml-auto self-center text-[10px] text-base-content/45 font-mono pr-1">
+              {infoLog.length} note{infoLog.length === 1 ? "" : "s"}
+            </span>
+          )}
+        </nav>
+      )}
+
+      {view.phase === "setup" && (
         <p className="text-sm text-base-content/65 leading-relaxed">
           The Storyteller is distributing characters. Sit tight — your role
           will appear here when setup is done.
         </p>
       )}
-      {character && (
-        <div className="flex flex-col gap-2 border-l-2 border-primary/60 pl-4">
-          <span
-            className={`text-xs uppercase tracking-[0.22em] ${TEAM_TINT[character.team]}`}
-          >
-            {TEAM_LABEL[character.team].slice(0, -1)}
-          </span>
-          <div className="font-display text-3xl tracking-tight">
-            {character.name}
-          </div>
-          <p className="text-sm text-base-content/75 leading-relaxed">
-            {character.ability}
-          </p>
-        </div>
+
+      {view.phase !== "setup" && tab === "me" && (
+        <PlayerMeView
+          view={view}
+          character={character}
+          playerById={playerById}
+          infoLog={infoLog}
+          sendMove={sendMove}
+        />
       )}
-      {view.phase !== "setup" && (
-        <p className="text-xs text-base-content/55">
-          Phase:{" "}
-          <span className="font-mono">
-            {phaseLabel(view.phase, view.dayNumber)}
-          </span>
-          {view.me && !view.me.isAlive ? " · you are a ghost" : ""}
+
+      {view.phase !== "setup" && tab === "seats" && (
+        <PlayerSeatChart view={view} playerById={playerById} />
+      )}
+
+      {view.phase !== "setup" && tab === "script" && (
+        <PlayerScriptView scriptCharacterIds={view.scriptCharacterIds} />
+      )}
+
+      {isFinished && view.winner && (
+        <FinishedBanner winner={view.winner} reason={view.endReason} />
+      )}
+      {isFinished && view.finalGrimoire && (
+        <FinalGrimoireList
+          seatOrder={view.seatOrder}
+          finalGrimoire={view.finalGrimoire}
+          playerById={playerById}
+          mySeatId={view.me?.seatId}
+        />
+      )}
+
+      {pending && (
+        <PrivateInfoModal
+          info={pending}
+          playerById={playerById}
+          onDismiss={dismissPending}
+        />
+      )}
+    </div>
+  );
+}
+
+/** "You" tab: role, status, day actions, info log. */
+function PlayerMeView({
+  view,
+  character,
+  playerById,
+  infoLog,
+  sendMove,
+}: {
+  view: Extract<BotCView, { viewer: "player" }>;
+  character: Character | null;
+  playerById: Record<string, SeatPlayer>;
+  infoLog: InfoEvent[];
+  sendMove: Send;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      {character ? (
+        <div className="flex gap-3 items-start">
+          <RoleToken
+            character={character}
+            size={88}
+            dead={view.me ? !view.me.isAlive : false}
+          />
+          <div className="flex-1 min-w-0 flex flex-col gap-1">
+            <span
+              className={`text-[10px] uppercase tracking-[0.22em] ${TEAM_TINT[character.team]}`}
+            >
+              {TEAM_LABEL[character.team].slice(0, -1)}
+            </span>
+            <div className="font-display text-2xl leading-tight tracking-tight">
+              {character.name}
+            </div>
+            <p className="text-sm text-base-content/75 leading-snug">
+              {character.ability}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-base-content/65 italic">
+          The Storyteller hasn't shown you a character yet.
         </p>
       )}
+
       {view.phase === "day" && view.me && view.playMode === "virtual" && (
         <DayActions
           me={view.me}
@@ -2609,25 +2753,285 @@ function PlayerSurface({
           your ballot. The Storyteller is recording outcomes here.
         </div>
       )}
-      {view.phase === "finished" && view.winner && (
-        <FinishedBanner winner={view.winner} reason={view.endReason} />
-      )}
-      {view.phase === "finished" && view.finalGrimoire && (
-        <FinalGrimoireList
-          seatOrder={view.seatOrder}
-          finalGrimoire={view.finalGrimoire}
-          playerById={playerById}
-          mySeatId={view.me?.seatId}
-        />
-      )}
-      {pending && (
-        <PrivateInfoModal
-          info={pending}
-          playerById={playerById}
-          onDismiss={dismissPending}
-        />
-      )}
+
+      <PlayerInfoLog infoLog={infoLog} playerById={playerById} />
     </div>
+  );
+}
+
+/** "Seats" tab: read-only town-square ring. */
+function PlayerSeatChart({
+  view,
+  playerById,
+}: {
+  view: Extract<BotCView, { viewer: "player" }>;
+  playerById: Record<string, SeatPlayer>;
+}) {
+  const n = view.seatOrder.length;
+  if (n === 0) {
+    return (
+      <p className="text-sm text-base-content/55 italic">No seats yet.</p>
+    );
+  }
+  // Phone-first compact ring geometry: 320–400 wide tablets/phones.
+  const tokenSize =
+    n <= 6 ? 64 : n <= 9 ? 56 : n <= 11 ? 50 : n <= 13 ? 44 : 40;
+  const minGap = tokenSize * 1.18;
+  const radius = Math.max(108, minGap / (2 * Math.sin(Math.PI / n)));
+  const labelPadding = 28;
+  const containerSize = (radius + tokenSize / 2) * 2 + labelPadding;
+
+  const livingCount = view.seatOrder.reduce(
+    (acc, id) => acc + (view.seats[id]?.isAlive ? 1 : 0),
+    0,
+  );
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 self-start">
+        {livingCount} of {n} alive
+      </span>
+      <div
+        className="relative flex-none"
+        style={{
+          width: containerSize,
+          height: containerSize,
+          maxWidth: "100%",
+        }}
+      >
+        {view.seatOrder.map((seatId, i) => {
+          const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+          const x = radius * Math.cos(angle);
+          const y = radius * Math.sin(angle);
+          const seatPub = view.seats[seatId];
+          const isMe = view.me?.seatId === seatId;
+          const playerName = playerById[seatId]?.name ?? seatId;
+          return (
+            <div
+              key={seatId}
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: `translate(${x}px, ${y}px) translate(-50%, -50%)`,
+                width: tokenSize + 14,
+              }}
+              className="flex flex-col items-center gap-0.5"
+              aria-label={`${playerName}${seatPub?.isAlive ? "" : " (dead)"}`}
+            >
+              <span
+                className={`relative rounded-full ${
+                  isMe ? "ring-2 ring-primary shadow" : ""
+                }`}
+              >
+                <RoleToken
+                  character={null}
+                  size={tokenSize}
+                  dead={!seatPub?.isAlive}
+                />
+              </span>
+              <span
+                className={`font-display text-[10px] text-center truncate w-full leading-tight ${
+                  isMe ? "text-primary" : "text-base-content/85"
+                }`}
+              >
+                {playerName}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-base-content/50 italic text-center max-w-[280px]">
+        Roles stay hidden until the game ends.
+      </p>
+    </div>
+  );
+}
+
+/** "Script" tab: every character in the active script, grouped by team. */
+function PlayerScriptView({
+  scriptCharacterIds,
+}: {
+  scriptCharacterIds: readonly string[];
+}) {
+  const pool = useCharacterPool();
+  const groups = useMemo(() => {
+    const teams: CharacterTeam[] = [
+      "townsfolk",
+      "outsider",
+      "minion",
+      "demon",
+      "traveller",
+      "fabled",
+    ];
+    const byTeam: Record<CharacterTeam, Character[]> = {
+      townsfolk: [],
+      outsider: [],
+      minion: [],
+      demon: [],
+      traveller: [],
+      fabled: [],
+    };
+    for (const id of scriptCharacterIds) {
+      const c = pool[id];
+      if (c) byTeam[c.team].push(c);
+    }
+    return teams
+      .filter((t) => byTeam[t].length > 0)
+      .map((t) => ({ team: t, chars: byTeam[t] }));
+  }, [scriptCharacterIds, pool]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {groups.map(({ team, chars }) => (
+        <section key={team} className="flex flex-col gap-1.5">
+          <h3
+            className={`font-display text-xs uppercase tracking-[0.22em] ${TEAM_TINT[team]}`}
+          >
+            {TEAM_LABEL[team]}
+          </h3>
+          <ul className="flex flex-col gap-1.5">
+            {chars.map((c) => (
+              <li key={c.id} className="flex gap-2.5 items-start">
+                <RoleToken character={c} size={36} />
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <span className="font-display text-sm leading-tight">
+                    {c.name}
+                  </span>
+                  <p className="text-[11px] text-base-content/65 leading-snug">
+                    {c.ability}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/** Running log of private info the ST has whispered to this player. */
+function PlayerInfoLog({
+  infoLog,
+  playerById,
+}: {
+  infoLog: readonly InfoEvent[];
+  playerById: Record<string, SeatPlayer>;
+}) {
+  const pool = useCharacterPool();
+  if (infoLog.length === 0) {
+    return (
+      <div className="flex flex-col gap-1 pt-3 border-t border-base-content/10">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+          From the Storyteller
+        </span>
+        <p className="text-xs text-base-content/55 italic">
+          Nothing yet. The Storyteller will whisper as your character wakes.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 pt-3 border-t border-base-content/10">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+        From the Storyteller — {infoLog.length} note
+        {infoLog.length === 1 ? "" : "s"}
+      </span>
+      <ul className="flex flex-col gap-2">
+        {[...infoLog].reverse().map((evt) => (
+          <InfoLogEntry
+            key={evt.id}
+            info={evt.info}
+            sentAt={evt.sentAt}
+            playerById={playerById}
+            pool={pool}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function InfoLogEntry({
+  info,
+  sentAt,
+  playerById,
+  pool,
+}: {
+  info: SendInfoPayload;
+  sentAt: number;
+  playerById: Record<string, SeatPlayer>;
+  pool: Record<string, Character>;
+}) {
+  const time = useMemo(() => {
+    const d = new Date(sentAt);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }, [sentAt]);
+  const character = info.character ? (pool[info.character] ?? null) : null;
+  const characters = info.characters
+    ? info.characters
+        .map((id) => pool[id])
+        .filter((c): c is Character => Boolean(c))
+    : [];
+  return (
+    <li className="surface-ivory bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/40 rounded-lg p-2.5 flex flex-col gap-1.5">
+      <span className="text-[10px] font-mono text-base-content/45">{time}</span>
+      {info.text && (
+        <p className="text-sm text-base-content/85 leading-snug">
+          {info.text}
+        </p>
+      )}
+      {info.seats && info.seats.length > 0 && (
+        <div className="flex flex-wrap gap-1 text-[11px]">
+          {info.seats.map((id) => (
+            <span
+              key={id}
+              className="px-1.5 py-0.5 rounded-full bg-base-content/10 font-display"
+            >
+              {playerById[id]?.name ?? id}
+            </span>
+          ))}
+        </div>
+      )}
+      {character && (
+        <div className="flex items-center gap-2">
+          <RoleToken character={character} size={32} />
+          <span
+            className={`font-display text-sm ${TEAM_TINT[character.team]}`}
+          >
+            {character.name}
+          </span>
+        </div>
+      )}
+      {characters.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            {characters.length === 3 ? "Bluffs" : "Characters"}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {characters.map((c) => (
+              <div key={c.id} className="flex items-center gap-1.5">
+                <RoleToken character={c} size={28} />
+                <span
+                  className={`font-display text-xs ${TEAM_TINT[c.team]}`}
+                >
+                  {c.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {info.yesNo !== undefined && (
+        <span className="font-display text-base">
+          {info.yesNo ? "Yes" : "No"}
+        </span>
+      )}
+      {info.number !== undefined && (
+        <span className="font-display text-base font-mono">{info.number}</span>
+      )}
+    </li>
   );
 }
 
