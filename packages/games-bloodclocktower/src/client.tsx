@@ -960,19 +960,6 @@ function SeatRing({
                     ✋
                   </span>
                 )}
-                {seat?.reminders && seat.reminders.length > 0 && (
-                  <span
-                    className="absolute -bottom-1 -left-1 inline-flex items-center justify-center rounded-full bg-amber-200 text-amber-900 font-mono shadow-sm"
-                    style={{
-                      width: Math.round(tokenSize * 0.26),
-                      height: Math.round(tokenSize * 0.26),
-                      fontSize: Math.round(tokenSize * 0.18),
-                    }}
-                    aria-label={`${seat.reminders.length} reminder tokens`}
-                  >
-                    {seat.reminders.length}
-                  </span>
-                )}
               </span>
               <span
                 className={`font-display text-[11px] text-center truncate w-full leading-tight ${
@@ -981,6 +968,29 @@ function SeatRing({
               >
                 {playerName}
               </span>
+              {seat?.reminders && seat.reminders.length > 0 && (
+                <div
+                  className="flex flex-wrap gap-0.5 justify-center"
+                  style={{ maxWidth: tokenSize + 36 }}
+                >
+                  {seat.reminders.slice(0, 4).map((r) => (
+                    <span
+                      key={r.id}
+                      className="px-1 rounded-sm bg-amber-200 text-amber-950 text-[9px] leading-[1.4] font-display whitespace-nowrap shadow-sm border border-amber-300/50"
+                      title={r.label}
+                    >
+                      {r.label.length > 12
+                        ? r.label.slice(0, 11) + "…"
+                        : r.label}
+                    </span>
+                  ))}
+                  {seat.reminders.length > 4 && (
+                    <span className="px-1 rounded-sm bg-base-content/15 text-base-content/65 text-[9px] leading-[1.4] font-mono">
+                      +{seat.reminders.length - 4}
+                    </span>
+                  )}
+                </div>
+              )}
             </button>
           );
         })}
@@ -1890,43 +1900,51 @@ function NightOrderItem({
   onSelect: () => void;
   onSendInfo: (target: string, info: SendInfoPayload) => Promise<void> | void;
 }) {
-  const [open, setOpen] = useState(false);
-  // Auto-open when this becomes the active step.
-  useEffect(() => {
-    if (isCurrent) setOpen(true);
-  }, [isCurrent]);
-
+  const [modalOpen, setModalOpen] = useState(false);
   const seatNames = step.seatIds
     .map((id) => playerById[id]?.name ?? id)
     .join(", ");
 
+  const openModal = () => {
+    if (!isCurrent) onSelect();
+    setModalOpen(true);
+  };
+
   return (
     <li
-      className={`px-2 py-1.5 rounded ${
+      className={`rounded ${
         isCurrent ? "bg-primary/8" : "hover:bg-base-content/4"
       }`}
     >
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <span className="font-mono text-[11px] text-base-content/55 w-6 text-right">
-          {index + 1}.
+      <button
+        type="button"
+        onClick={openModal}
+        className="w-full text-left flex items-center gap-2 px-2 py-1.5 group"
+      >
+        <span className="font-mono text-[10px] text-base-content/45 w-5 text-right shrink-0">
+          {index + 1}
         </span>
-        <span className="font-display text-sm">{step.label}</span>
-        <span className="text-[11px] text-base-content/55 truncate flex-1">
-          {seatNames}
+        <RoleToken character={step.character} size={28} />
+        <div className="flex-1 min-w-0">
+          <div
+            className={`font-display text-sm leading-tight truncate ${
+              isCurrent ? "text-primary" : ""
+            }`}
+          >
+            {step.label}
+          </div>
+          {seatNames && (
+            <div className="text-[10px] text-base-content/55 truncate leading-tight">
+              {seatNames}
+            </div>
+          )}
+        </div>
+        <span className="text-[10px] text-base-content/45 group-hover:text-primary shrink-0">
+          →
         </span>
-        <button
-          type="button"
-          className="text-[11px] px-2 py-0.5 rounded-full bg-base-content/10 hover:bg-base-content/15"
-          onClick={() => {
-            if (!isCurrent) onSelect();
-            setOpen((o) => !o);
-          }}
-        >
-          {open ? "close" : "wake"}
-        </button>
-      </div>
-      {open && (
-        <SendInfoForm
+      </button>
+      {modalOpen && (
+        <NightInfoModal
           step={step}
           playerById={playerById}
           scriptCharacterIds={scriptCharacterIds}
@@ -1934,47 +1952,44 @@ function NightOrderItem({
           onSend={(target, info) => {
             void onSendInfo(target, info);
           }}
+          onClose={() => setModalOpen(false)}
         />
       )}
     </li>
   );
 }
 
-function SendInfoForm({
+/**
+ * Modal-style "send info" composer. Replaces the cramped inline form
+ * that lived in the night-order rail. Has more room for picking
+ * seats, characters, and free text — and gets out of the way once
+ * the ST clicks Send.
+ */
+function NightInfoModal({
   step,
   playerById,
   scriptCharacterIds,
   inPlayCharacterIds,
   onSend,
+  onClose,
 }: {
   step: NightStep;
   playerById: Record<string, SeatPlayer>;
   scriptCharacterIds: readonly string[];
   inPlayCharacterIds: ReadonlySet<string>;
   onSend: (target: string, info: SendInfoPayload) => void;
+  onClose: () => void;
 }) {
   const pool = useCharacterPool();
   const [target, setTarget] = useState(step.seatIds[0] ?? "");
   const [text, setText] = useState("");
   const [pickedSeats, setPickedSeats] = useState<Set<string>>(new Set());
   const [characterId, setCharacterId] = useState("");
-  const [pickedCharacters, setPickedCharacters] = useState<Set<string>>(new Set());
+  const [pickedCharacters, setPickedCharacters] = useState<Set<string>>(
+    new Set(),
+  );
   const [yesNo, setYesNo] = useState<"" | "yes" | "no">("");
   const [number, setNumber] = useState<string>("");
-
-  // When the step changes, reset the dropdown to the first seat.
-  useEffect(() => {
-    setTarget(step.seatIds[0] ?? "");
-  }, [step.id, step.seatIds]);
-
-  const reset = () => {
-    setText("");
-    setPickedSeats(new Set());
-    setCharacterId("");
-    setPickedCharacters(new Set());
-    setYesNo("");
-    setNumber("");
-  };
 
   const buildInfo = (): SendInfoPayload | null => {
     const info: SendInfoPayload = {};
@@ -1997,7 +2012,7 @@ function SendInfoForm({
     for (const t of targets) {
       if (t) onSend(t, info);
     }
-    reset();
+    onClose();
   };
 
   const togglePicked = (id: string) => {
@@ -2012,38 +2027,115 @@ function SendInfoForm({
   const allSeats = Object.keys(playerById);
 
   return (
-    <div className="ml-8 mt-1.5 p-2.5 border-l border-base-content/15 flex flex-col gap-2 text-xs">
-      {step.seatIds.length > 1 && (
-        <label className="flex items-center gap-2">
-          <span className="text-base-content/60">to:</span>
-          <select
-            className="bg-transparent border-b border-base-content/15 px-1"
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
+    <div
+      className="fixed inset-0 z-50 bg-black/65 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="surface-ivory max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 flex flex-col gap-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <RoleToken character={step.character} size={48} />
+            <div className="min-w-0">
+              <div
+                className={`font-display text-lg leading-tight ${step.character ? TEAM_TINT[step.character.team] : ""}`}
+              >
+                {step.label}
+              </div>
+              {step.character?.ability && (
+                <p className="text-[11px] text-base-content/65 leading-snug mt-0.5">
+                  {step.character.ability}
+                </p>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-base-content/45 hover:text-base-content/85 text-xl leading-none -mt-0.5"
+            aria-label="Close"
           >
-            {step.seatIds.map((id) => (
-              <option key={id} value={id}>
-                {playerById[id]?.name ?? id}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <textarea
-        className="bg-transparent border border-base-content/15 rounded px-2 py-1 min-h-[2.25rem] resize-y"
-        rows={2}
-        maxLength={500}
-        placeholder="Whisper to them — e.g. 'One of these is the Investigator.'"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
-      <details className="text-[11px]">
-        <summary className="cursor-pointer text-base-content/60">
-          structured fields
-        </summary>
-        <div className="mt-1.5 flex flex-col gap-1.5 pl-2">
-          <div className="flex flex-wrap gap-1 items-baseline">
-            <span className="text-base-content/55 mr-1">point at:</span>
+            ×
+          </button>
+        </header>
+
+        {step.seatIds.length > 1 ? (
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+              Send to
+            </label>
+            <div className="flex flex-wrap gap-1">
+              {step.seatIds.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTarget(id)}
+                  className={`px-2.5 py-1 rounded-full text-xs border ${
+                    target === id
+                      ? "bg-primary/15 text-primary border-primary/40"
+                      : "border-base-content/15 text-base-content/65 hover:bg-base-content/5"
+                  }`}
+                >
+                  {playerById[id]?.name ?? id}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : step.seatIds[0] ? (
+          <div className="text-xs text-base-content/55">
+            Sending to{" "}
+            <strong className="font-display">
+              {playerById[step.seatIds[0]]?.name ?? step.seatIds[0]}
+            </strong>
+          </div>
+        ) : null}
+
+        {/* Quick numeric / yes-no shortcuts */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            Quick
+          </span>
+          {[0, 1, 2, 3].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setNumber(String(n))}
+              className={`w-8 h-8 rounded-full font-display text-sm border ${
+                number === String(n)
+                  ? "bg-primary/15 text-primary border-primary/40"
+                  : "border-base-content/15 text-base-content/65 hover:bg-base-content/5"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+          <span className="text-base-content/30 mx-1">·</span>
+          {(["yes", "no"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setYesNo(v)}
+              className={`px-3 h-8 rounded-full text-xs border ${
+                yesNo === v
+                  ? v === "yes"
+                    ? "bg-success/15 text-success border-success/40"
+                    : "bg-base-content/10 text-base-content/65 border-base-content/25"
+                  : "border-base-content/15 text-base-content/55 hover:bg-base-content/5"
+              }`}
+            >
+              {v.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        {/* Point at seat(s) */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            Point at seat(s)
+          </span>
+          <div className="flex flex-wrap gap-1 text-[11px]">
             {allSeats.map((id) => {
               const on = pickedSeats.has(id);
               return (
@@ -2051,10 +2143,10 @@ function SendInfoForm({
                   key={id}
                   type="button"
                   onClick={() => togglePicked(id)}
-                  className={`px-1.5 py-0.5 rounded-full border ${
+                  className={`px-2 py-0.5 rounded-full border ${
                     on
                       ? "bg-primary/15 border-primary/40 text-primary"
-                      : "border-base-content/15 text-base-content/55"
+                      : "border-base-content/15 text-base-content/55 hover:bg-base-content/5"
                   }`}
                 >
                   {playerById[id]?.name ?? id}
@@ -2062,25 +2154,14 @@ function SendInfoForm({
               );
             })}
           </div>
-          <label className="flex items-center gap-2">
-            <span className="text-base-content/55">character:</span>
-            <select
-              className="bg-transparent border-b border-base-content/15 px-1 flex-1"
-              value={characterId}
-              onChange={(e) => setCharacterId(e.target.value)}
-            >
-              <option value="">—</option>
-              {scriptCharacterIds.map((id) => {
-                const c = pool[id];
-                return (
-                  <option key={id} value={id}>
-                    {c?.name ?? id}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          {step.kind === "demon-info" && (
+        </div>
+
+        {/* Show one character (or three for demon-info) */}
+        {step.kind === "demon-info" ? (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+              Demon bluffs
+            </span>
             <CharactersMultiPicker
               scriptCharacterIds={scriptCharacterIds}
               inPlayCharacterIds={inPlayCharacterIds}
@@ -2094,50 +2175,71 @@ function SendInfoForm({
                 })
               }
             />
-          )}
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5">
-              <span className="text-base-content/55">yes/no:</span>
-              <select
-                className="bg-transparent border-b border-base-content/15 px-1"
-                value={yesNo}
-                onChange={(e) => setYesNo(e.target.value as "yes" | "no" | "")}
-              >
-                <option value="">—</option>
-                <option value="yes">yes</option>
-                <option value="no">no</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-1.5">
-              <span className="text-base-content/55">number:</span>
-              <input
-                type="number"
-                min={0}
-                className="bg-transparent border-b border-base-content/15 w-12 px-1"
-                value={number}
-                onChange={(e) => setNumber(e.target.value)}
-              />
-            </label>
           </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+              Show character
+            </span>
+            <select
+              className="bg-transparent border border-base-content/15 rounded px-2 py-1 text-xs"
+              value={characterId}
+              onChange={(e) => setCharacterId(e.target.value)}
+            >
+              <option value="">— none —</option>
+              {scriptCharacterIds.map((id) => {
+                const c = pool[id];
+                return (
+                  <option key={id} value={id}>
+                    {c?.name ?? id}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        )}
+
+        {/* Free-text whisper */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            Note (optional)
+          </label>
+          <textarea
+            className="bg-transparent border border-base-content/15 rounded px-2 py-1.5 text-sm resize-y min-h-[2.5rem]"
+            rows={2}
+            maxLength={500}
+            placeholder="e.g. 'One of these is the Investigator.'"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
         </div>
-      </details>
-      <div className="flex items-center gap-2 self-end">
-        {step.seatIds.length > 1 && (
+
+        <footer className="flex items-center justify-end gap-2 pt-1 border-t border-base-content/10">
           <button
             type="button"
-            className="text-[11px] px-2.5 py-1 rounded-full bg-base-content/10 hover:bg-base-content/15"
-            onClick={() => submit(true)}
+            onClick={onClose}
+            className="text-xs px-3 py-1.5 rounded-full text-base-content/55 hover:bg-base-content/5"
           >
-            send to all ({step.seatIds.length})
+            Cancel
           </button>
-        )}
-        <button
-          type="button"
-          className="text-[11px] px-2.5 py-1 rounded-full bg-primary/15 text-primary hover:bg-primary/25"
-          onClick={() => submit(false)}
-        >
-          send →
-        </button>
+          {step.seatIds.length > 1 && (
+            <button
+              type="button"
+              className="text-xs px-3 py-1.5 rounded-full bg-base-content/10 hover:bg-base-content/15"
+              onClick={() => submit(true)}
+            >
+              Send to all ({step.seatIds.length})
+            </button>
+          )}
+          <button
+            type="button"
+            className="text-xs px-3 py-1.5 rounded-full bg-primary text-primary-content hover:bg-primary/90"
+            onClick={() => submit(false)}
+            disabled={!buildInfo()}
+          >
+            Send →
+          </button>
+        </footer>
       </div>
     </div>
   );
