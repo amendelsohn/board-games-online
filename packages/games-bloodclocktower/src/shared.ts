@@ -326,3 +326,15 @@ export interface SpectatorView {
 }
 
 export type BotCView = StorytellerView | PlayerView | SpectatorView;
+
+// ============================================================================
+// Character data + helpers (re-exported from ./characters/*)
+// ============================================================================
+
+export {
+  TROUBLE_BREWING_CHARACTERS,
+  TROUBLE_BREWING_BY_ID,
+  TROUBLE_BREWING_IDS,
+} from "./characters/trouble-brewing";
+
+export { tonightOrder, type NightStep } from "./characters/night-order";

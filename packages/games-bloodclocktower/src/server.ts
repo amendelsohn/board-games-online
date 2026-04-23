@@ -10,6 +10,7 @@ import type {
 } from "@bgo/sdk";
 import {
   BOTC_TYPE,
+  TROUBLE_BREWING_IDS,
   configSchema,
   moveSchema,
   type BotCConfig,
@@ -20,6 +21,21 @@ import {
   type SpectatorView,
   type StorytellerView,
 } from "./shared";
+
+/**
+ * Resolve the character pool for a script id. Phase 1 ships only Trouble
+ * Brewing; later phases will branch on BMR / S&V / custom-script ids.
+ */
+function scriptIdsFor(scriptId: string): string[] {
+  switch (scriptId) {
+    case "trouble-brewing":
+      return [...TROUBLE_BREWING_IDS];
+    default:
+      // Defensive: defaultConfig + Zod validation ensure this branch is
+      // unreachable for now, but throwing makes a future typo loud.
+      throw new Error(`Unknown BotC script: ${scriptId}`);
+  }
+}
 
 /**
  * Minimal player-public view of a seat. Public seat info (alive/dead/ghost
@@ -47,9 +63,7 @@ function emptyState(
   }
   return {
     scriptId,
-    // Phase 1 ships only Trouble Brewing; the actual character list will
-    // be populated when the script data lands in the next commit.
-    scriptCharacterIds: [],
+    scriptCharacterIds: scriptIdsFor(scriptId),
     storytellerId,
     seatOrder,
     phase: "setup",
