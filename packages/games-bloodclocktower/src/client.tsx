@@ -62,6 +62,155 @@ function buildCharacterPool(custom: Character[]): Record<string, Character> {
   return out;
 }
 
+/**
+ * Hex colors for the SVG role tokens — picked to read well on the
+ * cream `--token-bg` background and to stay visually distinct in
+ * grayscale. Townsfolk = trustworthy blue; Outsider = warning amber;
+ * Minion = oxblood; Demon = bright red; Traveller = neutral; Fabled
+ * = secondary purple-ish.
+ */
+const TEAM_HEX: Record<CharacterTeam, string> = {
+  townsfolk: "#1e6f9f",
+  outsider: "#9c6b1c",
+  minion: "#a02c2c",
+  demon: "#d63a3a",
+  traveller: "#6b6b6b",
+  fabled: "#7a4ea6",
+};
+
+/**
+ * A circular SVG "role token" loosely inspired by the physical BotC
+ * tokens: cream background, team-colored border, character name as
+ * curved text along the bottom arc, large stylized initial in the
+ * middle (until we have art).
+ *
+ * Status overlays:
+ *   - Dead: wooden-slat shroud across the middle.
+ *   - Poisoned / Drunk: small dots in the bottom corners.
+ */
+function RoleToken({
+  character,
+  size = 88,
+  dead = false,
+  poisoned = false,
+  drunk = false,
+}: {
+  character: Character | null;
+  size?: number;
+  dead?: boolean;
+  poisoned?: boolean;
+  drunk?: boolean;
+}) {
+  const teamColor = character ? TEAM_HEX[character.team] : "#999";
+  const name = character?.name ?? "";
+  // For empty / unassigned tokens, render just the cream circle.
+  // Curved name path: a downward arc that reads bottom-up. Inkscape-y
+  // d-string: starts at left side, sweeps along the bottom to the
+  // right side, hugging the inner edge of the border ring.
+  const arcId = `tokenArc-${character?.id ?? "empty"}-${size}`;
+  const initial = name ? name[0]?.toUpperCase() ?? "" : "";
+  // Font size for the curved name scales gently with token size.
+  const nameFontSize = Math.max(7, Math.round(size / 11));
+  const initialFontSize = Math.round(size / 2.5);
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      style={{ display: "block" }}
+      aria-label={name || "empty seat"}
+    >
+      <defs>
+        {/* Subtle radial gradient on the token surface for depth. */}
+        <radialGradient id={`tokenSheen-${arcId}`} cx="0.5" cy="0.4" r="0.6">
+          <stop offset="0%" stopColor="#fbf6e9" />
+          <stop offset="80%" stopColor="#ede1c6" />
+          <stop offset="100%" stopColor="#d8c79b" />
+        </radialGradient>
+        {/* Bottom arc for the curved character name. */}
+        <path id={arcId} d="M 18 56 A 32 32 0 0 0 82 56" fill="none" />
+      </defs>
+
+      {/* Outer team-colored ring */}
+      <circle cx="50" cy="50" r="48" fill={teamColor} opacity="0.85" />
+      {/* Inner token surface */}
+      <circle
+        cx="50"
+        cy="50"
+        r="42"
+        fill={`url(#tokenSheen-${arcId})`}
+        stroke={teamColor}
+        strokeWidth="0.5"
+      />
+
+      {/* Big stylized initial in the middle */}
+      {initial && (
+        <text
+          x="50"
+          y="42"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontFamily="'Cormorant Garamond', 'Georgia', serif"
+          fontWeight="600"
+          fontSize={initialFontSize}
+          fill={teamColor}
+        >
+          {initial}
+        </text>
+      )}
+
+      {/* Curved character name along the bottom */}
+      {name && (
+        <text
+          fontFamily="'Cormorant Garamond', 'Georgia', serif"
+          fontWeight="600"
+          fontSize={nameFontSize}
+          fill={teamColor}
+          letterSpacing="0.5"
+        >
+          <textPath href={`#${arcId}`} startOffset="50%" textAnchor="middle">
+            {name.toUpperCase()}
+          </textPath>
+        </text>
+      )}
+
+      {/* Death shroud — a brown wooden slat tilted slightly */}
+      {dead && (
+        <g opacity="0.85" transform="rotate(-8 50 60)">
+          <rect x="6" y="55" width="88" height="13" fill="#3b2e1e" />
+          <rect x="6" y="55" width="88" height="2" fill="#5a4630" />
+          <rect x="6" y="66" width="88" height="2" fill="#241a10" />
+          <text
+            x="50"
+            y="65"
+            textAnchor="middle"
+            fontSize="6"
+            fill="#e8d8b8"
+            fontFamily="'Cormorant Garamond', 'Georgia', serif"
+            letterSpacing="2"
+          >
+            DEAD
+          </text>
+        </g>
+      )}
+
+      {/* Status corner dots */}
+      {poisoned && (
+        <g>
+          <circle cx="82" cy="82" r="7" fill="#c47a1a" stroke="#fff" strokeWidth="1.5" />
+          <text x="82" y="85" textAnchor="middle" fontSize="9" fill="#fff" fontFamily="serif" fontWeight="700">P</text>
+        </g>
+      )}
+      {drunk && (
+        <g>
+          <circle cx="18" cy="82" r="7" fill="#8e5fbf" stroke="#fff" strokeWidth="1.5" />
+          <text x="18" y="85" textAnchor="middle" fontSize="9" fill="#fff" fontFamily="serif" fontWeight="700">D</text>
+        </g>
+      )}
+    </svg>
+  );
+}
+
 type Send = (move: BotCMove) => Promise<void>;
 type SeatPlayer = { id: string; name: string };
 
@@ -439,6 +588,12 @@ function StorytellerGrimoire({
         />
       )}
 
+      <SeatRing
+        seatOrder={state.seatOrder}
+        grimoire={state.grimoire}
+        playerById={playerById}
+      />
+
       <FabledPanel fabled={state.fabled} sendMove={sendMove} />
 
 
@@ -458,6 +613,114 @@ function StorytellerGrimoire({
         })}
       </div>
     </div>
+  );
+}
+
+/**
+ * Town-square ring layout: each seat positioned around a circle in
+ * clockwise order starting at the top. Tokens scale to keep adjacent
+ * tokens from overlapping for any 5–15 player count.
+ *
+ * Clicking a seat scrolls its detail card (in the grid below) into
+ * view and gives it a brief highlight pulse — the ring is a spatial
+ * map; the grid is where you actually edit reminders / status.
+ */
+function SeatRing({
+  seatOrder,
+  grimoire,
+  playerById,
+}: {
+  seatOrder: readonly string[];
+  grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
+  playerById: Record<string, SeatPlayer>;
+}) {
+  const pool = useCharacterPool();
+  const n = seatOrder.length;
+  if (n === 0) return null;
+
+  // Token size and ring radius. For 15 players we need radius ≈ 264 to
+  // fit non-overlapping 110-wide tokens; for 5 players ≈ 95 is enough,
+  // but we floor at 150 so the layout doesn't look cramped against
+  // the surrounding panels.
+  const tokenSize = 96;
+  const minGap = tokenSize * 1.15;
+  const radius = Math.max(150, minGap / (2 * Math.sin(Math.PI / n)));
+  const containerSize = (radius + tokenSize / 2) * 2 + 32;
+
+  const focusSeat = (seatId: string) => {
+    const card = document.getElementById(`seat-card-${seatId}`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("seat-card-flash");
+    window.setTimeout(() => card.classList.remove("seat-card-flash"), 1200);
+  };
+
+  return (
+    <section className="surface-ivory p-4 flex flex-col items-center gap-3 overflow-hidden">
+      <header className="self-start flex items-baseline gap-3 flex-wrap">
+        <h3 className="font-display text-lg">Town square</h3>
+        <span className="text-[11px] text-base-content/55 italic">
+          Click a seat to jump to its details below.
+        </span>
+      </header>
+      <style>{`
+        @keyframes seatCardFlash {
+          0%, 100% { outline-color: transparent; outline-offset: 0; }
+          25% { outline-color: var(--color-primary, #b35a1f); outline-offset: 4px; }
+        }
+        .seat-card-flash {
+          outline: 2px solid transparent;
+          animation: seatCardFlash 1.2s ease-out;
+        }
+      `}</style>
+      <div
+        style={{
+          position: "relative",
+          width: containerSize,
+          height: containerSize,
+          maxWidth: "100%",
+        }}
+      >
+        {seatOrder.map((seatId, i) => {
+          // Start at -90° (top of circle), go clockwise.
+          const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+          const x = radius * Math.cos(angle);
+          const y = radius * Math.sin(angle);
+          const seat = grimoire[seatId];
+          const c = seat?.characterId
+            ? (pool[seat.characterId] ?? null)
+            : null;
+          const playerName = playerById[seatId]?.name ?? seatId;
+          return (
+            <button
+              key={seatId}
+              type="button"
+              onClick={() => focusSeat(seatId)}
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: `translate(${x}px, ${y}px) translate(-50%, -50%)`,
+                width: tokenSize + 24,
+              }}
+              className="flex flex-col items-center gap-1 group focus:outline-none"
+              aria-label={`${playerName}${c ? ` — ${c.name}` : ""}`}
+            >
+              <RoleToken
+                character={c}
+                size={tokenSize}
+                dead={!seat?.isAlive}
+                poisoned={seat?.isPoisoned}
+                drunk={seat?.isDrunk}
+              />
+              <span className="font-display text-xs text-center truncate w-full max-w-[120px] group-hover:text-primary transition-colors">
+                {playerName}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -1358,30 +1621,41 @@ function SeatCard({
 
   return (
     <div
-      className={`surface-ivory p-3 flex flex-col gap-2 transition-opacity ${
+      id={`seat-card-${seatId}`}
+      className={`surface-ivory p-3 flex flex-col gap-2 transition-opacity scroll-mt-4 ${
         seat.isAlive ? "" : "opacity-60"
       }`}
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="font-display text-sm truncate">{playerName}</span>
-        {character ? (
-          <span
-            className={`font-mono text-[11px] uppercase tracking-wider ${
-              TEAM_TINT[character.team]
-            }`}
-          >
-            {character.name}
-          </span>
-        ) : (
-          <span className="font-mono text-[11px] text-base-content/40">—</span>
-        )}
+      <div className="flex items-start gap-3">
+        <RoleToken
+          character={character}
+          size={56}
+          dead={!seat.isAlive}
+          poisoned={seat.isPoisoned}
+          drunk={seat.isDrunk}
+        />
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="font-display text-sm truncate">{playerName}</span>
+            {character ? (
+              <span
+                className={`font-mono text-[11px] uppercase tracking-wider ${
+                  TEAM_TINT[character.team]
+                }`}
+              >
+                {character.name}
+              </span>
+            ) : (
+              <span className="font-mono text-[11px] text-base-content/40">—</span>
+            )}
+          </div>
+          {character && (
+            <p className="text-xs text-base-content/65 leading-snug line-clamp-3">
+              {character.ability}
+            </p>
+          )}
+        </div>
       </div>
-
-      {character && (
-        <p className="text-xs text-base-content/65 leading-snug line-clamp-3">
-          {character.ability}
-        </p>
-      )}
 
       <div className="flex flex-wrap gap-1.5 text-[11px]">
         <Pill
