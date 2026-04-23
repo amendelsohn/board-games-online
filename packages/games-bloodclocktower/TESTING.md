@@ -12,10 +12,26 @@ player.
    `:3000` together).
 3. Open `http://localhost:3000`.
 
+## Picking an edition (lobby)
+1. On the home page, click the **Storytell a game** button on the
+   Blood on the Clocktower card to open a standard (5-15 seat) lobby.
+2. The Game setup panel has a pill picker with **Trouble Brewing**,
+   **Bad Moon Rising**, **Sects & Violets**, and a dashed
+   `+ Paste custom script…` button.
+3. Hitting the custom button opens a textarea — paste a canonical
+   BotC script JSON (array of string ids and/or `{id, _meta}`
+   objects). The parser surfaces clear errors for invalid JSON,
+   unknown characters (only TB / BMR / S&V are shipped), or scripts
+   shorter than 5 characters.
+4. Once a script is chosen, every player at the table sees it
+   reflected in their lobby; a `Real Script Name ×` pill replaces
+   the built-in picker for custom scripts.
+
 ## Setup
 1. On the home page, click the `🐞 debug` button on the Blood on the
-   Clocktower card. It creates a 15-seat table, seats you as the
-   non-playing Storyteller, and routes you straight to `/play/...`.
+   Clocktower card. It creates a 15-seat table with the current
+   edition (default Trouble Brewing), seats you as the non-playing
+   Storyteller, and routes you straight to `/play/...`.
 2. Confirm the **Storyteller setup screen** is visible:
    - "Distribute characters" header
    - 15 dropdowns, one per Debug seat
@@ -94,10 +110,10 @@ player.
 3. Pick **Good wins**, type "Imp executed on day 3", click **End match**.
 4. Header replaces the "advance" button with a banner: **Match ended —
    Good wins**, with the reason underneath.
-5. Tab 2 (player) shows the same banner.
-6. Spectator view (visit the `/play` URL in a private window without a
-   session, or as another non-player) reveals the **finalGrimoire**
-   (each seat + character).
+5. Tab 2 (player) shows the same banner **plus the full final
+   grimoire** — every seat and the character they played, with their
+   own seat tagged "you". Spectators see the same reveal (no "you"
+   tag).
 
 ## Rematch
 1. Back in the lobby (`/lobby/{joinCode}`), the table state should be
@@ -115,3 +131,32 @@ player.
   spent on the first cast, yes or no).
 - The night-order list including characters whose `firstNight` /
   `otherNights` is `null` for the current night.
+- Any player or spectator seeing the per-voter `yesVotes` or
+  `noVotes` arrays inside a closed nomination (ST-only). Counts
+  (`yesCount`, `noCount`, `onTheBlock`) are public.
+- Any player or spectator seeing how *other* players have voted on
+  an open nomination — `openVote.votes` is redacted to the viewer's
+  own entry.
+
+## Demon bluffs picker (first-night demon-info step only)
+1. Open the **Demon info & bluffs** step. The structured-fields
+   disclosure shows a `bluffs (Demon learns 3 not-in-play
+   characters):` row of chips.
+2. Not-in-play characters are listed up top. In-play characters are
+   tucked behind a `<details>` ("rarely picked as bluffs").
+3. Pick 3 chips, type a hint, click **send →**. The Demon's modal
+   shows them as a `YOUR BLUFFS` row, each tinted by team color.
+
+## Custom scripts (Phase 3 partial)
+1. Lobby → `+ Paste custom script…` → paste a JSON array.
+2. Verify the parser:
+   - Rejects invalid JSON with a parser error.
+   - Lists unknown character ids when present (only TB / BMR / S&V
+     are shipped).
+   - Demands at least 5 characters.
+   - Accepts ids with or without underscores (`fortune_teller` and
+     `fortuneteller` both resolve).
+   - Honors a `_meta.name` entry as the display label.
+3. Once accepted, the script is reflected on the table for every
+   participant. Auto-assign draws from the script's character pool;
+   the night-order panel uses the canonical numbers across editions.
