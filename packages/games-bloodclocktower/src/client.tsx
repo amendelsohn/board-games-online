@@ -180,7 +180,7 @@ function StorytellerSetup({
     <div className="max-w-3xl w-full flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
-          Storyteller · setup · script {state.scriptId}
+          Storyteller · setup · {scriptDisplayName(state.scriptId)}
         </span>
         <h2 className="font-display text-2xl tracking-tight">
           Distribute characters
@@ -1399,6 +1399,16 @@ function countEligibleVoters(
   return n;
 }
 
+/**
+ * Display label for a script id. Built-in scripts get their canonical
+ * names ("Trouble Brewing"); custom scripts pass through their stored
+ * name verbatim (the server stores the script name in scriptId when a
+ * customScript is active).
+ */
+function scriptDisplayName(scriptId: string): string {
+  return SCRIPT_LABELS[scriptId as BuiltInScriptId] ?? scriptId;
+}
+
 function phaseLabel(phase: BotCPhase, dayNumber: number): string {
   switch (phase) {
     case "setup":
@@ -1472,9 +1482,10 @@ function PlayerSurface({
     <div className="surface-ivory p-6 max-w-md w-full flex flex-col gap-4">
       <header className="flex flex-col gap-1">
         <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+          {scriptDisplayName(view.scriptId)} ·{" "}
           {view.phase === "setup"
-            ? "Town square · setup"
-            : `Town square · ${phaseLabel(view.phase, view.dayNumber)}`}
+            ? "setup"
+            : phaseLabel(view.phase, view.dayNumber)}
         </span>
         <h2 className="font-display text-2xl tracking-tight">
           {view.me ? "Your seat" : "Watching"}
