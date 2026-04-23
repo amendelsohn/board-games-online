@@ -165,17 +165,11 @@ function handleAssignCharacters(
       reason: "Characters can only be assigned during setup",
     };
   }
+  // Partial assignments are allowed — the UI dropdowns autosave one seat
+  // at a time. The "every seat must have a character" requirement is
+  // enforced at advancePhase, not here.
   const seatSet = new Set(state.seatOrder);
-  const targetSet = new Set(Object.keys(assignments));
-  for (const seat of seatSet) {
-    if (!targetSet.has(seat)) {
-      return {
-        ok: false,
-        reason: `Seat ${seat} has no assigned character`,
-      };
-    }
-  }
-  for (const seat of targetSet) {
+  for (const seat of Object.keys(assignments)) {
     if (!seatSet.has(seat)) {
       return {
         ok: false,
@@ -193,16 +187,27 @@ function handleAssignCharacters(
     }
   }
   // BotC characters appear at most once per game (with rare exceptions
-  // not in TB). Reject duplicates so the ST notices.
-  const seenCharacters = new Set<string>();
-  for (const characterId of Object.values(assignments)) {
-    if (seenCharacters.has(characterId)) {
+  // not in TB). Validate against the *merged* state — if Empath is
+  // already at seat A and the ST tries to put Empath at seat B, that's
+  // the duplicate to catch. (Reassigning the same seat to the same
+  // character is fine.)
+  const merged: Record<PlayerId, string> = {};
+  for (const [seatId, seat] of Object.entries(state.grimoire)) {
+    if (seat.characterId) merged[seatId] = seat.characterId;
+  }
+  for (const [seatId, characterId] of Object.entries(assignments)) {
+    merged[seatId] = characterId;
+  }
+  const seen = new Map<string, PlayerId>();
+  for (const [seatId, characterId] of Object.entries(merged)) {
+    const prior = seen.get(characterId);
+    if (prior && prior !== seatId) {
       return {
         ok: false,
-        reason: `Character "${characterId}" assigned to more than one seat`,
+        reason: `Character "${characterId}" is already assigned to another seat`,
       };
     }
-    seenCharacters.add(characterId);
+    seen.set(characterId, seatId);
   }
 
   const grimoire: BotCState["grimoire"] = { ...state.grimoire };
