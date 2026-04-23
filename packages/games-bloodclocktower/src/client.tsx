@@ -345,6 +345,17 @@ function StorytellerGrimoire({
         />
       )}
 
+      {state.phase === "day" && (
+        <NominationsPanel
+          nominations={state.nominations}
+          openVote={state.openVote}
+          grimoire={state.grimoire}
+          seatOrder={state.seatOrder}
+          playerById={playerById}
+          sendMove={sendMove}
+        />
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {state.seatOrder.map((seatId) => {
           const seat = state.grimoire[seatId];
@@ -670,6 +681,180 @@ function SendInfoForm({
   );
 }
 
+function NominationsPanel({
+  nominations,
+  openVote,
+  grimoire,
+  seatOrder,
+  playerById,
+  sendMove,
+}: {
+  nominations: Extract<BotCView, { viewer: "storyteller" }>["state"]["nominations"];
+  openVote: Extract<BotCView, { viewer: "storyteller" }>["state"]["openVote"];
+  grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
+  seatOrder: readonly string[];
+  playerById: Record<string, SeatPlayer>;
+  sendMove: Send;
+}) {
+  const livingCount = seatOrder.reduce(
+    (n, id) => n + (grimoire[id]?.isAlive ? 1 : 0),
+    0,
+  );
+  const threshold = Math.ceil(livingCount / 2);
+
+  const closeVote = () => sendMove({ kind: "st.closeVote" });
+  const execute = (nomineeId: string) =>
+    sendMove({ kind: "st.executeNominee", nomineeId });
+  const skip = () => sendMove({ kind: "st.skipExecution" });
+  const stOpen = (nominator: string, nominee: string) =>
+    sendMove({ kind: "st.openNomination", nominator, nominee });
+
+  const [stNominator, setStNominator] = useState("");
+  const [stNominee, setStNominee] = useState("");
+
+  return (
+    <section className="surface-ivory p-4 flex flex-col gap-3">
+      <header className="flex items-baseline justify-between gap-3 flex-wrap">
+        <h3 className="font-display text-lg">Today's nominations</h3>
+        <span className="text-[11px] text-base-content/55 font-mono">
+          threshold to put on the block: {threshold} of {livingCount}
+        </span>
+      </header>
+
+      {nominations.length === 0 ? (
+        <p className="text-sm text-base-content/55 italic">
+          No nominations yet today.
+        </p>
+      ) : (
+        <ol className="flex flex-col gap-1.5">
+          {nominations.map((n) => {
+            const isOpenHere = openVote?.nominationId === n.id;
+            const tally = isOpenHere
+              ? Object.values(openVote.votes).reduce(
+                  (acc, v) => {
+                    if (v === "yes") acc.yes++;
+                    else acc.no++;
+                    return acc;
+                  },
+                  { yes: 0, no: 0 },
+                )
+              : null;
+            const result = n.result;
+            const nomineeAlive = grimoire[n.nominee]?.isAlive ?? false;
+            return (
+              <li
+                key={n.id}
+                className={`flex items-baseline gap-2 px-2 py-1.5 rounded text-sm flex-wrap ${
+                  result?.onTheBlock
+                    ? "bg-error/8"
+                    : isOpenHere
+                      ? "bg-primary/8"
+                      : "hover:bg-base-content/4"
+                }`}
+              >
+                <span className="font-display">
+                  {playerById[n.nominator]?.name ?? n.nominator}
+                </span>
+                <span className="text-base-content/55">→</span>
+                <span className="font-display">
+                  {playerById[n.nominee]?.name ?? n.nominee}
+                </span>
+                <span className="flex-1" />
+                {tally && (
+                  <span className="font-mono text-xs text-base-content/65">
+                    voting: {tally.yes} yes / {tally.no} no
+                  </span>
+                )}
+                {result && (
+                  <span className="font-mono text-xs">
+                    {result.yesVotes.length} yes / {result.noVotes.length} no
+                    {result.onTheBlock && (
+                      <span className="ml-2 text-error font-display uppercase tracking-[0.18em] text-[10px]">
+                        on the block
+                      </span>
+                    )}
+                  </span>
+                )}
+                {isOpenHere && (
+                  <button
+                    type="button"
+                    className="text-[11px] px-2 py-0.5 rounded-full bg-primary/15 text-primary hover:bg-primary/25"
+                    onClick={() => void closeVote()}
+                  >
+                    close vote
+                  </button>
+                )}
+                {result && nomineeAlive && (
+                  <button
+                    type="button"
+                    className="text-[11px] px-2 py-0.5 rounded-full bg-error/15 text-error hover:bg-error/25"
+                    onClick={() => void execute(n.nominee)}
+                  >
+                    execute
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {!openVote && (
+        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-base-content/10 text-xs">
+          <span className="text-base-content/55">ST nominate:</span>
+          <select
+            className="bg-transparent border-b border-base-content/15 px-1"
+            value={stNominator}
+            onChange={(e) => setStNominator(e.target.value)}
+          >
+            <option value="">— nominator —</option>
+            {seatOrder
+              .filter((id) => grimoire[id]?.isAlive)
+              .map((id) => (
+                <option key={id} value={id}>
+                  {playerById[id]?.name ?? id}
+                </option>
+              ))}
+          </select>
+          <span className="text-base-content/55">→</span>
+          <select
+            className="bg-transparent border-b border-base-content/15 px-1"
+            value={stNominee}
+            onChange={(e) => setStNominee(e.target.value)}
+          >
+            <option value="">— nominee —</option>
+            {seatOrder.map((id) => (
+              <option key={id} value={id}>
+                {playerById[id]?.name ?? id}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={!stNominator || !stNominee}
+            className="text-[11px] px-2.5 py-1 rounded-full bg-base-content/10 hover:bg-base-content/15 disabled:opacity-40"
+            onClick={() => {
+              void stOpen(stNominator, stNominee);
+              setStNominator("");
+              setStNominee("");
+            }}
+          >
+            open
+          </button>
+          <span className="flex-1" />
+          <button
+            type="button"
+            className="text-[11px] px-2.5 py-1 rounded-full bg-base-content/10 hover:bg-base-content/15"
+            onClick={() => void skip()}
+          >
+            skip execution
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SeatCard({
   seatId,
   seat,
@@ -980,12 +1165,171 @@ function PlayerSurface({
           {view.me && !view.me.isAlive ? " · you are a ghost" : ""}
         </p>
       )}
+      {view.phase === "day" && view.me && (
+        <DayActions
+          me={view.me}
+          seatOrder={view.seatOrder}
+          seats={view.seats}
+          nominations={view.nominations}
+          openVote={view.openVote}
+          playerById={playerById}
+          sendMove={sendMove}
+        />
+      )}
       {pending && (
         <PrivateInfoModal
           info={pending}
           playerById={playerById}
           onDismiss={dismissPending}
         />
+      )}
+    </div>
+  );
+}
+
+function DayActions({
+  me,
+  seatOrder,
+  seats,
+  nominations,
+  openVote,
+  playerById,
+  sendMove,
+}: {
+  me: NonNullable<Extract<BotCView, { viewer: "player" }>["me"]>;
+  seatOrder: Extract<BotCView, { viewer: "player" }>["seatOrder"];
+  seats: Extract<BotCView, { viewer: "player" }>["seats"];
+  nominations: Extract<BotCView, { viewer: "player" }>["nominations"];
+  openVote: Extract<BotCView, { viewer: "player" }>["openVote"];
+  playerById: Record<string, SeatPlayer>;
+  sendMove: Send;
+}) {
+  const [nominee, setNominee] = useState("");
+  const alreadyNominated = nominations.some((n) => n.nominator === me.seatId);
+  const myVote = openVote?.votes[me.seatId];
+  const canVote = me.isAlive || !me.ghostVoteUsed;
+  const openNominee = openVote
+    ? nominations.find((n) => n.id === openVote.nominationId)?.nominee
+    : undefined;
+
+  const eligibleNominees = seatOrder.filter(
+    (id) =>
+      id !== me.seatId &&
+      !nominations.some((n) => n.nominee === id) &&
+      seats[id]?.isAlive,
+  );
+
+  const submitNominate = () => {
+    if (!nominee) return;
+    void sendMove({ kind: "p.nominate", nominee });
+    setNominee("");
+  };
+
+  const cast = (vote: "yes" | "no") => {
+    if (!openVote) return;
+    void sendMove({
+      kind: "p.castVote",
+      nominationId: openVote.nominationId,
+      vote,
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-3 pt-3 border-t border-base-content/10">
+      {openVote && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            Vote on{" "}
+            {openNominee
+              ? (playerById[openNominee]?.name ?? openNominee)
+              : "—"}
+          </span>
+          {myVote ? (
+            <span className="text-sm">
+              You voted{" "}
+              <strong className="font-display">{myVote}</strong>
+            </span>
+          ) : canVote ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="btn btn-sm rounded-full px-4 bg-success/20 text-success border border-success/40"
+                onClick={() => cast("yes")}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm rounded-full px-4 bg-base-content/10 text-base-content/70 border border-base-content/20"
+                onClick={() => cast("no")}
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <span className="text-xs text-base-content/55 italic">
+              Your ghost vote is spent.
+            </span>
+          )}
+        </div>
+      )}
+
+      {!openVote && me.isAlive && !alreadyNominated && (
+        <div className="flex items-center gap-2">
+          <select
+            value={nominee}
+            onChange={(e) => setNominee(e.target.value)}
+            className="flex-1 bg-transparent border-b border-base-content/15 text-sm px-1 py-0.5"
+          >
+            <option value="">— nominate someone —</option>
+            {eligibleNominees.map((id) => (
+              <option key={id} value={id}>
+                {playerById[id]?.name ?? id}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={!nominee}
+            onClick={submitNominate}
+            className="text-xs px-3 py-1 rounded-full bg-primary/15 text-primary disabled:opacity-40"
+          >
+            Nominate
+          </button>
+        </div>
+      )}
+
+      {!openVote && me.isAlive && alreadyNominated && (
+        <span className="text-xs text-base-content/55 italic">
+          You've already nominated today.
+        </span>
+      )}
+
+      {nominations.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            Today's nominations
+          </span>
+          <ul className="flex flex-col gap-0.5 text-xs">
+            {nominations.map((n) => (
+              <li key={n.id} className="flex items-baseline gap-1.5">
+                <span className="font-display">
+                  {playerById[n.nominator]?.name ?? n.nominator}
+                </span>
+                <span className="text-base-content/55">→</span>
+                <span className="font-display">
+                  {playerById[n.nominee]?.name ?? n.nominee}
+                </span>
+                {n.result && (
+                  <span className="text-base-content/55">
+                    · {n.result.yesVotes.length} yes
+                    {n.result.onTheBlock && " (block)"}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

@@ -505,6 +505,254 @@ function handleAcknowledgeWake(state: BotCState): MoveResult<BotCState> {
   return { ok: true, state };
 }
 
+// ============================================================================
+// Day: nominations / votes / executions
+// ============================================================================
+
+function newNominationId(): string {
+  return `nom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function countLiving(state: BotCState): number {
+  let n = 0;
+  for (const id of state.seatOrder) {
+    if (state.grimoire[id]?.isAlive) n++;
+  }
+  return n;
+}
+
+/**
+ * Open a nomination. Used by both `p.nominate` (player nominating
+ * directly) and `st.openNomination` (ST opening on a player's behalf,
+ * useful when someone's offline or for testing). The ST path skips the
+ * "this nominator hasn't gone yet" check — the ST is the rules referee
+ * and may have a reason to allow a re-nomination (e.g. to fix an
+ * accidental misclick by the player).
+ */
+function openNomination(
+  state: BotCState,
+  nominator: PlayerId,
+  nominee: PlayerId,
+  byST: boolean,
+): MoveResult<BotCState> {
+  if (state.phase !== "day") {
+    return { ok: false, reason: "Nominations only happen during day" };
+  }
+  if (state.openVote) {
+    return { ok: false, reason: "Close the current vote before opening another" };
+  }
+  if (nominator === nominee) {
+    // Self-nomination is rare in BotC. Reject unless ST forces it.
+    if (!byST) return { ok: false, reason: "You can't nominate yourself" };
+  }
+  const nominatorSeat = state.grimoire[nominator];
+  const nomineeSeat = state.grimoire[nominee];
+  if (!nominatorSeat) return { ok: false, reason: `Unknown nominator: ${nominator}` };
+  if (!nomineeSeat) return { ok: false, reason: `Unknown nominee: ${nominee}` };
+  if (!byST && !nominatorSeat.isAlive) {
+    return { ok: false, reason: "Dead players can't nominate" };
+  }
+  if (!byST && state.nominations.some((n) => n.nominator === nominator)) {
+    return { ok: false, reason: "You've already nominated today" };
+  }
+  if (state.nominations.some((n) => n.nominee === nominee)) {
+    return { ok: false, reason: "That player has already been nominated today" };
+  }
+  const nomination: BotCState["nominations"][number] = {
+    id: newNominationId(),
+    nominator,
+    nominee,
+    openedAt: Date.now(),
+    result: null,
+  };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      nominations: [...state.nominations, nomination],
+      openVote: { nominationId: nomination.id, votes: {} },
+    },
+    events: [
+      {
+        kind: "botc.nominationOpened",
+        payload: { nominationId: nomination.id, nominator, nominee },
+        to: "all",
+      },
+    ],
+  };
+}
+
+/**
+ * Cast a vote. Players may vote at any time during an open nomination;
+ * dead players have one ghost vote that is consumed regardless of how
+ * they vote (yes or no), per the official rule.
+ */
+function handleCastVote(
+  state: BotCState,
+  voter: PlayerId,
+  nominationId: string,
+  vote: "yes" | "no",
+): MoveResult<BotCState> {
+  if (state.phase !== "day") {
+    return { ok: false, reason: "Voting only happens during day" };
+  }
+  if (!state.openVote || state.openVote.nominationId !== nominationId) {
+    return { ok: false, reason: "There is no open vote to cast on" };
+  }
+  const seat = state.grimoire[voter];
+  if (!seat) return { ok: false, reason: `Unknown voter: ${voter}` };
+  if (!seat.isAlive && seat.ghostVoteUsed) {
+    return { ok: false, reason: "Your ghost vote has already been used" };
+  }
+  if (state.openVote.votes[voter] !== undefined) {
+    return { ok: false, reason: "You've already voted on this nomination" };
+  }
+  const nextOpenVote = {
+    ...state.openVote,
+    votes: { ...state.openVote.votes, [voter]: vote },
+  };
+  let grimoire = state.grimoire;
+  let seats = state.seats;
+  if (!seat.isAlive) {
+    grimoire = {
+      ...grimoire,
+      [voter]: { ...seat, ghostVoteUsed: true },
+    };
+    seats = {
+      ...seats,
+      [voter]: { ...seats[voter]!, ghostVoteUsed: true },
+    };
+  }
+  return { ok: true, state: { ...state, openVote: nextOpenVote, grimoire, seats } };
+}
+
+/**
+ * ST closes the current vote and stamps the result onto the
+ * nomination. "On the block" = at least half of the living have voted
+ * yes. Whether to actually execute is a separate ST move; we just
+ * record the tally so the ST and players can see who got how many.
+ */
+function handleCloseVote(state: BotCState): MoveResult<BotCState> {
+  if (!state.openVote) {
+    return { ok: false, reason: "No open vote to close" };
+  }
+  const yesVotes: PlayerId[] = [];
+  const noVotes: PlayerId[] = [];
+  for (const [voter, v] of Object.entries(state.openVote.votes)) {
+    if (v === "yes") yesVotes.push(voter);
+    else noVotes.push(voter);
+  }
+  const livingCount = countLiving(state);
+  const onTheBlock = yesVotes.length >= Math.ceil(livingCount / 2);
+  const nominationId = state.openVote.nominationId;
+  const nominations = state.nominations.map((n) =>
+    n.id === nominationId
+      ? { ...n, result: { yesVotes, noVotes, onTheBlock } }
+      : n,
+  );
+  return {
+    ok: true,
+    state: { ...state, nominations, openVote: null },
+    events: [
+      {
+        kind: "botc.voteClosed",
+        payload: {
+          nominationId,
+          yesVotes: yesVotes.length,
+          noVotes: noVotes.length,
+          onTheBlock,
+        },
+        to: "all",
+      },
+    ],
+  };
+}
+
+/**
+ * Execute a nominee. The ST chooses who — typically the
+ * highest-block person, but they may execute anyone they want
+ * (Saint, Mayor, ST discretion etc.). Marks the seat dead and logs
+ * the execution.
+ */
+function handleExecuteNominee(
+  state: BotCState,
+  nomineeId: PlayerId,
+): MoveResult<BotCState> {
+  if (state.phase !== "day") {
+    return { ok: false, reason: "Executions only happen during day" };
+  }
+  if (state.openVote) {
+    return { ok: false, reason: "Close the open vote before executing" };
+  }
+  const seat = state.grimoire[nomineeId];
+  const pub = state.seats[nomineeId];
+  if (!seat || !pub) {
+    return { ok: false, reason: `Unknown nominee: ${nomineeId}` };
+  }
+  // Allow re-executing of an already-dead seat as a no-op-ish (records the
+  // intent but doesn't double-kill). In practice this won't happen — the
+  // ST sees alive/dead and won't re-pick — but keeping it simple.
+  const grimoire = {
+    ...state.grimoire,
+    [nomineeId]: { ...seat, isAlive: false },
+  };
+  const seats = {
+    ...state.seats,
+    [nomineeId]: { ...pub, isAlive: false },
+  };
+  const executions = [
+    ...state.executions,
+    {
+      dayNumber: state.dayNumber,
+      executed: nomineeId,
+      reason: "vote" as const,
+    },
+  ];
+  return {
+    ok: true,
+    state: { ...state, grimoire, seats, executions },
+    events: [
+      {
+        kind: "botc.executed",
+        payload: { dayNumber: state.dayNumber, executed: nomineeId },
+        to: "all",
+      },
+    ],
+  };
+}
+
+/**
+ * ST decides no one is executed today. Records a null execution so
+ * the day's history stays complete.
+ */
+function handleSkipExecution(state: BotCState): MoveResult<BotCState> {
+  if (state.phase !== "day") {
+    return { ok: false, reason: "Executions only happen during day" };
+  }
+  if (state.openVote) {
+    return { ok: false, reason: "Close the open vote first" };
+  }
+  const executions = [
+    ...state.executions,
+    {
+      dayNumber: state.dayNumber,
+      executed: null,
+      reason: "st-decision" as const,
+    },
+  ];
+  return {
+    ok: true,
+    state: { ...state, executions },
+    events: [
+      {
+        kind: "botc.executionSkipped",
+        payload: { dayNumber: state.dayNumber },
+        to: "all",
+      },
+    ],
+  };
+}
+
 export const bloodClocktowerServerModule: GameModule<
   BotCState,
   BotCMove,
@@ -583,6 +831,18 @@ export const bloodClocktowerServerModule: GameModule<
         return handleSetNightStep(state, m.index);
       case "st.sendInfo":
         return handleSendInfo(state, m.targetPlayerId, m.info);
+      case "st.openNomination":
+        return openNomination(state, m.nominator, m.nominee, true);
+      case "st.closeVote":
+        return handleCloseVote(state);
+      case "st.executeNominee":
+        return handleExecuteNominee(state, m.nomineeId);
+      case "st.skipExecution":
+        return handleSkipExecution(state);
+      case "p.nominate":
+        return openNomination(state, actor, m.nominee, false);
+      case "p.castVote":
+        return handleCastVote(state, actor, m.nominationId, m.vote);
       case "p.acknowledgeWake":
         return handleAcknowledgeWake(state);
       default:
