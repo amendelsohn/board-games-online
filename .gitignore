@@ -48,3 +48,8 @@ lerna-debug.log*
 .playwright-mcp/
 /*.png
 .todos/
+
+# Playwright test outputs (per-package)
+**/test-results/
+**/playwright-report/
+**/playwright/.cache/
