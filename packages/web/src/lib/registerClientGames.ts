@@ -7,6 +7,7 @@ import { codenamesClientModule } from "@bgo/games-codenames/client";
 import { spyfallClientModule } from "@bgo/games-spyfall/client";
 import { reversiClientModule } from "@bgo/games-reversi/client";
 import { checkersClientModule } from "@bgo/games-checkers/client";
+import { chessClientModule } from "@bgo/games-chess/client";
 import { gomokuClientModule } from "@bgo/games-gomoku/client";
 import { dotsAndBoxesClientModule } from "@bgo/games-dotsandboxes/client";
 import { battleshipClientModule } from "@bgo/games-battleship/client";
@@ -22,6 +23,14 @@ import { avalonClientModule } from "@bgo/games-avalon/client";
 import { coupClientModule } from "@bgo/games-coup/client";
 import { loveLetterClientModule } from "@bgo/games-loveletter/client";
 import { secretHitlerClientModule } from "@bgo/games-secrethitler/client";
+import { skullClientModule } from "@bgo/games-skull/client";
+import { quoridorClientModule } from "@bgo/games-quoridor/client";
+import { forSaleClientModule } from "@bgo/games-forsale/client";
+import { splendorClientModule } from "@bgo/games-splendor/client";
+import { noThanksClientModule } from "@bgo/games-nothanks/client";
+import { pentagoClientModule } from "@bgo/games-pentago/client";
+import { sushiGoClientModule } from "@bgo/games-sushigo/client";
+import { hanabiClientModule } from "@bgo/games-hanabi/client";
 
 let registered = false;
 
@@ -34,6 +43,7 @@ export function registerAllClientGames(): void {
   registerClientModule(spyfallClientModule);
   registerClientModule(reversiClientModule);
   registerClientModule(checkersClientModule);
+  registerClientModule(chessClientModule);
   registerClientModule(gomokuClientModule);
   registerClientModule(dotsAndBoxesClientModule);
   registerClientModule(battleshipClientModule);
@@ -49,5 +59,13 @@ export function registerAllClientGames(): void {
   registerClientModule(coupClientModule);
   registerClientModule(loveLetterClientModule);
   registerClientModule(secretHitlerClientModule);
+  registerClientModule(skullClientModule);
+  registerClientModule(quoridorClientModule);
+  registerClientModule(forSaleClientModule);
+  registerClientModule(splendorClientModule);
+  registerClientModule(noThanksClientModule);
+  registerClientModule(pentagoClientModule);
+  registerClientModule(sushiGoClientModule);
+  registerClientModule(hanabiClientModule);
   registered = true;
 }

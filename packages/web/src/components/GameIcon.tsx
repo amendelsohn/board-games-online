@@ -365,6 +365,64 @@ export function GameIcon({
     );
   }
 
+  if (type === "chess") {
+    // A 4x4 corner of a chess board with a white king & knight silhouette
+    // and a black queen looming diagonally — tactile, instantly chess.
+    const light =
+      "color-mix(in oklch, var(--color-base-100) 78%, var(--color-warning) 8%)";
+    const dark =
+      "color-mix(in oklch, var(--color-neutral) 55%, var(--color-base-300))";
+    const pieces: Record<number, { glyph: string; color: "w" | "b" }> = {
+      1: { glyph: "♛", color: "b" },
+      6: { glyph: "♞", color: "w" },
+      9: { glyph: "♟", color: "b" },
+      13: { glyph: "♔", color: "w" },
+    };
+    return (
+      <div className={wrap}>
+        <div
+          className="absolute inset-1.5 grid grid-cols-4 grid-rows-4 gap-0 rounded-md overflow-hidden"
+          style={{ boxShadow: "inset 0 0 0 1.5px oklch(0% 0 0 / 0.3)" }}
+        >
+          {Array.from({ length: 16 }).map((_, i) => {
+            const row = Math.floor(i / 4);
+            const col = i % 4;
+            const isLight = (row + col) % 2 === 0;
+            const p = pieces[i];
+            return (
+              <span
+                key={i}
+                className="relative flex items-center justify-center"
+                style={{ background: isLight ? light : dark }}
+              >
+                {p && (
+                  <span
+                    aria-hidden
+                    style={{
+                      fontSize: "0.95rem",
+                      lineHeight: 1,
+                      fontWeight: 800,
+                      color:
+                        p.color === "w"
+                          ? "var(--color-base-100)"
+                          : "color-mix(in oklch, var(--color-neutral) 95%, black)",
+                      textShadow:
+                        p.color === "w"
+                          ? "0 0 0.5px oklch(0% 0 0 / 0.9), 0 1px 1px oklch(0% 0 0 / 0.3)"
+                          : "0 0 0.5px oklch(100% 0 0 / 0.5), 0 1px 1px oklch(0% 0 0 / 0.4)",
+                    }}
+                  >
+                    {p.glyph}
+                  </span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   if (type === "gomoku") {
     // Mini 5x5 intersection of a Go board with a diagonal of five stones
     // (black+white alternating) cutting across — evokes the winning line.
@@ -1464,6 +1522,560 @@ export function GameIcon({
           >
             ?
           </text>
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "skull") {
+    // Three stacked face-down discs with a single skull peeking — evokes the
+    // "place a disc, bluff about your skull" vibe.
+    return (
+      <div className={wrap}>
+        <svg
+          viewBox="0 0 56 56"
+          className="absolute inset-0 w-full h-full p-1.5"
+          aria-hidden
+        >
+          <defs>
+            <radialGradient id="skull-disc" cx="0.35" cy="0.35">
+              <stop offset="0%" stopColor="oklch(55% 0.02 260)" />
+              <stop offset="100%" stopColor="oklch(20% 0.02 260)" />
+            </radialGradient>
+            <radialGradient id="skull-face" cx="0.35" cy="0.35">
+              <stop
+                offset="0%"
+                stopColor="color-mix(in oklch, var(--color-error) 75%, white)"
+              />
+              <stop
+                offset="100%"
+                stopColor="color-mix(in oklch, var(--color-error) 65%, black)"
+              />
+            </radialGradient>
+          </defs>
+          {/* bottom disc */}
+          <ellipse
+            cx="28"
+            cy="44"
+            rx="18"
+            ry="5"
+            fill="url(#skull-disc)"
+            opacity="0.6"
+          />
+          {/* middle disc */}
+          <ellipse
+            cx="28"
+            cy="36"
+            rx="19"
+            ry="5.5"
+            fill="url(#skull-disc)"
+            opacity="0.85"
+          />
+          {/* skull disc on top */}
+          <circle cx="28" cy="22" r="14" fill="url(#skull-face)" />
+          {/* Eye sockets */}
+          <circle cx="23" cy="21" r="3" fill="oklch(15% 0.02 25)" />
+          <circle cx="33" cy="21" r="3" fill="oklch(15% 0.02 25)" />
+          {/* teeth */}
+          <rect
+            x="24.5"
+            y="27"
+            width="7"
+            height="3.5"
+            rx="0.8"
+            fill="oklch(100% 0 0 / 0.7)"
+          />
+          <line
+            x1="26"
+            y1="27"
+            x2="26"
+            y2="30.5"
+            stroke="oklch(15% 0.02 25)"
+            strokeWidth="0.7"
+          />
+          <line
+            x1="28"
+            y1="27"
+            x2="28"
+            y2="30.5"
+            stroke="oklch(15% 0.02 25)"
+            strokeWidth="0.7"
+          />
+          <line
+            x1="30"
+            y1="27"
+            x2="30"
+            y2="30.5"
+            stroke="oklch(15% 0.02 25)"
+            strokeWidth="0.7"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "quoridor") {
+    // 3x3 grid corner with two pawns and a single wall between cells.
+    const cell = "color-mix(in oklch, var(--color-base-100) 85%, transparent)";
+    return (
+      <div className={wrap}>
+        <div
+          className="absolute inset-1.5 grid grid-cols-3 grid-rows-3 gap-[3px] rounded-sm"
+          style={{
+            background:
+              "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
+            padding: "3px",
+          }}
+        >
+          {Array.from({ length: 9 }).map((_, i) => (
+            <span
+              key={i}
+              className="rounded-[2px]"
+              style={{ background: cell }}
+            />
+          ))}
+        </div>
+        {/* Wall — horizontal, between row 1 and row 2, spanning cols 0..1 */}
+        <div
+          className="absolute rounded-[2px]"
+          style={{
+            left: "15%",
+            right: "36%",
+            top: "46%",
+            height: "5%",
+            background:
+              "color-mix(in oklch, var(--color-warning) 60%, var(--color-base-content))",
+            boxShadow: "0 1px 2px oklch(0% 0 0 / 0.25)",
+          }}
+        />
+        {/* Pawn 1 — top-right */}
+        <span
+          className="absolute rounded-full"
+          style={{
+            top: "18%",
+            left: "62%",
+            width: "14%",
+            height: "14%",
+            background:
+              "radial-gradient(circle at 30% 30%, color-mix(in oklch, var(--color-primary) 80%, white), var(--color-primary))",
+            boxShadow: "0 1px 2px oklch(0% 0 0 / 0.3)",
+          }}
+        />
+        {/* Pawn 2 — bottom-left */}
+        <span
+          className="absolute rounded-full"
+          style={{
+            top: "68%",
+            left: "20%",
+            width: "14%",
+            height: "14%",
+            background:
+              "radial-gradient(circle at 30% 30%, color-mix(in oklch, var(--color-error) 80%, white), var(--color-error))",
+            boxShadow: "0 1px 2px oklch(0% 0 0 / 0.3)",
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (type === "for-sale") {
+    // A stack of numbered property cards fanned out — and a single cheque
+    // poking from behind.
+    return (
+      <div className={wrap}>
+        <svg
+          viewBox="0 0 56 56"
+          className="absolute inset-0 w-full h-full p-2"
+          aria-hidden
+        >
+          {/* Cheque in back */}
+          <g transform="translate(8 10) rotate(-8)">
+            <rect
+              width="30"
+              height="16"
+              rx="2"
+              fill="color-mix(in oklch, var(--color-success) 35%, var(--color-base-100))"
+              stroke="color-mix(in oklch, var(--color-success) 60%, black)"
+              strokeWidth="0.8"
+            />
+            <text
+              x="15"
+              y="11"
+              textAnchor="middle"
+              fontSize="7"
+              fontWeight="800"
+              fontFamily="var(--font-display, serif)"
+              fill="var(--color-base-content)"
+            >
+              $12
+            </text>
+          </g>
+          {/* Middle property card */}
+          <g transform="translate(14 16) rotate(4)">
+            <rect
+              width="18"
+              height="26"
+              rx="2"
+              fill="color-mix(in oklch, var(--color-warning) 35%, var(--color-base-100))"
+              stroke="color-mix(in oklch, var(--color-warning) 65%, black)"
+              strokeWidth="0.8"
+            />
+            <text
+              x="9"
+              y="18"
+              textAnchor="middle"
+              fontSize="11"
+              fontWeight="800"
+              fontFamily="var(--font-display, serif)"
+              fill="var(--color-base-content)"
+            >
+              18
+            </text>
+          </g>
+          {/* Front property card */}
+          <g transform="translate(24 20) rotate(-3)">
+            <rect
+              width="18"
+              height="26"
+              rx="2"
+              fill="color-mix(in oklch, var(--color-error) 40%, var(--color-base-100))"
+              stroke="color-mix(in oklch, var(--color-error) 70%, black)"
+              strokeWidth="0.8"
+            />
+            <text
+              x="9"
+              y="18"
+              textAnchor="middle"
+              fontSize="11"
+              fontWeight="800"
+              fontFamily="var(--font-display, serif)"
+              fill="var(--color-base-content)"
+            >
+              27
+            </text>
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "splendor") {
+    // Five small gem tokens fanned below a single card with a bonus pip —
+    // communicates "tokens fund cards that fund more tokens."
+    return (
+      <div className={wrap}>
+        <svg
+          viewBox="0 0 56 56"
+          className="absolute inset-0 w-full h-full p-1"
+          aria-hidden
+        >
+          {/* Card */}
+          <rect
+            x="16"
+            y="8"
+            width="24"
+            height="22"
+            rx="2.5"
+            fill="color-mix(in oklch, var(--color-base-100) 88%, transparent)"
+            stroke="color-mix(in oklch, var(--color-primary) 55%, black)"
+            strokeWidth="0.8"
+          />
+          <text
+            x="35.5"
+            y="16"
+            textAnchor="end"
+            fontSize="7"
+            fontWeight="800"
+            fontFamily="var(--font-display, serif)"
+            fill="var(--color-base-content)"
+          >
+            3
+          </text>
+          {/* Card bonus pip */}
+          <circle
+            cx="21"
+            cy="14"
+            r="3"
+            fill="color-mix(in oklch, var(--color-info) 65%, black)"
+            stroke="color-mix(in oklch, var(--color-info) 80%, white)"
+            strokeWidth="0.6"
+          />
+          {/* Gem tokens */}
+          {(
+            [
+              {
+                cx: 10,
+                cy: 40,
+                fill: "color-mix(in oklch, var(--color-info) 60%, black)",
+              },
+              {
+                cx: 20,
+                cy: 44,
+                fill: "color-mix(in oklch, var(--color-success) 60%, black)",
+              },
+              {
+                cx: 30,
+                cy: 46,
+                fill: "color-mix(in oklch, var(--color-warning) 60%, black)",
+              },
+              {
+                cx: 40,
+                cy: 44,
+                fill: "color-mix(in oklch, var(--color-error) 60%, black)",
+              },
+              {
+                cx: 48,
+                cy: 40,
+                fill: "oklch(30% 0.02 260)",
+              },
+            ] as Array<{ cx: number; cy: number; fill: string }>
+          ).map((g, i) => (
+            <g key={i}>
+              <circle
+                cx={g.cx}
+                cy={g.cy}
+                r="5"
+                fill={g.fill}
+                stroke="oklch(100% 0 0 / 0.35)"
+                strokeWidth="0.6"
+              />
+              <ellipse
+                cx={g.cx - 1.5}
+                cy={g.cy - 1.6}
+                rx="1.6"
+                ry="1"
+                fill="oklch(100% 0 0 / 0.5)"
+              />
+            </g>
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "no-thanks") {
+    // A "card on offer" with chips piled on top — minimal, signals the bid.
+    return (
+      <div className={wrap}>
+        <svg
+          viewBox="0 0 56 56"
+          className="absolute inset-0 w-full h-full p-1.5"
+          aria-hidden
+        >
+          {/* Card */}
+          <rect
+            x="14"
+            y="10"
+            width="28"
+            height="36"
+            rx="3"
+            fill="color-mix(in oklch, var(--color-info) 65%, var(--color-base-100))"
+            stroke="color-mix(in oklch, var(--color-info) 75%, black)"
+            strokeWidth="0.8"
+          />
+          <text
+            x="28"
+            y="33"
+            textAnchor="middle"
+            fontSize="14"
+            fontWeight="800"
+            fontFamily="var(--font-display, serif)"
+            fill="oklch(96% 0.02 240)"
+          >
+            17
+          </text>
+          {/* Chips piled */}
+          {[
+            { cx: 20, cy: 14, r: 4 },
+            { cx: 28, cy: 12, r: 4 },
+            { cx: 36, cy: 14, r: 4 },
+            { cx: 24, cy: 8, r: 3.5 },
+            { cx: 32, cy: 8, r: 3.5 },
+          ].map((c, i) => (
+            <g key={i}>
+              <circle
+                cx={c.cx}
+                cy={c.cy}
+                r={c.r}
+                fill="color-mix(in oklch, var(--color-warning) 75%, white)"
+                stroke="color-mix(in oklch, var(--color-warning) 65%, black)"
+                strokeWidth="0.5"
+              />
+              <ellipse
+                cx={c.cx - 1}
+                cy={c.cy - 1}
+                rx="1.5"
+                ry="0.8"
+                fill="oklch(100% 0 0 / 0.55)"
+              />
+            </g>
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "pentago") {
+    // 6×6 board hinted by a 2×2 of mini-quadrants, with a curved arrow showing
+    // the rotation mechanic.
+    return (
+      <div className={wrap}>
+        <svg
+          viewBox="0 0 56 56"
+          className="absolute inset-0 w-full h-full p-1"
+          aria-hidden
+        >
+          {/* Four quadrants */}
+          {[
+            { x: 6, y: 6, fill: "color-mix(in oklch, var(--color-base-300) 70%, var(--color-info))" },
+            { x: 30, y: 6, fill: "color-mix(in oklch, var(--color-base-300) 70%, var(--color-success))" },
+            { x: 6, y: 30, fill: "color-mix(in oklch, var(--color-base-300) 70%, var(--color-warning))" },
+            { x: 30, y: 30, fill: "color-mix(in oklch, var(--color-base-300) 70%, var(--color-error))" },
+          ].map((q, i) => (
+            <rect
+              key={i}
+              x={q.x}
+              y={q.y}
+              width="20"
+              height="20"
+              rx="2"
+              fill={q.fill}
+              stroke="color-mix(in oklch, var(--color-base-content) 35%, transparent)"
+              strokeWidth="0.5"
+            />
+          ))}
+          {/* A few stones */}
+          <circle cx="14" cy="14" r="3" fill="oklch(95% 0.01 90)" stroke="oklch(0% 0 0 / 0.4)" strokeWidth="0.3" />
+          <circle cx="22" cy="22" r="3" fill="oklch(20% 0.01 260)" />
+          <circle cx="38" cy="14" r="3" fill="oklch(20% 0.01 260)" />
+          <circle cx="46" cy="46" r="3" fill="oklch(95% 0.01 90)" stroke="oklch(0% 0 0 / 0.4)" strokeWidth="0.3" />
+          <circle cx="14" cy="38" r="3" fill="oklch(95% 0.01 90)" stroke="oklch(0% 0 0 / 0.4)" strokeWidth="0.3" />
+          <circle cx="38" cy="38" r="3" fill="oklch(20% 0.01 260)" />
+          {/* Rotation arrow on top-right */}
+          <path
+            d="M 36 8 A 6 6 0 0 1 48 14"
+            stroke="var(--color-base-content)"
+            strokeWidth="1.2"
+            fill="none"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 47 11 L 48 14 L 45 14"
+            stroke="var(--color-base-content)"
+            strokeWidth="1.2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "sushi-go") {
+    // A small fan of sushi cards: a nigiri, a maki, a tempura.
+    return (
+      <div className={wrap}>
+        <svg
+          viewBox="0 0 56 56"
+          className="absolute inset-0 w-full h-full p-1"
+          aria-hidden
+        >
+          {/* Three cards fanned */}
+          {[
+            { x: 5, y: 14, rot: -10, fill: "color-mix(in oklch, var(--color-warning) 70%, white)" },
+            { x: 18, y: 10, rot: 0, fill: "color-mix(in oklch, var(--color-error) 60%, white)" },
+            { x: 31, y: 14, rot: 10, fill: "color-mix(in oklch, var(--color-success) 65%, white)" },
+          ].map((c, i) => (
+            <g key={i} transform={`rotate(${c.rot} ${c.x + 9} ${c.y + 16})`}>
+              <rect
+                x={c.x}
+                y={c.y}
+                width="18"
+                height="32"
+                rx="2"
+                fill={c.fill}
+                stroke="color-mix(in oklch, var(--color-base-content) 30%, transparent)"
+                strokeWidth="0.5"
+              />
+            </g>
+          ))}
+          {/* Center card pictogram (salmon nigiri) */}
+          <ellipse cx="27" cy="32" rx="8" ry="2" fill="oklch(96% 0.01 80)" stroke="oklch(0% 0 0 / 0.3)" strokeWidth="0.3" />
+          <ellipse cx="27" cy="29" rx="8" ry="2.5" fill="oklch(72% 0.14 30)" stroke="oklch(0% 0 0 / 0.3)" strokeWidth="0.3" />
+          <line x1="20" y1="29" x2="34" y2="29" stroke="oklch(95% 0.04 30)" strokeWidth="0.6" />
+          {/* Chopsticks */}
+          <line x1="38" y1="48" x2="50" y2="36" stroke="oklch(50% 0.05 60)" strokeWidth="1.4" strokeLinecap="round" />
+          <line x1="40" y1="50" x2="52" y2="38" stroke="oklch(50% 0.05 60)" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === "hanabi") {
+    // Fireworks bursts in three colors — readable at small sizes.
+    return (
+      <div className={wrap}>
+        <svg
+          viewBox="0 0 56 56"
+          className="absolute inset-0 w-full h-full p-1"
+          aria-hidden
+        >
+          {/* Background dark sky */}
+          <rect
+            x="2"
+            y="2"
+            width="52"
+            height="52"
+            rx="3"
+            fill="color-mix(in oklch, oklch(20% 0.02 260) 90%, var(--color-base-100))"
+          />
+          {/* Three bursts */}
+          {[
+            { cx: 18, cy: 18, color: "oklch(75% 0.18 30)" }, // red
+            { cx: 38, cy: 22, color: "oklch(85% 0.16 90)" }, // yellow
+            { cx: 28, cy: 38, color: "oklch(70% 0.14 245)" }, // blue
+          ].map((b, i) => (
+            <g key={i}>
+              {Array.from({ length: 8 }).map((_, k) => {
+                const a = (k * Math.PI) / 4;
+                const x2 = b.cx + Math.cos(a) * 8;
+                const y2 = b.cy + Math.sin(a) * 8;
+                return (
+                  <line
+                    key={k}
+                    x1={b.cx}
+                    y1={b.cy}
+                    x2={x2}
+                    y2={y2}
+                    stroke={b.color}
+                    strokeWidth="1.2"
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+              {Array.from({ length: 8 }).map((_, k) => {
+                const a = (k * Math.PI) / 4;
+                const cx = b.cx + Math.cos(a) * 9.5;
+                const cy = b.cy + Math.sin(a) * 9.5;
+                return (
+                  <circle
+                    key={k}
+                    cx={cx}
+                    cy={cy}
+                    r="1.2"
+                    fill={b.color}
+                  />
+                );
+              })}
+              <circle
+                cx={b.cx}
+                cy={b.cy}
+                r="2"
+                fill="oklch(100% 0 0 / 0.85)"
+              />
+            </g>
+          ))}
         </svg>
       </div>
     );

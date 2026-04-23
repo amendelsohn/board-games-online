@@ -115,6 +115,34 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  packages/games-chess:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
   packages/games-codenames:
     dependencies:
       '@bgo/sdk':
@@ -227,7 +255,63 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  packages/games-forsale:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
   packages/games-gomoku:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
+  packages/games-hanabi:
     dependencies:
       '@bgo/sdk':
         specifier: workspace:*
@@ -451,6 +535,90 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  packages/games-nothanks:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
+  packages/games-pentago:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
+  packages/games-quoridor:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
   packages/games-reversi:
     dependencies:
       '@bgo/sdk':
@@ -535,7 +703,91 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  packages/games-skull:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
+  packages/games-splendor:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
   packages/games-spyfall:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
+  packages/games-sushigo:
     dependencies:
       '@bgo/sdk':
         specifier: workspace:*
@@ -668,6 +920,9 @@ importers:
       '@bgo/games-checkers':
         specifier: workspace:*
         version: link:../games-checkers
+      '@bgo/games-chess':
+        specifier: workspace:*
+        version: link:../games-chess
       '@bgo/games-codenames':
         specifier: workspace:*
         version: link:../games-codenames
@@ -680,9 +935,15 @@ importers:
       '@bgo/games-dotsandboxes':
         specifier: workspace:*
         version: link:../games-dotsandboxes
+      '@bgo/games-forsale':
+        specifier: workspace:*
+        version: link:../games-forsale
       '@bgo/games-gomoku':
         specifier: workspace:*
         version: link:../games-gomoku
+      '@bgo/games-hanabi':
+        specifier: workspace:*
+        version: link:../games-hanabi
       '@bgo/games-hearts':
         specifier: workspace:*
         version: link:../games-hearts
@@ -704,6 +965,15 @@ importers:
       '@bgo/games-nim':
         specifier: workspace:*
         version: link:../games-nim
+      '@bgo/games-nothanks':
+        specifier: workspace:*
+        version: link:../games-nothanks
+      '@bgo/games-pentago':
+        specifier: workspace:*
+        version: link:../games-pentago
+      '@bgo/games-quoridor':
+        specifier: workspace:*
+        version: link:../games-quoridor
       '@bgo/games-reversi':
         specifier: workspace:*
         version: link:../games-reversi
@@ -713,9 +983,18 @@ importers:
       '@bgo/games-secrethitler':
         specifier: workspace:*
         version: link:../games-secrethitler
+      '@bgo/games-skull':
+        specifier: workspace:*
+        version: link:../games-skull
+      '@bgo/games-splendor':
+        specifier: workspace:*
+        version: link:../games-splendor
       '@bgo/games-spyfall':
         specifier: workspace:*
         version: link:../games-spyfall
+      '@bgo/games-sushigo':
+        specifier: workspace:*
+        version: link:../games-sushigo
       '@bgo/games-tictactoe':
         specifier: workspace:*
         version: link:../games-tictactoe
@@ -858,6 +1137,9 @@ importers:
       '@bgo/games-checkers':
         specifier: workspace:*
         version: link:../games-checkers
+      '@bgo/games-chess':
+        specifier: workspace:*
+        version: link:../games-chess
       '@bgo/games-codenames':
         specifier: workspace:*
         version: link:../games-codenames
@@ -870,9 +1152,15 @@ importers:
       '@bgo/games-dotsandboxes':
         specifier: workspace:*
         version: link:../games-dotsandboxes
+      '@bgo/games-forsale':
+        specifier: workspace:*
+        version: link:../games-forsale
       '@bgo/games-gomoku':
         specifier: workspace:*
         version: link:../games-gomoku
+      '@bgo/games-hanabi':
+        specifier: workspace:*
+        version: link:../games-hanabi
       '@bgo/games-hearts':
         specifier: workspace:*
         version: link:../games-hearts
@@ -894,6 +1182,15 @@ importers:
       '@bgo/games-nim':
         specifier: workspace:*
         version: link:../games-nim
+      '@bgo/games-nothanks':
+        specifier: workspace:*
+        version: link:../games-nothanks
+      '@bgo/games-pentago':
+        specifier: workspace:*
+        version: link:../games-pentago
+      '@bgo/games-quoridor':
+        specifier: workspace:*
+        version: link:../games-quoridor
       '@bgo/games-reversi':
         specifier: workspace:*
         version: link:../games-reversi
@@ -903,9 +1200,18 @@ importers:
       '@bgo/games-secrethitler':
         specifier: workspace:*
         version: link:../games-secrethitler
+      '@bgo/games-skull':
+        specifier: workspace:*
+        version: link:../games-skull
+      '@bgo/games-splendor':
+        specifier: workspace:*
+        version: link:../games-splendor
       '@bgo/games-spyfall':
         specifier: workspace:*
         version: link:../games-spyfall
+      '@bgo/games-sushigo':
+        specifier: workspace:*
+        version: link:../games-sushigo
       '@bgo/games-tictactoe':
         specifier: workspace:*
         version: link:../games-tictactoe

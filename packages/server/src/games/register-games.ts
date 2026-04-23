@@ -4,6 +4,7 @@ import { codenamesServerModule } from '@bgo/games-codenames/server';
 import { spyfallServerModule } from '@bgo/games-spyfall/server';
 import { reversiServerModule } from '@bgo/games-reversi/server';
 import { checkersServerModule } from '@bgo/games-checkers/server';
+import { chessServerModule } from '@bgo/games-chess/server';
 import { gomokuServerModule } from '@bgo/games-gomoku/server';
 import { dotsAndBoxesServerModule } from '@bgo/games-dotsandboxes/server';
 import { battleshipServerModule } from '@bgo/games-battleship/server';
@@ -19,6 +20,14 @@ import { avalonServerModule } from '@bgo/games-avalon/server';
 import { coupServerModule } from '@bgo/games-coup/server';
 import { loveLetterServerModule } from '@bgo/games-loveletter/server';
 import { secretHitlerServerModule } from '@bgo/games-secrethitler/server';
+import { skullServerModule } from '@bgo/games-skull/server';
+import { quoridorServerModule } from '@bgo/games-quoridor/server';
+import { forSaleServerModule } from '@bgo/games-forsale/server';
+import { splendorServerModule } from '@bgo/games-splendor/server';
+import { noThanksServerModule } from '@bgo/games-nothanks/server';
+import { pentagoServerModule } from '@bgo/games-pentago/server';
+import { sushiGoServerModule } from '@bgo/games-sushigo/server';
+import { hanabiServerModule } from '@bgo/games-hanabi/server';
 import type { GamesRegistry } from './games-registry.service';
 
 /** Registers every installed game module with the registry at bootstrap. */
@@ -29,6 +38,7 @@ export function registerAllGames(registry: GamesRegistry): void {
   registry.register(spyfallServerModule);
   registry.register(reversiServerModule);
   registry.register(checkersServerModule);
+  registry.register(chessServerModule);
   registry.register(gomokuServerModule);
   registry.register(dotsAndBoxesServerModule);
   registry.register(battleshipServerModule);
@@ -44,4 +54,12 @@ export function registerAllGames(registry: GamesRegistry): void {
   registry.register(coupServerModule);
   registry.register(loveLetterServerModule);
   registry.register(secretHitlerServerModule);
+  registry.register(skullServerModule);
+  registry.register(quoridorServerModule);
+  registry.register(forSaleServerModule);
+  registry.register(splendorServerModule);
+  registry.register(noThanksServerModule);
+  registry.register(pentagoServerModule);
+  registry.register(sushiGoServerModule);
+  registry.register(hanabiServerModule);
 }
