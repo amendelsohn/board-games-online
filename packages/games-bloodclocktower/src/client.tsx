@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  createContext,
+  useContext,
   useEffect,
   useMemo,
   useState,
@@ -37,6 +39,29 @@ import {
 type SendInfoPayload = Extract<BotCMove, { kind: "st.sendInfo" }>["info"];
 type OnEvent = (listener: (e: GameEvent) => void) => () => void;
 
+/**
+ * Active character pool for the current view. Custom-script inline
+ * definitions take precedence over the canonical (TB / BMR / S&V /
+ * Fabled) pool so a homebrew script can shadow built-ins.
+ *
+ * Threaded as a context so we don't have to drill it into every leaf
+ * component that resolves an id → Character.
+ */
+const CharacterPoolContext = createContext<Record<string, Character>>(
+  ALL_CHARACTERS_BY_ID,
+);
+
+function useCharacterPool(): Record<string, Character> {
+  return useContext(CharacterPoolContext);
+}
+
+function buildCharacterPool(custom: Character[]): Record<string, Character> {
+  if (custom.length === 0) return ALL_CHARACTERS_BY_ID;
+  const out: Record<string, Character> = { ...ALL_CHARACTERS_BY_ID };
+  for (const c of custom) out[c.id] = c;
+  return out;
+}
+
 type Send = (move: BotCMove) => Promise<void>;
 type SeatPlayer = { id: string; name: string };
 
@@ -64,21 +89,35 @@ function BotCBoard({
   sendMove,
   onEvent,
 }: BoardProps<BotCView, BotCMove>) {
-  if (view.viewer === "storyteller") {
-    return (
-      <StorytellerSurface view={view} players={players} sendMove={sendMove} />
-    );
-  }
-  if (view.viewer === "spectator") {
-    return <SpectatorPlaceholder view={view} players={players} />;
-  }
+  const customCharacters =
+    view.viewer === "storyteller"
+      ? view.state.customCharacters
+      : view.customCharacters;
+  const pool = useMemo(
+    () => buildCharacterPool(customCharacters),
+    [customCharacters],
+  );
   return (
-    <PlayerSurface
-      view={view}
-      players={players}
-      sendMove={sendMove}
-      onEvent={onEvent}
-    />
+    <CharacterPoolContext.Provider value={pool}>
+      {view.viewer === "storyteller" && (
+        <StorytellerSurface
+          view={view}
+          players={players}
+          sendMove={sendMove}
+        />
+      )}
+      {view.viewer === "spectator" && (
+        <SpectatorPlaceholder view={view} players={players} />
+      )}
+      {view.viewer === "player" && (
+        <PlayerSurface
+          view={view}
+          players={players}
+          sendMove={sendMove}
+          onEvent={onEvent}
+        />
+      )}
+    </CharacterPoolContext.Provider>
   );
 }
 
@@ -111,6 +150,7 @@ function StorytellerSetup({
   players: SeatPlayer[];
   sendMove: Send;
 }) {
+  const pool = useCharacterPool();
   const playerById = useMemo(
     () => Object.fromEntries(players.map((p) => [p.id, p])),
     [players],
@@ -119,7 +159,7 @@ function StorytellerSetup({
   const scriptCharacters = useMemo(
     () =>
       state.scriptCharacterIds
-        .map((id) => ALL_CHARACTERS_BY_ID[id])
+        .map((id) => pool[id])
         .filter((c): c is Character => Boolean(c)),
     [state.scriptCharacterIds],
   );
@@ -432,6 +472,7 @@ function CharactersMultiPicker({
   picked: Set<string>;
   onToggle: (id: string) => void;
 }) {
+  const pool = useCharacterPool();
   // For Demon bluffs, the canonical pick is 3 not-in-play characters
   // — show those first, with the in-play ones below behind a separator
   // so the ST can still grab one if they want to bluff something
@@ -439,7 +480,7 @@ function CharactersMultiPicker({
   const notInPlay = scriptCharacterIds.filter((id) => !inPlayCharacterIds.has(id));
   const inPlay = scriptCharacterIds.filter((id) => inPlayCharacterIds.has(id));
   const Chip = ({ id, dim }: { id: string; dim?: boolean }) => {
-    const c = ALL_CHARACTERS_BY_ID[id];
+    const c = pool[id];
     const on = picked.has(id);
     return (
       <button
@@ -497,9 +538,10 @@ function NightOrderPanel({
   sendMove: Send;
 }) {
   const isFirstNight = state.phase === "firstNight";
+  const pool = useCharacterPool();
   const order = useMemo(
-    () => tonightOrder(state.grimoire, isFirstNight),
-    [state.grimoire, isFirstNight],
+    () => tonightOrder(state.grimoire, isFirstNight, (id) => pool[id]),
+    [state.grimoire, isFirstNight, pool],
   );
   const inPlayCharacterIds = useMemo(() => {
     const set = new Set<string>();
@@ -636,6 +678,7 @@ function SendInfoForm({
   inPlayCharacterIds: ReadonlySet<string>;
   onSend: (target: string, info: SendInfoPayload) => void;
 }) {
+  const pool = useCharacterPool();
   const [target, setTarget] = useState(step.seatIds[0] ?? "");
   const [text, setText] = useState("");
   const [pickedSeats, setPickedSeats] = useState<Set<string>>(new Set());
@@ -753,7 +796,7 @@ function SendInfoForm({
             >
               <option value="">—</option>
               {scriptCharacterIds.map((id) => {
-                const c = ALL_CHARACTERS_BY_ID[id];
+                const c = pool[id];
                 return (
                   <option key={id} value={id}>
                     {c?.name ?? id}
@@ -836,6 +879,7 @@ function FinalGrimoireList({
   playerById: Record<string, SeatPlayer>;
   mySeatId?: string;
 }) {
+  const pool = useCharacterPool();
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
@@ -845,7 +889,7 @@ function FinalGrimoireList({
         {seatOrder.map((id) => {
           const seat = finalGrimoire[id];
           const c = seat?.characterId
-            ? (ALL_CHARACTERS_BY_ID[seat.characterId] ?? null)
+            ? (pool[seat.characterId] ?? null)
             : null;
           const isMe = id === mySeatId;
           return (
@@ -992,9 +1036,10 @@ function FabledPanel({
   fabled: readonly string[];
   sendMove: Send;
 }) {
+  const pool = useCharacterPool();
   const [open, setOpen] = useState(false);
   const active = fabled
-    .map((id) => ALL_CHARACTERS_BY_ID[id])
+    .map((id) => pool[id])
     .filter((c): c is Character => Boolean(c));
   const available = FABLED_IDS.filter((id) => !fabled.includes(id));
 
@@ -1043,7 +1088,7 @@ function FabledPanel({
       {open && available.length > 0 && (
         <div className="flex flex-wrap gap-1 pt-1 border-t border-base-content/10 text-[11px]">
           {available.map((id) => {
-            const c = ALL_CHARACTERS_BY_ID[id];
+            const c = pool[id];
             if (!c) return null;
             return (
               <button
@@ -1083,6 +1128,7 @@ function NominationsPanel({
   playerById: Record<string, SeatPlayer>;
   sendMove: Send;
 }) {
+  const pool = useCharacterPool();
   const livingCount = seatOrder.reduce(
     (n, id) => n + (grimoire[id]?.isAlive ? 1 : 0),
     0,
@@ -1112,7 +1158,7 @@ function NominationsPanel({
         <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-base-content/55 font-mono">
           {executions.map((e, i) => {
             const charName = e.executed
-              ? (ALL_CHARACTERS_BY_ID[
+              ? (pool[
                   grimoire[e.executed]?.characterId ?? ""
                 ]?.name ?? "?")
               : null;
@@ -1280,8 +1326,9 @@ function SeatCard({
   playerName: string;
   sendMove: Send;
 }) {
+  const pool = useCharacterPool();
   const character = seat.characterId
-    ? ALL_CHARACTERS_BY_ID[seat.characterId] ?? null
+    ? pool[seat.characterId] ?? null
     : null;
   const [reminderDraft, setReminderDraft] = useState("");
 
@@ -1539,8 +1586,9 @@ function PlayerSurface({
   sendMove: Send;
   onEvent: OnEvent;
 }) {
+  const pool = useCharacterPool();
   const character = view.me?.characterId
-    ? ALL_CHARACTERS_BY_ID[view.me.characterId]
+    ? pool[view.me.characterId]
     : null;
 
   const playerById = useMemo(
@@ -1799,8 +1847,9 @@ function PrivateInfoModal({
   playerById: Record<string, SeatPlayer>;
   onDismiss: () => void;
 }) {
+  const pool = useCharacterPool();
   const character = info.character
-    ? ALL_CHARACTERS_BY_ID[info.character] ?? null
+    ? pool[info.character] ?? null
     : null;
   return (
     <div
@@ -1856,7 +1905,7 @@ function PrivateInfoModal({
             </span>
             <ul className="flex flex-wrap gap-1.5">
               {info.characters.map((id) => {
-                const c = ALL_CHARACTERS_BY_ID[id];
+                const c = pool[id];
                 return (
                   <li
                     key={id}

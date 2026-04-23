@@ -76,9 +76,28 @@ function emptyState(
   // The displayed scriptId is either the custom script's name (so the
   // grimoire header reads "script My Homebrew") or the built-in id.
   const scriptId = cfg.customScript ? cfg.customScript.name : cfg.scriptId;
+  const customCharacters = (cfg.customScript?.inlineCharacters ?? []).map(
+    (c): import("./shared").Character => ({
+      id: c.id,
+      name: c.name,
+      team: c.team,
+      edition: (c.edition === "tb" ||
+        c.edition === "bmr" ||
+        c.edition === "snv" ||
+        c.edition === "custom"
+        ? c.edition
+        : "custom") as import("./shared").CharacterEdition,
+      ability: c.ability,
+      firstNight: c.firstNight ?? null,
+      otherNights: c.otherNights ?? null,
+      reminders: c.reminders ?? [],
+      setup: c.setup ?? false,
+    }),
+  );
   return {
     scriptId,
     scriptCharacterIds: scriptIdsFor(cfg),
+    customCharacters,
     storytellerId,
     seatOrder,
     phase: "setup",
@@ -148,6 +167,7 @@ function makePlayerView(state: BotCState, viewer: PlayerId): PlayerView {
     viewer: "player",
     scriptId: state.scriptId,
     scriptCharacterIds: [...state.scriptCharacterIds],
+    customCharacters: state.customCharacters.map((c) => ({ ...c })),
     storytellerId: state.storytellerId,
     seatOrder: [...state.seatOrder],
     phase: state.phase,
@@ -172,6 +192,7 @@ function makeSpectatorView(state: BotCState): SpectatorView {
     viewer: "spectator",
     scriptId: state.scriptId,
     scriptCharacterIds: [...state.scriptCharacterIds],
+    customCharacters: state.customCharacters.map((c) => ({ ...c })),
     storytellerId: state.storytellerId,
     seatOrder: [...state.seatOrder],
     phase: state.phase,

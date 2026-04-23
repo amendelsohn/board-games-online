@@ -1,5 +1,9 @@
 import { ALL_CHARACTERS_BY_ID } from "./characters/all";
-import type { CustomScript } from "./shared";
+import {
+  type CustomScript,
+  type InlineCharacter,
+  inlineCharacterSchema,
+} from "./shared";
 
 /**
  * Parse a canonical BotC script JSON (the format produced by the
@@ -8,11 +12,15 @@ import type { CustomScript } from "./shared";
  *
  * Accepts an array of:
  *   - string ids (referencing a known character): "washerwoman"
- *   - object entries with at least { id }: { id: "washerwoman" }
+ *   - object entries that just reference a known id: { id: "washerwoman" }
  *   - a meta entry: { id: "_meta", name: "...", author: "..." }
+ *   - inline character definitions for homebrew chars not in our pool:
+ *     { id, name, team, ability, firstNight?, otherNights?, reminders?, setup? }
  *
- * Returns the extracted CustomScript on success, or { error } with a
- * human-readable message on failure (unknown character ids included).
+ * Inline definitions take precedence: if an id appears both as an
+ * inline def and in our shipped pool, the inline wins (custom script
+ * can shadow built-ins). Object entries that look like inline defs
+ * but fail validation are reported with a descriptive error.
  *
  * The `_meta.name` is used as the script's display name; if absent,
  * a sensible default is used.
@@ -33,35 +41,76 @@ export function parseScriptJson(
 
   let scriptName = "Custom Script";
   const ids: string[] = [];
+  const inline: InlineCharacter[] = [];
   const unknownIds: string[] = [];
+
+  // Normalize: accept both "fortune_teller" and "fortuneteller" forms by
+  // collapsing underscores. Canonical IDs we ship use the no-underscore
+  // form (matching bra1n/townsquare).
+  const normalizeId = (id: string) => id.toLowerCase().replace(/_/g, "");
 
   for (let i = 0; i < parsed.length; i++) {
     const entry = parsed[i];
-    let id: string | null = null;
+
+    // Bare string id: must reference a known character (no inline form).
     if (typeof entry === "string") {
-      id = entry;
-    } else if (entry && typeof entry === "object" && "id" in entry) {
-      id = String((entry as { id: unknown }).id);
-      if (id === "_meta") {
-        const meta = entry as { id: string; name?: unknown; author?: unknown };
-        if (typeof meta.name === "string" && meta.name.trim()) {
-          scriptName = meta.name.trim().slice(0, 100);
-        }
+      const normalized = normalizeId(entry);
+      if (!ALL_CHARACTERS_BY_ID[normalized]) {
+        unknownIds.push(entry);
         continue;
       }
-    } else {
+      ids.push(normalized);
+      continue;
+    }
+
+    if (!entry || typeof entry !== "object" || !("id" in entry)) {
       return {
         error: `Entry at index ${i} is not a string or object with an id field.`,
       };
     }
+    const obj = entry as Record<string, unknown>;
+    const rawId = String(obj.id);
 
-    if (!id) continue;
-    // Normalize: accept both "fortune_teller" and "fortuneteller" forms by
-    // collapsing underscores. Canonical IDs we ship use the no-underscore
-    // form (matching bra1n/townsquare).
-    const normalized = id.toLowerCase().replace(/_/g, "");
+    if (rawId === "_meta") {
+      if (typeof obj.name === "string" && obj.name.trim()) {
+        scriptName = obj.name.trim().slice(0, 100);
+      }
+      continue;
+    }
+
+    const normalized = normalizeId(rawId);
+
+    // Inline definition: has at least name + team + ability beyond the id.
+    // Otherwise it's just an id reference.
+    const hasInlineFields =
+      typeof obj.name === "string" ||
+      typeof obj.team === "string" ||
+      typeof obj.ability === "string";
+
+    if (hasInlineFields) {
+      // Build a candidate object normalized to our schema (name `otherNight`
+      // → `otherNights` since the canonical roles.json uses singular).
+      const candidate: Record<string, unknown> = {
+        ...obj,
+        id: normalized,
+      };
+      if ("otherNight" in obj && !("otherNights" in obj)) {
+        candidate.otherNights = obj.otherNight;
+      }
+      const result = inlineCharacterSchema.safeParse(candidate);
+      if (!result.success) {
+        return {
+          error: `Inline character "${rawId}" is malformed: ${result.error.errors[0]?.message ?? "validation failed"}`,
+        };
+      }
+      inline.push(result.data);
+      ids.push(normalized);
+      continue;
+    }
+
+    // No inline fields → treat as an id reference.
     if (!ALL_CHARACTERS_BY_ID[normalized]) {
-      unknownIds.push(id);
+      unknownIds.push(rawId);
       continue;
     }
     ids.push(normalized);
@@ -75,7 +124,8 @@ export function parseScriptJson(
         `${unknownIds.length} character${
           unknownIds.length === 1 ? "" : "s"
         } not in our library: ${sample}${more}. ` +
-        `v1 supports characters from Trouble Brewing, Bad Moon Rising, and Sects & Violets.`,
+        `Either reference a character we ship (Trouble Brewing, Bad Moon Rising, ` +
+        `Sects & Violets, Fabled), or include an inline definition with name, team, ability.`,
     };
   }
 
@@ -85,5 +135,11 @@ export function parseScriptJson(
     };
   }
 
-  return { script: { name: scriptName, characterIds: ids } };
+  return {
+    script: {
+      name: scriptName,
+      characterIds: ids,
+      ...(inline.length > 0 ? { inlineCharacters: inline } : {}),
+    },
+  };
 }

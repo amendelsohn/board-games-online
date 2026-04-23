@@ -136,6 +136,13 @@ export interface ExecutionRecord {
 export interface BotCState {
   scriptId: string;
   scriptCharacterIds: string[];
+  /**
+   * Inline characters from a custom script — their definitions live
+   * in state so any viewer can resolve them. Empty for built-in
+   * scripts. When an id appears here AND in ALL_CHARACTERS_BY_ID,
+   * the inline definition wins (custom script can shadow built-ins).
+   */
+  customCharacters: Character[];
   storytellerId: PlayerId;
   /** Seats clockwise around the town square. */
   seatOrder: PlayerId[];
@@ -183,14 +190,35 @@ export const SCRIPT_LABELS: Readonly<Record<BuiltInScriptId, string>> = {
 };
 
 /**
- * A custom script — the ST pasted a homebrew script JSON in the lobby.
- * v1 only stores resolved character IDs (every entry must reference a
- * character we already ship). Future versions may accept inline
- * character definitions for fully-homebrew characters.
+ * Wire shape for a Character that came from a custom script's inline
+ * definition. Server stores these alongside `characterIds` so the
+ * grimoire can resolve them — they take precedence over the canonical
+ * pool when their id collides.
+ */
+export const inlineCharacterSchema = z.object({
+  id: z.string().min(1).max(64),
+  name: z.string().min(1).max(64),
+  team: z.enum(["townsfolk", "outsider", "minion", "demon", "traveller", "fabled"]),
+  edition: z.string().max(32).optional(),
+  ability: z.string().min(1).max(500),
+  firstNight: z.number().nullable().optional(),
+  otherNights: z.number().nullable().optional(),
+  reminders: z.array(z.string().max(48)).max(10).optional(),
+  setup: z.boolean().optional(),
+});
+export type InlineCharacter = z.infer<typeof inlineCharacterSchema>;
+
+/**
+ * A custom script — the ST pasted a homebrew script JSON in the
+ * lobby. `characterIds` is the ordered seat-pool. `inlineCharacters`
+ * carries definitions for any homebrew character not in our shipped
+ * editions; ids in `characterIds` resolve to the inline definition
+ * first, then to the canonical pool.
  */
 export const customScriptSchema = z.object({
   name: z.string().min(1).max(100),
   characterIds: z.array(z.string().min(1)).min(5).max(40),
+  inlineCharacters: z.array(inlineCharacterSchema).max(40).optional(),
 });
 export type CustomScript = z.infer<typeof customScriptSchema>;
 
@@ -343,6 +371,7 @@ export interface PlayerView {
   viewer: "player";
   scriptId: string;
   scriptCharacterIds: string[];
+  customCharacters: Character[];
   storytellerId: PlayerId;
   seatOrder: PlayerId[];
   phase: BotCPhase;
@@ -377,6 +406,7 @@ export interface SpectatorView {
   viewer: "spectator";
   scriptId: string;
   scriptCharacterIds: string[];
+  customCharacters: Character[];
   storytellerId: PlayerId;
   seatOrder: PlayerId[];
   phase: BotCPhase;
