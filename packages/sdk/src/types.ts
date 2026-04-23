@@ -26,3 +26,10 @@ export interface Versioned<S> {
  * implementations stay narrowly typed.
  */
 export type Viewer = PlayerId | "spectator";
+
+/**
+ * Framework-level viewer used by the match service / gateway when routing
+ * subscriptions. Game modules never see `"storyteller"` through `view()`
+ * (it's dispatched to `storytellerView()` instead).
+ */
+export type RuntimeViewer = Viewer | "storyteller";

@@ -47,6 +47,10 @@ export class TablesService {
     // Important because the lobby page re-calls join on mount after the
     // home page already joined — without this the second call fails "full".
     if (table.playerIds.includes(playerId)) return table;
+    // Storyteller-style tables: the host is not a seated player, so the
+    // host re-visiting the lobby (which always re-calls join) must be a
+    // no-op rather than auto-seating them as a player.
+    if (!table.hostIsPlayer && playerId === table.hostPlayerId) return table;
     const mod = this.games.get(table.gameType);
     if (table.playerIds.length >= mod.maxPlayers) {
       throw new BadRequestException(
