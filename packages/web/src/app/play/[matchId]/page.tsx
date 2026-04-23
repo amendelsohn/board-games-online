@@ -177,7 +177,7 @@ export default function PlayPage() {
   const isMyTurn = currentActors.includes(effectiveSeat);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-16">
+    <div className="max-w-5xl mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-16 w-full min-w-0">
       <MatchHeader
         gameType={table.gameType}
         gameDisplayName={
@@ -223,7 +223,7 @@ export default function PlayPage() {
         />
       )}
 
-      <div className="mt-6 md:mt-8 flex flex-col items-center">
+      <div className="mt-6 md:mt-8 flex flex-col items-center w-full min-w-0 max-w-full overflow-x-auto">
         <Board
           view={view}
           phase={phase ?? "unknown"}

@@ -164,6 +164,12 @@ body {
   height: 100%;
 }
 
+/* Block page-level horizontal scroll. Game boards that need more room
+   must scroll their own inner container, never the whole page. */
+html {
+  overflow-x: clip;
+}
+
 body {
   font-family: var(--font-sans);
   font-feature-settings:
@@ -174,6 +180,8 @@ body {
   color: var(--color-base-content);
   min-height: 100vh;
   position: relative;
+  overflow-x: clip;
+  max-width: 100vw;
 }
 
 /* Paper-grain overlay. A whisper, not a texture. Respects theme. */
