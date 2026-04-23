@@ -530,6 +530,7 @@ function StorytellerGrimoire({
   const isDay = state.phase === "day";
 
   const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
+  const [hoveredSeatId, setHoveredSeatId] = useState<string | null>(null);
   const [endingMatch, setEndingMatch] = useState(false);
   const [pendingNomination, setPendingNomination] = useState<
     { nominator: string | null } | null
@@ -541,6 +542,22 @@ function StorytellerGrimoire({
       setSelectedSeatId(null);
     }
   }, [selectedSeatId, state.grimoire]);
+
+  // Sheet shows hovered seat (transient preview) when present; falls back
+  // to the pinned (clicked) selection. Touch devices generally don't fire
+  // mouseEnter, so they get the click-to-pin behavior unchanged.
+  const displayedSeatId = hoveredSeatId ?? selectedSeatId;
+
+  // The set of character ids actually assigned to seats — drives the
+  // available reminder-token list in the SeatSheet so the ST can pick
+  // any reminder that might come up tonight, not just the seat's own.
+  const inPlayCharacterIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const seat of Object.values(state.grimoire)) {
+      if (seat.characterId) set.add(seat.characterId);
+    }
+    return set;
+  }, [state.grimoire]);
 
   // The nomination flow ends once a vote opens.
   useEffect(() => {
@@ -683,7 +700,9 @@ function StorytellerGrimoire({
           grimoire={state.grimoire}
           playerById={playerById}
           selectedSeatId={selectedSeatId}
+          hoveredSeatId={hoveredSeatId}
           onSeatClick={handleSeatClick}
+          onSeatHover={setHoveredSeatId}
           highlightSeatIds={highlightSeatIds}
           voteYesSeats={voteYesSeats}
           spinningHand={
@@ -717,18 +736,27 @@ function StorytellerGrimoire({
           </aside>
         )}
 
-        {selectedSeatId && state.grimoire[selectedSeatId] && (
-          <aside className="absolute right-2 top-2 bottom-2 w-64 z-30 pointer-events-auto">
+        {displayedSeatId && state.grimoire[displayedSeatId] && (
+          <aside
+            className="absolute right-2 top-2 bottom-2 w-64 z-30 pointer-events-auto"
+            onMouseEnter={() => setHoveredSeatId(displayedSeatId)}
+            onMouseLeave={() => setHoveredSeatId(null)}
+          >
             <SeatSheet
-              seatId={selectedSeatId}
-              seat={state.grimoire[selectedSeatId]!}
+              seatId={displayedSeatId}
+              seat={state.grimoire[displayedSeatId]!}
               playerName={
-                playerById[selectedSeatId]?.name ?? selectedSeatId
+                playerById[displayedSeatId]?.name ?? displayedSeatId
               }
               phase={state.phase}
               playMode={state.playMode}
               hasOpenVote={state.openVote !== null}
-              onClose={() => setSelectedSeatId(null)}
+              isPinned={selectedSeatId === displayedSeatId}
+              inPlayCharacterIds={inPlayCharacterIds}
+              onClose={() => {
+                setSelectedSeatId(null);
+                setHoveredSeatId(null);
+              }}
               sendMove={sendMove}
             />
           </aside>
@@ -814,7 +842,9 @@ function SeatRing({
   grimoire,
   playerById,
   selectedSeatId,
+  hoveredSeatId,
   onSeatClick,
+  onSeatHover,
   highlightSeatIds,
   voteYesSeats,
   spinningHand,
@@ -822,8 +852,13 @@ function SeatRing({
   seatOrder: readonly string[];
   grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
   playerById: Record<string, SeatPlayer>;
+  /** Pinned seat (sticky — opened via click, persists). */
   selectedSeatId: string | null;
+  /** Currently-hovered seat for transient preview (desktop only). */
+  hoveredSeatId: string | null;
   onSeatClick: (id: string) => void;
+  /** Mouse enter / leave on a seat token. Pass null on leave. */
+  onSeatHover: (id: string | null) => void;
   /** Seats to outline — used by the nomination flow to mark candidates. */
   highlightSeatIds?: ReadonlySet<string>;
   /** Seats currently voting "yes" — surfaces a raised-hand chip. */
@@ -869,6 +904,7 @@ function SeatRing({
           const c = seat?.characterId ? (pool[seat.characterId] ?? null) : null;
           const playerName = playerById[seatId]?.name ?? seatId;
           const isSelected = selectedSeatId === seatId;
+          const isHovered = hoveredSeatId === seatId;
           const isHighlighted = highlightSeatIds?.has(seatId) ?? false;
           const showHand = voteYesSeats?.has(seatId) ?? false;
           return (
@@ -876,6 +912,10 @@ function SeatRing({
               key={seatId}
               type="button"
               onClick={() => onSeatClick(seatId)}
+              onMouseEnter={() => onSeatHover(seatId)}
+              onMouseLeave={() => onSeatHover(null)}
+              onFocus={() => onSeatHover(seatId)}
+              onBlur={() => onSeatHover(null)}
               style={{
                 position: "absolute",
                 left: "50%",
@@ -889,12 +929,14 @@ function SeatRing({
               aria-label={`${playerName}${c ? ` — ${c.name}` : ""}`}
             >
               <span
-                className={`relative rounded-full ${
+                className={`relative rounded-full transition-shadow ${
                   isSelected
                     ? "ring-4 ring-primary/70 shadow-[0_0_18px_rgba(179,90,31,0.4)]"
-                    : isHighlighted
-                      ? "ring-4 ring-info/60"
-                      : ""
+                    : isHovered
+                      ? "ring-2 ring-primary/40 shadow-[0_0_12px_rgba(179,90,31,0.2)]"
+                      : isHighlighted
+                        ? "ring-4 ring-info/60"
+                        : ""
                 }`}
               >
                 <RoleToken
@@ -1056,6 +1098,8 @@ function SeatSheet({
   phase,
   playMode,
   hasOpenVote,
+  isPinned,
+  inPlayCharacterIds,
   onClose,
   sendMove,
 }: {
@@ -1065,6 +1109,11 @@ function SeatSheet({
   phase: BotCPhase;
   playMode: "irl" | "virtual";
   hasOpenVote: boolean;
+  /** True when opened via click (sheet stays); false when hover-preview only. */
+  isPinned: boolean;
+  /** All character ids currently assigned to seats — used to surface every
+      reminder token that could plausibly come up tonight. */
+  inPlayCharacterIds: ReadonlySet<string>;
   onClose: () => void;
   sendMove: Send;
 }) {
@@ -1073,6 +1122,24 @@ function SeatSheet({
     ? (pool[seat.characterId] ?? null)
     : null;
   const [reminderDraft, setReminderDraft] = useState("");
+
+  // All reminders available from in-play characters, grouped per source
+  // character so the ST can scan by who-it-came-from. Own-character
+  // reminders are first since they're the most likely to be added.
+  const reminderGroups = useMemo(() => {
+    const groups: Array<{ character: Character; labels: string[] }> = [];
+    const addGroup = (cid: string) => {
+      const c = pool[cid];
+      if (!c || c.reminders.length === 0) return;
+      if (groups.some((g) => g.character.id === cid)) return;
+      groups.push({ character: c, labels: c.reminders });
+    };
+    if (character) addGroup(character.id);
+    for (const cid of inPlayCharacterIds) {
+      if (cid !== character?.id) addGroup(cid);
+    }
+    return groups;
+  }, [pool, character, inPlayCharacterIds]);
 
   const setAlive = (alive: boolean) =>
     sendMove({ kind: "st.setAlive", seatId, alive });
@@ -1133,16 +1200,23 @@ function SeatSheet({
                 no character
               </span>
             )}
+            {!isPinned && (
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-base-content/40">
+                preview · click to pin
+              </span>
+            )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-base-content/45 hover:text-base-content/85 text-xl leading-none -mt-0.5"
-          aria-label="Close seat sheet"
-        >
-          ×
-        </button>
+        {isPinned && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-base-content/45 hover:text-base-content/85 text-xl leading-none -mt-0.5"
+            aria-label="Close seat sheet"
+          >
+            ×
+          </button>
+        )}
       </header>
 
       {character && (
@@ -1213,21 +1287,32 @@ function SeatSheet({
         </div>
       )}
 
-      {character && character.reminders.length > 0 && (
-        <div className="flex flex-col gap-1">
+      {reminderGroups.length > 0 && (
+        <div className="flex flex-col gap-1.5">
           <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
             Add a reminder
           </span>
-          <div className="flex flex-wrap gap-1 text-[11px]">
-            {character.reminders.map((label) => (
-              <button
-                key={label}
-                type="button"
-                className="px-2 py-0.5 rounded-full border border-base-content/15 text-base-content/65 hover:bg-base-content/5"
-                onClick={() => void addReminder(label, character.id)}
-              >
-                + {label}
-              </button>
+          <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
+            {reminderGroups.map((group) => (
+              <div key={group.character.id} className="flex flex-col gap-0.5">
+                <span
+                  className={`font-mono text-[10px] uppercase tracking-wider ${TEAM_TINT[group.character.team]} opacity-80`}
+                >
+                  {group.character.name}
+                </span>
+                <div className="flex flex-wrap gap-1 text-[11px]">
+                  {group.labels.map((label) => (
+                    <button
+                      key={label}
+                      type="button"
+                      className="px-2 py-0.5 rounded-full border border-base-content/15 text-base-content/65 hover:bg-base-content/5"
+                      onClick={() => void addReminder(label, group.character.id)}
+                    >
+                      + {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
