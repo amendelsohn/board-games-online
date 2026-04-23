@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
 import {
   BOTC_TYPE,
   TB_DISTRIBUTION,
   TROUBLE_BREWING_BY_ID,
   type BotCMove,
+  type BotCPhase,
   type BotCView,
   type Character,
   type CharacterTeam,
+  type ReminderToken,
+  type SeatGrimoire,
 } from "./shared";
 
 type Send = (move: BotCMove) => Promise<void>;
@@ -60,7 +63,7 @@ function StorytellerSurface({
   if (state.phase === "setup") {
     return <StorytellerSetup state={state} players={players} sendMove={sendMove} />;
   }
-  return <StorytellerGrimoirePlaceholder view={view} players={players} />;
+  return <StorytellerGrimoire state={state} players={players} sendMove={sendMove} />;
 }
 
 function StorytellerSetup({
@@ -264,57 +267,295 @@ function DistributionStat({
   );
 }
 
-function StorytellerGrimoirePlaceholder({
-  view,
+function StorytellerGrimoire({
+  state,
   players,
+  sendMove,
 }: {
-  view: Extract<BotCView, { viewer: "storyteller" }>;
+  state: Extract<BotCView, { viewer: "storyteller" }>["state"];
   players: SeatPlayer[];
+  sendMove: Send;
 }) {
-  const { state } = view;
-  const playerName = (id: string) =>
-    players.find((p) => p.id === id)?.name ?? id;
+  const playerById = useMemo(
+    () => Object.fromEntries(players.map((p) => [p.id, p])),
+    [players],
+  );
+
+  const livingCount = state.seatOrder.reduce(
+    (n, id) => n + (state.grimoire[id]?.isAlive ? 1 : 0),
+    0,
+  );
+
+  const advance = () => sendMove({ kind: "st.advancePhase" });
+  const advanceLabel = phaseAdvanceLabel(state.phase, state.dayNumber);
+
   return (
-    <div className="surface-ivory p-6 max-w-2xl w-full flex flex-col gap-4">
-      <header className="flex flex-col gap-1">
-        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
-          Storyteller · {state.phase} · day {state.dayNumber}
-        </span>
-        <h2 className="font-display text-2xl tracking-tight">Grimoire</h2>
+    <div className="max-w-5xl w-full flex flex-col gap-4">
+      <header className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+            Storyteller · {phaseLabel(state.phase, state.dayNumber)} ·{" "}
+            {livingCount}/{state.seatOrder.length} alive
+          </span>
+          <h2 className="font-display text-2xl tracking-tight">Grimoire</h2>
+        </div>
+        {advanceLabel && (
+          <button
+            type="button"
+            className="btn btn-primary rounded-full px-5"
+            onClick={advance}
+          >
+            {advanceLabel}
+          </button>
+        )}
       </header>
-      <ul className="grid grid-cols-1 md:grid-cols-2 gap-1.5 text-sm">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {state.seatOrder.map((seatId) => {
           const seat = state.grimoire[seatId];
-          const c = seat?.characterId
-            ? TROUBLE_BREWING_BY_ID[seat.characterId]
-            : null;
+          if (!seat) return null;
           return (
-            <li
+            <SeatCard
               key={seatId}
-              className={`flex items-baseline justify-between gap-3 px-2 py-1 rounded ${
-                seat?.isAlive ? "" : "opacity-50"
-              }`}
-            >
-              <span className="font-display truncate">
-                {playerName(seatId)}
-              </span>
-              <span
-                className={`font-mono text-xs ${
-                  c ? TEAM_TINT[c.team] : "text-base-content/40"
-                }`}
-              >
-                {c?.name ?? "—"}
-              </span>
-            </li>
+              seatId={seatId}
+              seat={seat}
+              playerName={playerById[seatId]?.name ?? seatId}
+              sendMove={sendMove}
+            />
           );
         })}
-      </ul>
-      <p className="text-xs text-base-content/55 italic">
-        Night order, reminder tokens, drunk/poisoned toggles, and the rest of
-        the Grimoire UI land in the next commit.
-      </p>
+      </div>
     </div>
   );
+}
+
+function SeatCard({
+  seatId,
+  seat,
+  playerName,
+  sendMove,
+}: {
+  seatId: string;
+  seat: SeatGrimoire;
+  playerName: string;
+  sendMove: Send;
+}) {
+  const character = seat.characterId
+    ? TROUBLE_BREWING_BY_ID[seat.characterId] ?? null
+    : null;
+  const [reminderDraft, setReminderDraft] = useState("");
+
+  const setAlive = (alive: boolean) =>
+    sendMove({ kind: "st.setAlive", seatId, alive });
+  const setPoisoned = (poisoned: boolean) =>
+    sendMove({ kind: "st.setPoisoned", seatId, poisoned });
+  const setDrunk = (drunk: boolean) =>
+    sendMove({ kind: "st.setDrunk", seatId, drunk });
+  const addReminder = (label: string, characterId?: string) =>
+    sendMove({
+      kind: "st.addReminder",
+      seatId,
+      label,
+      ...(characterId ? { characterId } : {}),
+    });
+  const removeReminder = (reminderId: string) =>
+    sendMove({ kind: "st.removeReminder", seatId, reminderId });
+
+  const submitDraft = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmed = reminderDraft.trim();
+    if (!trimmed) return;
+    void addReminder(trimmed.slice(0, 48));
+    setReminderDraft("");
+  };
+
+  return (
+    <div
+      className={`surface-ivory p-3 flex flex-col gap-2 transition-opacity ${
+        seat.isAlive ? "" : "opacity-60"
+      }`}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-display text-sm truncate">{playerName}</span>
+        {character ? (
+          <span
+            className={`font-mono text-[11px] uppercase tracking-wider ${
+              TEAM_TINT[character.team]
+            }`}
+          >
+            {character.name}
+          </span>
+        ) : (
+          <span className="font-mono text-[11px] text-base-content/40">—</span>
+        )}
+      </div>
+
+      {character && (
+        <p className="text-xs text-base-content/65 leading-snug line-clamp-3">
+          {character.ability}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-1.5 text-[11px]">
+        <Pill
+          on={!seat.isAlive}
+          tint="error"
+          onClick={() => void setAlive(!seat.isAlive)}
+        >
+          {seat.isAlive ? "alive" : "dead"}
+        </Pill>
+        <Pill
+          on={seat.isPoisoned}
+          tint="warning"
+          onClick={() => void setPoisoned(!seat.isPoisoned)}
+        >
+          poisoned
+        </Pill>
+        <Pill
+          on={seat.isDrunk}
+          tint="warning"
+          onClick={() => void setDrunk(!seat.isDrunk)}
+        >
+          drunk
+        </Pill>
+        {!seat.isAlive && (
+          <Pill
+            on={seat.ghostVoteUsed}
+            tint="info"
+            onClick={() => {
+              /* ghost vote tracked in voting flow, read-only here */
+            }}
+          >
+            {seat.ghostVoteUsed ? "ghost vote used" : "ghost vote"}
+          </Pill>
+        )}
+      </div>
+
+      {seat.reminders.length > 0 && (
+        <ul className="flex flex-wrap gap-1 text-[11px]">
+          {seat.reminders.map((r) => (
+            <ReminderChip key={r.id} reminder={r} onRemove={removeReminder} />
+          ))}
+        </ul>
+      )}
+
+      {character && character.reminders.length > 0 && (
+        <div className="flex flex-wrap gap-1 text-[11px]">
+          {character.reminders.map((label) => (
+            <button
+              key={label}
+              type="button"
+              className="px-1.5 py-0.5 rounded-full border border-base-content/15 text-base-content/60 hover:bg-base-content/5"
+              onClick={() => void addReminder(label, character.id)}
+            >
+              + {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={submitDraft} className="flex items-center gap-1.5">
+        <input
+          type="text"
+          value={reminderDraft}
+          onChange={(e) => setReminderDraft(e.target.value)}
+          placeholder="add reminder…"
+          maxLength={48}
+          className="flex-1 min-w-0 bg-transparent border-b border-base-content/15 text-xs px-1 py-0.5 outline-none focus:border-base-content/40"
+        />
+        {reminderDraft.trim() && (
+          <button
+            type="submit"
+            className="text-[11px] px-2 py-0.5 rounded-full bg-base-content/10 hover:bg-base-content/15"
+          >
+            add
+          </button>
+        )}
+      </form>
+    </div>
+  );
+}
+
+function ReminderChip({
+  reminder,
+  onRemove,
+}: {
+  reminder: ReminderToken;
+  onRemove: (id: string) => Promise<void> | void;
+}) {
+  return (
+    <li className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-200/30 text-amber-900 dark:text-amber-200">
+      <span>{reminder.label}</span>
+      <button
+        type="button"
+        className="text-amber-900/55 dark:text-amber-200/55 hover:text-amber-900 dark:hover:text-amber-200"
+        aria-label={`Remove ${reminder.label}`}
+        onClick={() => void onRemove(reminder.id)}
+      >
+        ×
+      </button>
+    </li>
+  );
+}
+
+function Pill({
+  on,
+  tint,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  tint: "error" | "warning" | "info";
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  const onClass = {
+    error: "bg-error/15 text-error border-error/30",
+    warning: "bg-warning/15 text-warning border-warning/35",
+    info: "bg-info/15 text-info border-info/30",
+  }[tint];
+  const offClass = "border-base-content/15 text-base-content/55 hover:bg-base-content/5";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ${
+        on ? onClass : offClass
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function phaseLabel(phase: BotCPhase, dayNumber: number): string {
+  switch (phase) {
+    case "setup":
+      return "setup";
+    case "firstNight":
+      return "first night";
+    case "day":
+      return `day ${dayNumber}`;
+    case "night":
+      return `night ${dayNumber}`;
+    case "finished":
+      return "match ended";
+  }
+}
+
+function phaseAdvanceLabel(phase: BotCPhase, dayNumber: number): string | null {
+  switch (phase) {
+    case "setup":
+      return null; // setup uses its own "Start the first night" button
+    case "firstNight":
+      return "Advance to day 1 →";
+    case "day":
+      return `Advance to night ${dayNumber} →`;
+    case "night":
+      return `Advance to day ${dayNumber + 1} →`;
+    case "finished":
+      return null;
+  }
 }
 
 // ============================================================================

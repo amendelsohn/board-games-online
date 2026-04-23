@@ -18,6 +18,7 @@ import {
   type BotCState,
   type BotCView,
   type PlayerView,
+  type ReminderToken,
   type SpectatorView,
   type StorytellerView,
 } from "./shared";
@@ -303,6 +304,150 @@ function handleAdvancePhase(state: BotCState): MoveResult<BotCState> {
   }
 }
 
+/**
+ * Toggle a seat's life status. The Storyteller is responsible for
+ * deciding *when* this fires (Imp kill, execution, Slayer shot, etc.) —
+ * we just persist the bit and mirror it into the public seat info so
+ * everyone can see the gravestone.
+ */
+function handleSetAlive(
+  state: BotCState,
+  seatId: PlayerId,
+  alive: boolean,
+): MoveResult<BotCState> {
+  if (state.phase === "finished") {
+    return { ok: false, reason: "Match has already finished" };
+  }
+  const seat = state.grimoire[seatId];
+  const pub = state.seats[seatId];
+  if (!seat || !pub) {
+    return { ok: false, reason: `Unknown seat: ${seatId}` };
+  }
+  if (seat.isAlive === alive) {
+    return { ok: true, state };
+  }
+  // Coming back from the dead is rare but legal (Storyteller may need to
+  // correct a mistake). Don't reset the ghost-vote bit — that's
+  // historical and the ST can clear it manually if intended.
+  return {
+    ok: true,
+    state: {
+      ...state,
+      grimoire: { ...state.grimoire, [seatId]: { ...seat, isAlive: alive } },
+      seats: { ...state.seats, [seatId]: { ...pub, isAlive: alive } },
+    },
+  };
+}
+
+function handleSetPoisoned(
+  state: BotCState,
+  seatId: PlayerId,
+  poisoned: boolean,
+): MoveResult<BotCState> {
+  if (state.phase === "finished") {
+    return { ok: false, reason: "Match has already finished" };
+  }
+  const seat = state.grimoire[seatId];
+  if (!seat) return { ok: false, reason: `Unknown seat: ${seatId}` };
+  if (seat.isPoisoned === poisoned) return { ok: true, state };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      grimoire: {
+        ...state.grimoire,
+        [seatId]: { ...seat, isPoisoned: poisoned },
+      },
+    },
+  };
+}
+
+function handleSetDrunk(
+  state: BotCState,
+  seatId: PlayerId,
+  drunk: boolean,
+): MoveResult<BotCState> {
+  if (state.phase === "finished") {
+    return { ok: false, reason: "Match has already finished" };
+  }
+  const seat = state.grimoire[seatId];
+  if (!seat) return { ok: false, reason: `Unknown seat: ${seatId}` };
+  if (seat.isDrunk === drunk) return { ok: true, state };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      grimoire: {
+        ...state.grimoire,
+        [seatId]: { ...seat, isDrunk: drunk },
+      },
+    },
+  };
+}
+
+/**
+ * Generate a reminder-token id. Doesn't have to be cryptographic — the
+ * collision domain is the Grimoire (a few dozen tokens at most), and
+ * the id only needs to be stable enough to address with removeReminder.
+ */
+function newReminderId(): string {
+  return `r_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function handleAddReminder(
+  state: BotCState,
+  seatId: PlayerId,
+  label: string,
+  characterId: string | undefined,
+): MoveResult<BotCState> {
+  if (state.phase === "finished") {
+    return { ok: false, reason: "Match has already finished" };
+  }
+  const seat = state.grimoire[seatId];
+  if (!seat) return { ok: false, reason: `Unknown seat: ${seatId}` };
+  const reminder: ReminderToken = {
+    id: newReminderId(),
+    label,
+    ...(characterId ? { characterId } : {}),
+  };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      grimoire: {
+        ...state.grimoire,
+        [seatId]: { ...seat, reminders: [...seat.reminders, reminder] },
+      },
+    },
+  };
+}
+
+function handleRemoveReminder(
+  state: BotCState,
+  seatId: PlayerId,
+  reminderId: string,
+): MoveResult<BotCState> {
+  if (state.phase === "finished") {
+    return { ok: false, reason: "Match has already finished" };
+  }
+  const seat = state.grimoire[seatId];
+  if (!seat) return { ok: false, reason: `Unknown seat: ${seatId}` };
+  const next = seat.reminders.filter((r) => r.id !== reminderId);
+  if (next.length === seat.reminders.length) {
+    return { ok: false, reason: `Reminder ${reminderId} not found` };
+  }
+  return {
+    ok: true,
+    state: {
+      ...state,
+      grimoire: {
+        ...state.grimoire,
+        [seatId]: { ...seat, reminders: next },
+      },
+    },
+  };
+}
+
 export const bloodClocktowerServerModule: GameModule<
   BotCState,
   BotCMove,
@@ -367,6 +512,16 @@ export const bloodClocktowerServerModule: GameModule<
         return handleSetSeatOrder(state, m.order);
       case "st.advancePhase":
         return handleAdvancePhase(state);
+      case "st.setAlive":
+        return handleSetAlive(state, m.seatId, m.alive);
+      case "st.setPoisoned":
+        return handleSetPoisoned(state, m.seatId, m.poisoned);
+      case "st.setDrunk":
+        return handleSetDrunk(state, m.seatId, m.drunk);
+      case "st.addReminder":
+        return handleAddReminder(state, m.seatId, m.label, m.characterId);
+      case "st.removeReminder":
+        return handleRemoveReminder(state, m.seatId, m.reminderId);
       default:
         return {
           ok: false,
