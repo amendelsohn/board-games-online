@@ -36,6 +36,7 @@ import {
   type ReminderToken,
   type SeatGrimoire,
 } from "./shared";
+import { characterGlyphFor } from "./icons/character-glyphs";
 
 type SendInfoPayload = Extract<BotCMove, { kind: "st.sendInfo" }>["info"];
 type OnEvent = (listener: (e: GameEvent) => void) => () => void;
@@ -110,6 +111,7 @@ function RoleToken({
   // right side, hugging the inner edge of the border ring.
   const arcId = `tokenArc-${character?.id ?? "empty"}-${size}`;
   const initial = name ? name[0]?.toUpperCase() ?? "" : "";
+  const glyph = characterGlyphFor(character?.id);
   // Font size for the curved name scales gently with token size.
   const nameFontSize = Math.max(7, Math.round(size / 11));
   const initialFontSize = Math.round(size / 2.5);
@@ -144,20 +146,35 @@ function RoleToken({
         strokeWidth="0.5"
       />
 
-      {/* Big stylized initial in the middle */}
-      {initial && (
-        <text
-          x="50"
-          y="42"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontFamily="'Cormorant Garamond', 'Georgia', serif"
-          fontWeight="600"
-          fontSize={initialFontSize}
-          fill={teamColor}
-        >
-          {initial}
-        </text>
+      {/* Character glyph (preferred) or stylized initial fallback */}
+      {glyph ? (
+        <g style={{ color: teamColor }}>
+          <svg
+            x="28"
+            y="12"
+            width="44"
+            height="44"
+            viewBox="0 0 24 24"
+            overflow="visible"
+          >
+            {glyph}
+          </svg>
+        </g>
+      ) : (
+        initial && (
+          <text
+            x="50"
+            y="42"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontFamily="'Cormorant Garamond', 'Georgia', serif"
+            fontWeight="600"
+            fontSize={initialFontSize}
+            fill={teamColor}
+          >
+            {initial}
+          </text>
+        )
       )}
 
       {/* Curved character name along the bottom */}
