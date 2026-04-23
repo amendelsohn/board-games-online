@@ -576,12 +576,22 @@ function StorytellerGrimoire({
         />
       )}
 
-      {state.phase === "day" && (
+      {state.phase === "day" && state.playMode === "virtual" && (
         <NominationsPanel
           nominations={state.nominations}
           openVote={state.openVote}
           grimoire={state.grimoire}
           executions={state.executions}
+          seatOrder={state.seatOrder}
+          playerById={playerById}
+          sendMove={sendMove}
+        />
+      )}
+      {state.phase === "day" && state.playMode === "irl" && (
+        <IRLDayPanel
+          grimoire={state.grimoire}
+          executions={state.executions}
+          dayNumber={state.dayNumber}
           seatOrder={state.seatOrder}
           playerById={playerById}
           sendMove={sendMove}
@@ -1578,6 +1588,133 @@ function NominationsPanel({
   );
 }
 
+/**
+ * IRL-mode day panel. The ST is using the app as a Grimoire only —
+ * nominations and votes happen in the physical room — so this panel
+ * just records what was decided: tap a seat to mark them executed,
+ * tap "no execution" to record a skipped day. The execution log
+ * above mirrors the same data the virtual NominationsPanel shows.
+ */
+function IRLDayPanel({
+  grimoire,
+  executions,
+  dayNumber,
+  seatOrder,
+  playerById,
+  sendMove,
+}: {
+  grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
+  executions: Extract<BotCView, { viewer: "storyteller" }>["state"]["executions"];
+  dayNumber: number;
+  seatOrder: readonly string[];
+  playerById: Record<string, SeatPlayer>;
+  sendMove: Send;
+}) {
+  const pool = useCharacterPool();
+  const execute = (nomineeId: string) =>
+    sendMove({ kind: "st.executeNominee", nomineeId });
+  const skip = () => sendMove({ kind: "st.skipExecution" });
+
+  const todayExecution = executions.find((e) => e.dayNumber === dayNumber);
+
+  return (
+    <section className="surface-ivory p-4 flex flex-col gap-3">
+      <header className="flex items-baseline justify-between gap-3 flex-wrap">
+        <h3 className="font-display text-lg">Day {dayNumber}</h3>
+        <span className="text-[11px] text-base-content/55 italic">
+          Voting at the table — record the outcome here.
+        </span>
+      </header>
+
+      {executions.length > 0 && (
+        <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-base-content/55 font-mono">
+          {executions.map((e, i) => {
+            const charName = e.executed
+              ? (pool[grimoire[e.executed]?.characterId ?? ""]?.name ?? "?")
+              : null;
+            return (
+              <li key={i} className="whitespace-nowrap">
+                day {e.dayNumber}:{" "}
+                {e.executed ? (
+                  <>
+                    <span className="text-base-content/75">
+                      {playerById[e.executed]?.name ?? e.executed}
+                    </span>{" "}
+                    <span className="text-base-content/45">({charName})</span>
+                  </>
+                ) : (
+                  <span className="italic">no execution</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {todayExecution ? (
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-base-content/5 border border-base-content/10">
+          <span className="text-sm">
+            <span className="text-base-content/55">Today: </span>
+            {todayExecution.executed ? (
+              <>
+                executed{" "}
+                <strong className="font-display">
+                  {playerById[todayExecution.executed]?.name ??
+                    todayExecution.executed}
+                </strong>
+              </>
+            ) : (
+              <em className="text-base-content/65">no execution</em>
+            )}
+          </span>
+          <span className="text-[11px] text-base-content/45">
+            advance to night when ready
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            Mark today's execution
+          </span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
+            {seatOrder.map((seatId) => {
+              const seat = grimoire[seatId];
+              if (!seat || !seat.isAlive) return null;
+              const character = seat.characterId
+                ? pool[seat.characterId]
+                : null;
+              return (
+                <button
+                  key={seatId}
+                  type="button"
+                  onClick={() => void execute(seatId)}
+                  className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border border-error/25 text-error hover:bg-error/10 active:bg-error/15 text-sm text-left min-h-[3rem]"
+                >
+                  <span className="font-display truncate w-full">
+                    {playerById[seatId]?.name ?? seatId}
+                  </span>
+                  {character && (
+                    <span className="font-mono text-[10px] text-base-content/55 truncate w-full">
+                      {character.name}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => void skip()}
+            className="self-end text-xs px-3 py-1.5 rounded-full text-base-content/65 hover:bg-base-content/5 border border-base-content/15"
+          >
+            No execution today
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SeatCard({
   seatId,
   seat,
@@ -1928,7 +2065,7 @@ function PlayerSurface({
           {view.me && !view.me.isAlive ? " · you are a ghost" : ""}
         </p>
       )}
-      {view.phase === "day" && view.me && (
+      {view.phase === "day" && view.me && view.playMode === "virtual" && (
         <DayActions
           me={view.me}
           seatOrder={view.seatOrder}
@@ -1938,6 +2075,15 @@ function PlayerSurface({
           playerById={playerById}
           sendMove={sendMove}
         />
+      )}
+      {view.phase === "day" && view.me && view.playMode === "irl" && (
+        <div className="pt-3 border-t border-base-content/10 text-sm text-base-content/65 leading-relaxed">
+          <span className="block text-[10px] uppercase tracking-[0.18em] text-base-content/55 mb-1">
+            In-person play
+          </span>
+          Nominations and votes are happening at the table — your hand is
+          your ballot. The Storyteller is recording outcomes here.
+        </div>
       )}
       {view.phase === "finished" && view.winner && (
         <FinishedBanner winner={view.winner} reason={view.endReason} />
@@ -2381,12 +2527,26 @@ function BotCLobbyPanel({
 }: LobbyPanelProps<BotCConfig>) {
   const scriptId = (config?.scriptId as BuiltInScriptId) ?? "trouble-brewing";
   const customScript = config?.customScript;
+  const playMode = (config?.playMode as "irl" | "virtual") ?? "virtual";
   const [showPaste, setShowPaste] = useState(false);
   const [paste, setPaste] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
 
+  const baseConfig = (): BotCConfig => {
+    const existing = config ?? {};
+    return {
+      scriptId: existing.scriptId ?? "trouble-brewing",
+      playMode: existing.playMode ?? "virtual",
+      ...(existing.customScript ? { customScript: existing.customScript } : {}),
+    };
+  };
+
   const pickBuiltIn = (id: BuiltInScriptId) => {
-    onChange({ ...(config ?? {}), scriptId: id, customScript: undefined });
+    onChange({ ...baseConfig(), scriptId: id, customScript: undefined });
+  };
+
+  const pickPlayMode = (mode: "irl" | "virtual") => {
+    onChange({ ...baseConfig(), playMode: mode });
   };
 
   const submitCustom = () => {
@@ -2395,21 +2555,59 @@ function BotCLobbyPanel({
       setParseError(result.error);
       return;
     }
-    onChange({
-      ...(config ?? { scriptId: "trouble-brewing" }),
-      customScript: result.script,
-    });
+    onChange({ ...baseConfig(), customScript: result.script });
     setParseError(null);
     setShowPaste(false);
     setPaste("");
   };
 
   const clearCustom = () => {
-    onChange({ ...(config ?? {}), customScript: undefined });
+    onChange({ ...baseConfig(), customScript: undefined });
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <div className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+          How are you playing?
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              {
+                id: "virtual" as const,
+                label: "Virtual",
+                hint: "Voice + app voting",
+              },
+              {
+                id: "irl" as const,
+                label: "In person",
+                hint: "App is just the Grimoire",
+              },
+            ]
+          ).map((mode) => {
+            const active = playMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                disabled={!isHost}
+                onClick={() => pickPlayMode(mode.id)}
+                className={`flex flex-col items-start gap-0.5 px-3 py-2 rounded-lg text-sm border ${
+                  active
+                    ? "bg-primary/15 text-primary border-primary/40"
+                    : "border-base-content/15 text-base-content/65 hover:bg-base-content/5"
+                } ${!isHost ? "opacity-60 cursor-default" : ""}`}
+              >
+                <span className="font-display">{mode.label}</span>
+                <span className="text-[10px] text-base-content/55 normal-case">
+                  {mode.hint}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div className="text-sm text-base-content/65">
         {isHost
           ? "Pick the edition you'll Storytell. You can change this until the match starts."
@@ -2499,9 +2697,10 @@ function BotCLobbyPanel({
             </button>
           </div>
           <p className="text-[11px] text-base-content/45 italic">
-            v1 only supports characters that ship in Trouble Brewing, Bad
-            Moon Rising, and Sects & Violets — homebrew characters with
-            inline definitions aren't supported yet.
+            Accepts the canonical Pandemonium Institute script JSON
+            format. Characters can be id-references to anything in
+            Trouble Brewing, Bad Moon Rising, Sects & Violets, or Fabled,
+            or full inline definitions for homebrew characters.
           </p>
         </div>
       )}

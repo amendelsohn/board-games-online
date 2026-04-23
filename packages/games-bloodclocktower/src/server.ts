@@ -98,6 +98,7 @@ function emptyState(
     scriptId,
     scriptCharacterIds: scriptIdsFor(cfg),
     customCharacters,
+    playMode: cfg.playMode,
     storytellerId,
     seatOrder,
     phase: "setup",
@@ -168,6 +169,7 @@ function makePlayerView(state: BotCState, viewer: PlayerId): PlayerView {
     scriptId: state.scriptId,
     scriptCharacterIds: [...state.scriptCharacterIds],
     customCharacters: state.customCharacters.map((c) => ({ ...c })),
+    playMode: state.playMode,
     storytellerId: state.storytellerId,
     seatOrder: [...state.seatOrder],
     phase: state.phase,
@@ -193,6 +195,7 @@ function makeSpectatorView(state: BotCState): SpectatorView {
     scriptId: state.scriptId,
     scriptCharacterIds: [...state.scriptCharacterIds],
     customCharacters: state.customCharacters.map((c) => ({ ...c })),
+    playMode: state.playMode,
     storytellerId: state.storytellerId,
     seatOrder: [...state.seatOrder],
     phase: state.phase,
@@ -933,7 +936,7 @@ export const bloodClocktowerServerModule: GameModule<
   hostSeated: false,
 
   defaultConfig(): BotCConfig {
-    return { scriptId: "trouble-brewing" };
+    return { scriptId: "trouble-brewing", playMode: "virtual" };
   },
 
   validateConfig(cfg: unknown): BotCConfig {

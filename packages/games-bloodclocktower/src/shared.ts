@@ -143,6 +143,11 @@ export interface BotCState {
    * the inline definition wins (custom script can shadow built-ins).
    */
   customCharacters: Character[];
+  /**
+   * Table-wide play mode. Locked at match creation (doesn't change
+   * between rematches at runtime — the ST picks it in the lobby).
+   */
+  playMode: BotCPlayMode;
   storytellerId: PlayerId;
   /** Seats clockwise around the town square. */
   seatOrder: PlayerId[];
@@ -222,6 +227,16 @@ export const customScriptSchema = z.object({
 });
 export type CustomScript = z.infer<typeof customScriptSchema>;
 
+/**
+ * How the table is being played.
+ *   - "virtual": full app-driven nominations + spinning-hand vote.
+ *   - "irl": ST tracks the grimoire on the app; nominations and votes
+ *     happen in the physical room. Players see a stripped-down phone
+ *     view (their character + private info only); ST gets per-seat
+ *     execute buttons in the day panel.
+ */
+export type BotCPlayMode = "irl" | "virtual";
+
 export const configSchema = z.object({
   /** Which canonical script to play. Ignored when customScript is set. */
   scriptId: z.enum(BUILT_IN_SCRIPT_IDS).default("trouble-brewing"),
@@ -231,6 +246,8 @@ export const configSchema = z.object({
    * being accepted (unknown IDs reject the move).
    */
   customScript: customScriptSchema.optional(),
+  /** App-driven (virtual) vs in-person (irl). Defaults to virtual. */
+  playMode: z.enum(["irl", "virtual"]).default("virtual"),
 });
 export type BotCConfig = z.infer<typeof configSchema>;
 
@@ -372,6 +389,7 @@ export interface PlayerView {
   scriptId: string;
   scriptCharacterIds: string[];
   customCharacters: Character[];
+  playMode: BotCPlayMode;
   storytellerId: PlayerId;
   seatOrder: PlayerId[];
   phase: BotCPhase;
@@ -407,6 +425,7 @@ export interface SpectatorView {
   scriptId: string;
   scriptCharacterIds: string[];
   customCharacters: Character[];
+  playMode: BotCPlayMode;
   storytellerId: PlayerId;
   seatOrder: PlayerId[];
   phase: BotCPhase;
