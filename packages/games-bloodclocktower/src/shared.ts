@@ -104,21 +104,53 @@ export interface NominationResult {
   noVotes?: PlayerId[];
 }
 
+/**
+ * Spinning-hand voting state machine for an open vote.
+ *  - "open":     pre-spin discussion. Players commit / change yes/no
+ *                freely. Hands raised here are visible to everyone
+ *                (raised hands are public IRL too).
+ *  - "spinning": ST has started the sweep. The hand passes one seat
+ *                every `cadenceMs` ms starting from `spinStartedAt`,
+ *                going clockwise from the seat immediately left of
+ *                the nominee. Each seat locks the moment the hand
+ *                passes it; locked votes can no longer be changed.
+ *
+ * After the spin completes (or ST force-closes), st.closeVote
+ * tallies and the openVote becomes null, with the result on the
+ * nomination.
+ */
+export type VoteSpinPhase = "open" | "spinning";
+
 export interface OpenVote {
   nominationId: string;
   /**
    * Per-player vote, keyed by PlayerId. Undefined = not yet voted.
    *
-   * In the Storyteller view this is the full map. In the player view
-   * it is redacted to the viewer's own entry (so a player can confirm
-   * they voted but can't see who voted yes / no in real time and
-   * fence-sit to the deciding ballot). Spectators get an empty map.
-   *
-   * The public `votedCount` below is the only running info exposed.
+   * Intentionally public to all viewers — raised hands are public IRL
+   * during the vote, and the spinning-hand UI surfaces them as
+   * little raised-hand indicators on each seat. (Historical voter
+   * identity, post-tally, stays ST-only on the nomination's result.)
    */
   votes: Record<PlayerId, "yes" | "no">;
-  /** How many seats have voted so far. Always public. */
+  /** How many seats have committed a vote so far. Always public. */
   votedCount: number;
+  /** Where in the spin we are. */
+  spinPhase: VoteSpinPhase;
+  /**
+   * Wall-clock when the hand started sweeping; null until ST clicks
+   * "Start spin". All clients animate the hand from this timestamp at
+   * `cadenceMs` per seat for visual sync, and the server uses it to
+   * enforce per-seat locks server-side.
+   */
+  spinStartedAt: number | null;
+  /** Per-seat sweep cadence in ms. Default 3000 (~3s per seat). */
+  cadenceMs: number;
+  /**
+   * Voting order, clockwise starting from the seat immediately left
+   * of the nominee. Frozen at openNomination time so a mid-vote seat
+   * shuffle can't change who locks next.
+   */
+  spinOrder: PlayerId[];
 }
 
 export interface ExecutionRecord {
@@ -329,6 +361,11 @@ const stMoveSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("st.closeVote"),
+  }),
+  z.object({
+    kind: z.literal("st.startSpin"),
+    /** Optional override for sweep cadence; defaults to 3000ms. */
+    cadenceMs: z.number().int().min(500).max(10000).optional(),
   }),
   z.object({
     kind: z.literal("st.executeNominee"),

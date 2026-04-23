@@ -686,6 +686,17 @@ function StorytellerGrimoire({
           onSeatClick={handleSeatClick}
           highlightSeatIds={highlightSeatIds}
           voteYesSeats={voteYesSeats}
+          spinningHand={
+            state.openVote &&
+            state.openVote.spinPhase === "spinning" &&
+            state.openVote.spinStartedAt !== null
+              ? {
+                  spinStartedAt: state.openVote.spinStartedAt,
+                  cadenceMs: state.openVote.cadenceMs,
+                  spinOrder: state.openVote.spinOrder,
+                }
+              : undefined
+          }
         />
 
         <CenterControls
@@ -806,6 +817,7 @@ function SeatRing({
   onSeatClick,
   highlightSeatIds,
   voteYesSeats,
+  spinningHand,
 }: {
   seatOrder: readonly string[];
   grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
@@ -816,6 +828,12 @@ function SeatRing({
   highlightSeatIds?: ReadonlySet<string>;
   /** Seats currently voting "yes" — surfaces a raised-hand chip. */
   voteYesSeats?: ReadonlySet<string>;
+  /** When set, draws the spinning vote hand sweeping clockwise. */
+  spinningHand?: {
+    spinStartedAt: number;
+    cadenceMs: number;
+    spinOrder: readonly string[];
+  };
 }) {
   const pool = useCharacterPool();
   const n = seatOrder.length;
@@ -835,6 +853,14 @@ function SeatRing({
           maxHeight: "100%",
         }}
       >
+        {spinningHand && (
+          <SpinningHandOverlay
+            spinningHand={spinningHand}
+            seatOrder={seatOrder}
+            containerSize={containerSize}
+            radius={radius}
+          />
+        )}
         {seatOrder.map((seatId, i) => {
           const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
           const x = radius * Math.cos(angle);
@@ -917,6 +943,102 @@ function SeatRing({
         })}
       </div>
     </div>
+  );
+}
+
+/**
+ * Animated SVG hand sweeping clockwise across the ring during a
+ * spinning vote. Uses a CSS keyframe animation with a negative
+ * `animation-delay` so every client lands on the same hand position
+ * regardless of when they joined / reconnected — the spin is
+ * deterministic from `spinStartedAt + cadenceMs`.
+ *
+ * The hand's start angle is the position of the first seat in
+ * spinOrder (the seat immediately left of the nominee). It rotates
+ * 360° over `spinOrder.length * cadenceMs` ms, so it ends back at
+ * the start.
+ */
+function SpinningHandOverlay({
+  spinningHand,
+  seatOrder,
+  containerSize,
+  radius,
+}: {
+  spinningHand: {
+    spinStartedAt: number;
+    cadenceMs: number;
+    spinOrder: readonly string[];
+  };
+  seatOrder: readonly string[];
+  containerSize: number;
+  radius: number;
+}) {
+  const n = seatOrder.length;
+  const firstIdx = seatOrder.indexOf(spinningHand.spinOrder[0]!);
+  if (firstIdx === -1) return null;
+  // Same polar layout as SeatRing: angle(i) = i/n * 360° - 90°.
+  const startAngleDeg = (firstIdx / n) * 360 - 90;
+  const totalDurationMs =
+    spinningHand.spinOrder.length * spinningHand.cadenceMs;
+  // negative delay starts the animation in the past, keeping all
+  // clients in sync regardless of when this component mounted.
+  const elapsedMs = Date.now() - spinningHand.spinStartedAt;
+  const animDelayMs = -elapsedMs;
+  // Per-spin animation name so React doesn't reuse the same keyframes
+  // across consecutive spins.
+  const animName = `spinHand_${spinningHand.spinStartedAt}`;
+  const cx = containerSize / 2;
+  const cy = containerSize / 2;
+  const tipX = cx + radius;
+  const tipY = cy;
+
+  return (
+    <>
+      <style>{`
+        @keyframes ${animName} {
+          from { transform: rotate(${startAngleDeg}deg); }
+          to   { transform: rotate(${startAngleDeg + 360}deg); }
+        }
+      `}</style>
+      <svg
+        className="absolute pointer-events-none"
+        width={containerSize}
+        height={containerSize}
+        style={{
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 5,
+        }}
+        aria-hidden
+      >
+        <g
+          style={{
+            transformOrigin: `${cx}px ${cy}px`,
+            animation: `${animName} ${totalDurationMs}ms linear forwards`,
+            animationDelay: `${animDelayMs}ms`,
+          }}
+        >
+          <line
+            x1={cx}
+            y1={cy}
+            x2={tipX}
+            y2={tipY}
+            stroke="rgba(179, 90, 31, 0.55)"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <circle
+            cx={tipX}
+            cy={tipY}
+            r="9"
+            fill="rgba(179, 90, 31, 0.92)"
+            stroke="rgba(255, 250, 240, 0.9)"
+            strokeWidth="2"
+          />
+        </g>
+      </svg>
+    </>
   );
 }
 
@@ -1300,31 +1422,26 @@ function DayCenterControls({
     const noCount = Object.values(openVote.votes).filter(
       (v) => v === "no",
     ).length;
+    const isSpinning = openVote.spinPhase === "spinning";
     return (
-      <div className="flex flex-col items-center gap-1.5 text-center">
-        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
-          Vote
-        </span>
-        <span className="font-display text-sm truncate max-w-[180px]">
-          {playerById[openNom.nominator]?.name ?? openNom.nominator} →{" "}
-          {playerById[openNom.nominee]?.name ?? openNom.nominee}
-        </span>
-        <span className="font-mono text-base">
-          <span className="text-success">{yesCount}</span>
-          {" / "}
-          <span className="text-base-content/55">{noCount}</span>
-          <span className="text-base-content/45 text-[10px] ml-1">
-            (need {threshold})
-          </span>
-        </span>
-        <button
-          type="button"
-          onClick={() => void sendMove({ kind: "st.closeVote" })}
-          className="text-xs px-3 py-1 rounded-full bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25"
-        >
-          Close vote
-        </button>
-      </div>
+      <SpinningVoteControls
+        nominationId={openVote.nominationId}
+        nominatorLabel={
+          playerById[openNom.nominator]?.name ?? openNom.nominator
+        }
+        nomineeLabel={
+          playerById[openNom.nominee]?.name ?? openNom.nominee
+        }
+        spinPhase={openVote.spinPhase}
+        spinStartedAt={openVote.spinStartedAt}
+        cadenceMs={openVote.cadenceMs}
+        spinOrderLength={openVote.spinOrder.length}
+        yesCount={yesCount}
+        noCount={noCount}
+        threshold={threshold}
+        isSpinning={isSpinning}
+        sendMove={sendMove}
+      />
     );
   }
 
@@ -1372,6 +1489,112 @@ function DayCenterControls({
       >
         no execution
       </button>
+    </div>
+  );
+}
+
+/**
+ * Center panel during an open vote. Walks through:
+ *   open       → "Start spin" button (after pre-commit discussion)
+ *   spinning   → live tally + countdown until tally enabled
+ *   spin done  → "Tally" button (writes result to nomination)
+ * "Close vote" stays available throughout as a force-close (e.g. ST
+ * decides to abandon or wants to tally early without waiting for
+ * the visual sweep to complete).
+ *
+ * The `now` ticker re-renders every 100ms while spinning so the
+ * countdown stays accurate without relying on server pings.
+ */
+function SpinningVoteControls({
+  nominationId,
+  nominatorLabel,
+  nomineeLabel,
+  spinPhase,
+  spinStartedAt,
+  cadenceMs,
+  spinOrderLength,
+  yesCount,
+  noCount,
+  threshold,
+  isSpinning,
+  sendMove,
+}: {
+  nominationId: string;
+  nominatorLabel: string;
+  nomineeLabel: string;
+  spinPhase: "open" | "spinning";
+  spinStartedAt: number | null;
+  cadenceMs: number;
+  spinOrderLength: number;
+  yesCount: number;
+  noCount: number;
+  threshold: number;
+  isSpinning: boolean;
+  sendMove: Send;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isSpinning) return;
+    const id = window.setInterval(() => setNow(Date.now()), 100);
+    return () => window.clearInterval(id);
+  }, [isSpinning, nominationId]);
+
+  const totalDurationMs = spinOrderLength * cadenceMs;
+  const elapsed = isSpinning && spinStartedAt ? now - spinStartedAt : 0;
+  const spinComplete = elapsed >= totalDurationMs;
+  const remainingS = Math.max(0, Math.ceil((totalDurationMs - elapsed) / 1000));
+
+  const startSpin = () => sendMove({ kind: "st.startSpin" });
+  const closeVote = () => sendMove({ kind: "st.closeVote" });
+
+  return (
+    <div className="flex flex-col items-center gap-1.5 text-center">
+      <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+        {spinPhase === "open" ? "Vote — call hands" : spinComplete ? "Vote complete" : "Spinning"}
+      </span>
+      <span className="font-display text-sm truncate max-w-[180px]">
+        {nominatorLabel} → {nomineeLabel}
+      </span>
+      <span className="font-mono text-base">
+        <span className="text-success">{yesCount}</span>
+        {" / "}
+        <span className="text-base-content/55">{noCount}</span>
+        <span className="text-base-content/45 text-[10px] ml-1">
+          (need {threshold})
+        </span>
+      </span>
+      {isSpinning && !spinComplete && (
+        <span className="font-mono text-[11px] text-base-content/55">
+          {remainingS}s left
+        </span>
+      )}
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
+        {spinPhase === "open" && (
+          <button
+            type="button"
+            onClick={() => void startSpin()}
+            className="text-xs px-3 py-1 rounded-full bg-primary text-primary-content border border-primary hover:bg-primary/90"
+          >
+            Start spin →
+          </button>
+        )}
+        {isSpinning && spinComplete && (
+          <button
+            type="button"
+            onClick={() => void closeVote()}
+            className="text-xs px-3 py-1 rounded-full bg-primary text-primary-content border border-primary hover:bg-primary/90"
+          >
+            Tally
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => void closeVote()}
+          className="text-[11px] text-base-content/55 hover:text-base-content/85 underline"
+        >
+          {spinPhase === "open" ? "cancel vote" : "force close"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -2159,22 +2382,6 @@ function Pill({
 }
 
 /**
- * Count seats eligible to vote on an open nomination: every living
- * seat, plus every dead seat whose ghost vote hasn't been spent. This
- * is what gets shown on the player UI as the denominator of the
- * "x of y voted" running progress.
- */
-function countEligibleVoters(
-  seats: Record<string, { isAlive: boolean; ghostVoteUsed: boolean }>,
-): number {
-  let n = 0;
-  for (const s of Object.values(seats)) {
-    if (s.isAlive || !s.ghostVoteUsed) n++;
-  }
-  return n;
-}
-
-/**
  * Display label for a script id. Built-in scripts get their canonical
  * names ("Trouble Brewing"); custom scripts pass through their stored
  * name verbatim (the server stores the script name in scriptId when a
@@ -2364,6 +2571,33 @@ function DayActions({
     ? nominations.find((n) => n.id === openVote.nominationId)?.nominee
     : undefined;
 
+  // Re-render every 100ms while spinning so the "locked" state for
+  // this seat updates the moment the hand passes.
+  const isSpinning =
+    openVote?.spinPhase === "spinning" && openVote.spinStartedAt !== null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isSpinning) return;
+    const id = window.setInterval(() => setNow(Date.now()), 100);
+    return () => window.clearInterval(id);
+  }, [isSpinning, openVote?.nominationId]);
+
+  // Has the spinning hand passed me?
+  let mySeatLocked = false;
+  if (openVote && isSpinning && openVote.spinStartedAt !== null) {
+    const elapsed = now - openVote.spinStartedAt;
+    const lockedCount = Math.max(
+      0,
+      Math.min(
+        openVote.spinOrder.length,
+        Math.floor(elapsed / openVote.cadenceMs),
+      ),
+    );
+    const myIdx = openVote.spinOrder.indexOf(me.seatId);
+    mySeatLocked = myIdx >= 0 && myIdx < lockedCount;
+  }
+  const canChange = openVote && canVote && !mySeatLocked;
+
   const eligibleNominees = seatOrder.filter(
     (id) =>
       id !== me.seatId &&
@@ -2378,7 +2612,7 @@ function DayActions({
   };
 
   const cast = (vote: "yes" | "no") => {
-    if (!openVote) return;
+    if (!openVote || !canChange) return;
     void sendMove({
       kind: "p.castVote",
       nominationId: openVote.nominationId,
@@ -2389,42 +2623,70 @@ function DayActions({
   return (
     <div className="flex flex-col gap-3 pt-3 border-t border-base-content/10">
       {openVote && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
             Vote on{" "}
             {openNominee
               ? (playerById[openNominee]?.name ?? openNominee)
               : "—"}
             <span className="ml-2 font-mono text-base-content/45 normal-case tracking-normal">
-              {openVote.votedCount} / {countEligibleVoters(seats)} voted
+              {openVote.votedCount} voted
             </span>
+            {openVote.spinPhase === "spinning" && (
+              <span className="ml-2 text-primary normal-case tracking-normal">
+                {mySeatLocked ? "· locked" : "· hand approaching"}
+              </span>
+            )}
           </span>
-          {myVote ? (
-            <span className="text-sm">
-              You voted{" "}
-              <strong className="font-display">{myVote}</strong>
-            </span>
-          ) : canVote ? (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="btn btn-sm rounded-full px-4 bg-success/20 text-success border border-success/40"
-                onClick={() => cast("yes")}
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm rounded-full px-4 bg-base-content/10 text-base-content/70 border border-base-content/20"
-                onClick={() => cast("no")}
-              >
-                No
-              </button>
-            </div>
-          ) : (
+          {!canVote ? (
             <span className="text-xs text-base-content/55 italic">
               Your ghost vote is spent.
             </span>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={!canChange}
+                  className={`btn btn-sm rounded-full px-4 border ${
+                    myVote === "yes"
+                      ? "bg-success text-success-content border-success"
+                      : "bg-success/15 text-success border-success/40"
+                  } ${!canChange ? "opacity-60 cursor-default" : ""}`}
+                  onClick={() => cast("yes")}
+                >
+                  ✋ Yes
+                </button>
+                <button
+                  type="button"
+                  disabled={!canChange}
+                  className={`btn btn-sm rounded-full px-4 border ${
+                    myVote === "no"
+                      ? "bg-base-content/30 text-base-100 border-base-content/40"
+                      : "bg-base-content/10 text-base-content/70 border-base-content/20"
+                  } ${!canChange ? "opacity-60 cursor-default" : ""}`}
+                  onClick={() => cast("no")}
+                >
+                  No
+                </button>
+              </div>
+              {canChange && openVote.spinPhase === "open" && (
+                <span className="text-[11px] text-base-content/55 italic">
+                  You can change your vote until the hand reaches you.
+                </span>
+              )}
+              {canChange && openVote.spinPhase === "spinning" && (
+                <span className="text-[11px] text-warning">
+                  Hand is sweeping — lock in your vote.
+                </span>
+              )}
+              {!canChange && mySeatLocked && (
+                <span className="text-[11px] text-base-content/55 italic">
+                  Hand passed — your vote is locked as{" "}
+                  <strong className="font-display">{myVote ?? "no"}</strong>.
+                </span>
+              )}
+            </div>
           )}
         </div>
       )}

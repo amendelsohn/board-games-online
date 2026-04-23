@@ -135,23 +135,33 @@ function publicNomination(
 }
 
 /**
- * Project the open vote for a non-ST viewer. Strips the per-player
- * votes map down to (a) the viewer's own entry, if they've voted; or
- * (b) empty for spectators. The public votedCount is preserved so the
- * UI can show "x of n have voted" without revealing how each one
- * cast.
+ * Project the open vote for a non-ST viewer. With spinning-hand
+ * voting, raised hands are intentionally public to everyone (matches
+ * IRL play — you can see who's voting yes), so we don't redact the
+ * votes map. We keep this function as a single seam in case a
+ * future variant wants to redact specific phases.
  */
 function projectOpenVote(
   openVote: BotCState["openVote"],
-  viewer: PlayerId | null,
+  _viewer: PlayerId | null,
 ): BotCState["openVote"] {
   if (!openVote) return null;
-  const myVote = viewer ? openVote.votes[viewer] : undefined;
-  return {
-    nominationId: openVote.nominationId,
-    votes: myVote !== undefined && viewer ? { [viewer]: myVote } : {},
-    votedCount: openVote.votedCount,
-  };
+  return { ...openVote, votes: { ...openVote.votes } };
+}
+
+/**
+ * How many seats have already locked, given how long the hand has
+ * been spinning. The hand is "at" position i during the time interval
+ * [i*cadence, (i+1)*cadence] from spinStartedAt; once it leaves
+ * (i+1)*cadence the seat at index i is locked. Returns 0 for an
+ * unstarted spin.
+ */
+function lockedSeatsCount(openVote: NonNullable<BotCState["openVote"]>): number {
+  if (openVote.spinPhase !== "spinning" || openVote.spinStartedAt === null) {
+    return 0;
+  }
+  const elapsed = Date.now() - openVote.spinStartedAt;
+  return Math.max(0, Math.min(openVote.spinOrder.length, Math.floor(elapsed / openVote.cadenceMs)));
 }
 
 function makePlayerView(state: BotCState, viewer: PlayerId): PlayerView {
@@ -611,12 +621,38 @@ function countLiving(state: BotCState): number {
 function makeOpenVote(
   nominationId: string,
   votes: Record<PlayerId, "yes" | "no">,
+  spinOrder: PlayerId[],
+  cadenceMs = 3000,
 ): BotCState["openVote"] {
   return {
     nominationId,
     votes,
     votedCount: Object.keys(votes).length,
+    spinPhase: "open",
+    spinStartedAt: null,
+    cadenceMs,
+    spinOrder,
   };
+}
+
+/**
+ * Compute the spinning-hand order: clockwise starting from the seat
+ * immediately to the left of the nominee. For a ring [a,b,c,d,e]
+ * with nominee=c, the order is [d,e,a,b,c]. The nominee is included
+ * — they get the last say on their own life.
+ */
+function computeSpinOrder(
+  seatOrder: readonly PlayerId[],
+  nominee: PlayerId,
+): PlayerId[] {
+  const idx = seatOrder.indexOf(nominee);
+  if (idx === -1) return [...seatOrder];
+  const n = seatOrder.length;
+  const out: PlayerId[] = [];
+  for (let i = 1; i <= n; i++) {
+    out.push(seatOrder[(idx + i) % n]!);
+  }
+  return out;
 }
 
 function openNomination(
@@ -625,6 +661,12 @@ function openNomination(
   nominee: PlayerId,
   byST: boolean,
 ): MoveResult<BotCState> {
+  if (state.playMode === "irl") {
+    return {
+      ok: false,
+      reason: "Nominations happen at the table in IRL mode",
+    };
+  }
   if (state.phase !== "day") {
     return { ok: false, reason: "Nominations only happen during day" };
   }
@@ -655,12 +697,13 @@ function openNomination(
     openedAt: Date.now(),
     result: null,
   };
+  const spinOrder = computeSpinOrder(state.seatOrder, nominee);
   return {
     ok: true,
     state: {
       ...state,
       nominations: [...state.nominations, nomination],
-      openVote: makeOpenVote(nomination.id, {}),
+      openVote: makeOpenVote(nomination.id, {}, spinOrder),
     },
     events: [
       {
@@ -673,9 +716,64 @@ function openNomination(
 }
 
 /**
- * Cast a vote. Players may vote at any time during an open nomination;
- * dead players have one ghost vote that is consumed regardless of how
- * they vote (yes or no), per the official rule.
+ * ST starts the spinning hand. Transitions the open vote from "open"
+ * (pre-commit / discussion) into "spinning" (per-seat lock as the
+ * hand passes). Validates a vote is open and we haven't already
+ * started spinning. Optionally lets the ST set a custom cadence.
+ */
+function handleStartSpin(
+  state: BotCState,
+  cadenceMs: number | undefined,
+): MoveResult<BotCState> {
+  if (state.playMode === "irl") {
+    return { ok: false, reason: "Spinning vote not used in IRL mode" };
+  }
+  if (state.phase !== "day") {
+    return { ok: false, reason: "Voting only happens during day" };
+  }
+  if (!state.openVote) {
+    return { ok: false, reason: "No open vote to start spinning" };
+  }
+  if (state.openVote.spinPhase !== "open") {
+    return { ok: false, reason: "Spin already started" };
+  }
+  return {
+    ok: true,
+    state: {
+      ...state,
+      openVote: {
+        ...state.openVote,
+        spinPhase: "spinning",
+        spinStartedAt: Date.now(),
+        ...(cadenceMs !== undefined ? { cadenceMs } : {}),
+      },
+    },
+    events: [
+      {
+        kind: "botc.spinStarted",
+        payload: {
+          nominationId: state.openVote.nominationId,
+          spinStartedAt: Date.now(),
+          cadenceMs: cadenceMs ?? state.openVote.cadenceMs,
+          spinOrder: state.openVote.spinOrder,
+        },
+        to: "all",
+      },
+    ],
+  };
+}
+
+/**
+ * Cast (or change) a vote. With spinning-hand voting:
+ *  - During "open" phase, any voter can commit / change freely.
+ *  - During "spinning" phase, voters can change only if the hand
+ *    hasn't passed their seat yet — i.e. their index in spinOrder
+ *    is still ahead of the current locked count.
+ *
+ * Ghost votes are NOT consumed at cast time anymore (the player
+ * could change their mind during open phase). They're consumed at
+ * close time, only if the spin actually completed and the dead
+ * voter's commit was locked in.
  */
 function handleCastVote(
   state: BotCState,
@@ -683,6 +781,9 @@ function handleCastVote(
   nominationId: string,
   vote: "yes" | "no",
 ): MoveResult<BotCState> {
+  if (state.playMode === "irl") {
+    return { ok: false, reason: "Voting happens at the table in IRL mode" };
+  }
   if (state.phase !== "day") {
     return { ok: false, reason: "Voting only happens during day" };
   }
@@ -694,24 +795,26 @@ function handleCastVote(
   if (!seat.isAlive && seat.ghostVoteUsed) {
     return { ok: false, reason: "Your ghost vote has already been used" };
   }
-  if (state.openVote.votes[voter] !== undefined) {
-    return { ok: false, reason: "You've already voted on this nomination" };
+  // Per-seat lock: during the spinning phase, a seat's vote is final
+  // once its index in spinOrder is below the current locked count.
+  if (state.openVote.spinPhase === "spinning") {
+    const locked = lockedSeatsCount(state.openVote);
+    const seatIdx = state.openVote.spinOrder.indexOf(voter);
+    if (seatIdx === -1) {
+      // Voter isn't in the spin order — shouldn't happen; reject.
+      return { ok: false, reason: "Your seat isn't in the voting order" };
+    }
+    if (seatIdx < locked) {
+      return { ok: false, reason: "The hand has already passed you" };
+    }
   }
   const newVotes = { ...state.openVote.votes, [voter]: vote };
-  const nextOpenVote = makeOpenVote(state.openVote.nominationId, newVotes);
-  let grimoire = state.grimoire;
-  let seats = state.seats;
-  if (!seat.isAlive) {
-    grimoire = {
-      ...grimoire,
-      [voter]: { ...seat, ghostVoteUsed: true },
-    };
-    seats = {
-      ...seats,
-      [voter]: { ...seats[voter]!, ghostVoteUsed: true },
-    };
-  }
-  return { ok: true, state: { ...state, openVote: nextOpenVote, grimoire, seats } };
+  const nextOpenVote = {
+    ...state.openVote,
+    votes: newVotes,
+    votedCount: Object.keys(newVotes).length,
+  };
+  return { ok: true, state: { ...state, openVote: nextOpenVote } };
 }
 
 /**
@@ -755,9 +858,34 @@ function handleCloseVote(state: BotCState): MoveResult<BotCState> {
         }
       : n,
   );
+  // Consume ghost votes only when the spin actually completed —
+  // dead voters who had a chance to lock in a vote spend their
+  // one-shot ghost vote. ST cancellation during "open" phase is a
+  // no-op for ghost votes (the player never actually committed in a
+  // binding way).
+  let grimoire = state.grimoire;
+  let seats = state.seats;
+  const spinComplete =
+    state.openVote.spinPhase === "spinning" &&
+    lockedSeatsCount(state.openVote) >= state.openVote.spinOrder.length;
+  if (spinComplete) {
+    for (const voter of [...yesVotes, ...noVotes]) {
+      const seat = state.grimoire[voter];
+      if (seat && !seat.isAlive && !seat.ghostVoteUsed) {
+        grimoire = {
+          ...grimoire,
+          [voter]: { ...seat, ghostVoteUsed: true },
+        };
+        seats = {
+          ...seats,
+          [voter]: { ...seats[voter]!, ghostVoteUsed: true },
+        };
+      }
+    }
+  }
   return {
     ok: true,
-    state: { ...state, nominations, openVote: null },
+    state: { ...state, nominations, openVote: null, grimoire, seats },
     events: [
       {
         kind: "botc.voteClosed",
@@ -1001,6 +1129,8 @@ export const bloodClocktowerServerModule: GameModule<
         return openNomination(state, m.nominator, m.nominee, true);
       case "st.closeVote":
         return handleCloseVote(state);
+      case "st.startSpin":
+        return handleStartSpin(state, m.cadenceMs);
       case "st.executeNominee":
         return handleExecuteNominee(state, m.nomineeId);
       case "st.skipExecution":
