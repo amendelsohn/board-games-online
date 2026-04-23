@@ -807,6 +807,59 @@ function SendInfoForm({
   );
 }
 
+function FinalGrimoireList({
+  seatOrder,
+  finalGrimoire,
+  playerById,
+  mySeatId,
+}: {
+  seatOrder: readonly string[];
+  finalGrimoire: Record<string, SeatGrimoire>;
+  playerById: Record<string, SeatPlayer>;
+  mySeatId?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+        Final grimoire
+      </span>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-sm">
+        {seatOrder.map((id) => {
+          const seat = finalGrimoire[id];
+          const c = seat?.characterId
+            ? (TROUBLE_BREWING_BY_ID[seat.characterId] ?? null)
+            : null;
+          const isMe = id === mySeatId;
+          return (
+            <li
+              key={id}
+              className={`flex items-baseline justify-between gap-2 px-2 py-1 rounded ${
+                seat?.isAlive ? "" : "opacity-55"
+              } ${isMe ? "bg-base-content/5" : ""}`}
+            >
+              <span className="font-display truncate">
+                {playerById[id]?.name ?? id}
+                {isMe && (
+                  <span className="ml-1.5 text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+                    you
+                  </span>
+                )}
+              </span>
+              <span
+                className={`font-mono text-xs ${
+                  c ? TEAM_TINT[c.team] : "text-base-content/40"
+                }`}
+              >
+                {c?.name ?? "—"}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function FinishedBanner({
   winner,
   reason,
@@ -1457,6 +1510,14 @@ function PlayerSurface({
       {view.phase === "finished" && view.winner && (
         <FinishedBanner winner={view.winner} reason={view.endReason} />
       )}
+      {view.phase === "finished" && view.finalGrimoire && (
+        <FinalGrimoireList
+          seatOrder={view.seatOrder}
+          finalGrimoire={view.finalGrimoire}
+          playerById={playerById}
+          mySeatId={view.me?.seatId}
+        />
+      )}
       {pending && (
         <PrivateInfoModal
           info={pending}
@@ -1759,33 +1820,11 @@ function SpectatorPlaceholder({
         <FinishedBanner winner={view.winner} reason={view.endReason} />
       )}
       {isFinished && view.finalGrimoire && (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
-          {view.seatOrder.map((id) => {
-            const seat = view.finalGrimoire?.[id];
-            const c = seat?.characterId
-              ? (TROUBLE_BREWING_BY_ID[seat.characterId] ?? null)
-              : null;
-            return (
-              <li
-                key={id}
-                className={`flex items-baseline justify-between gap-3 px-2 py-1 rounded ${
-                  seat?.isAlive ? "" : "opacity-50"
-                }`}
-              >
-                <span className="font-display truncate">
-                  {playerById[id]?.name ?? id}
-                </span>
-                <span
-                  className={`font-mono text-xs ${
-                    c ? TEAM_TINT[c.team] : "text-base-content/40"
-                  }`}
-                >
-                  {c?.name ?? "—"}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <FinalGrimoireList
+          seatOrder={view.seatOrder}
+          finalGrimoire={view.finalGrimoire}
+          playerById={playerById}
+        />
       )}
     </div>
   );

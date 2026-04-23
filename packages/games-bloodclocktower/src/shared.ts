@@ -317,6 +317,13 @@ export interface PlayerView {
   seats: Record<PlayerId, SeatPublic>;
   /** This viewer's own seat; null while in setup or for unseated viewers. */
   me: PlayerSelf | null;
+  /**
+   * Once the match ends, every player (and spectator) sees the full
+   * grimoire — every seat's character, alive/dead status, etc. This is
+   * the standard BotC closure ("here's how it actually played out");
+   * null while the match is still in flight.
+   */
+  finalGrimoire: Record<PlayerId, SeatGrimoire> | null;
   winner: "good" | "evil" | null;
   endReason: string | null;
 }

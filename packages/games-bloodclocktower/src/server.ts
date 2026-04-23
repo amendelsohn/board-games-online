@@ -144,6 +144,8 @@ function makePlayerView(state: BotCState, viewer: PlayerId): PlayerView {
     fabled: [...state.fabled],
     seats: { ...state.seats },
     me,
+    finalGrimoire:
+      state.phase === "finished" ? { ...state.grimoire } : null,
     winner: state.winner,
     endReason: state.endReason,
   };
