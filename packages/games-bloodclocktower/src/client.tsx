@@ -156,7 +156,7 @@ function StorytellerSetup({
   };
 
   const autoAssign = async () => {
-    const picked = pickBalancedTB(scriptCharacters, state.seatOrder.length);
+    const picked = pickBalanced(scriptCharacters, state.seatOrder.length);
     if (!picked) return;
     const shuffled = shuffle(picked);
     const next: Record<string, string> = {};
@@ -1879,14 +1879,31 @@ function filterAssignments(
 }
 
 /**
- * Pick a balanced character distribution for the given player count, using
- * the official Trouble Brewing recommendation. Returns null if the player
- * count is outside the script's range.
+ * Setup-modifying characters: when included in the picked set, they
+ * shift the official distribution by the listed delta. Townsfolk delta
+ * is computed implicitly so the total stays at the intended count.
  *
- * If the chosen Minion set includes the Baron, swap 2 Townsfolk for 2
- * Outsiders to honour the Baron's setup-modifying ability.
+ * Drunk and Godfather are flagged `setup: true` in the canonical data
+ * but don't change the count (Drunk replaces a townsfolk, Godfather is
+ * just a setup task) — only count-modifiers go here.
  */
-function pickBalancedTB(
+const SETUP_MODIFIERS: Readonly<Record<string, { outsider: number }>> = {
+  baron: { outsider: +2 }, // also -2 townsfolk
+  fanggu: { outsider: +1 }, // also -1 townsfolk
+  vigormortis: { outsider: -1 }, // also +1 townsfolk
+};
+
+/**
+ * Pick a balanced character distribution for the given player count.
+ * Works for any of our base scripts (TB / BMR / S&V) — the distribution
+ * table is the same across editions, but each script supplies a
+ * different character pool.
+ *
+ * If a picked Minion or Demon is in SETUP_MODIFIERS, the
+ * Townsfolk/Outsider counts are shifted accordingly so the total still
+ * equals playerCount.
+ */
+function pickBalanced(
   scriptCharacters: Character[],
   playerCount: number,
 ): Character[] | null {
@@ -1896,13 +1913,16 @@ function pickBalancedTB(
   const byTeam = (team: CharacterTeam) =>
     scriptCharacters.filter((c) => c.team === team);
   const minions = pickRandom(byTeam("minion"), m);
-  if (minions.some((c) => c.id === "baron")) {
-    t = Math.max(0, t - 2);
-    o += 2;
+  const demons = pickRandom(byTeam("demon"), d);
+  for (const c of [...minions, ...demons]) {
+    const mod = SETUP_MODIFIERS[c.id];
+    if (mod) {
+      o = Math.max(0, o + mod.outsider);
+      t = Math.max(0, t - mod.outsider);
+    }
   }
   const townsfolk = pickRandom(byTeam("townsfolk"), t);
   const outsiders = pickRandom(byTeam("outsider"), o);
-  const demons = pickRandom(byTeam("demon"), d);
   return [...townsfolk, ...outsiders, ...minions, ...demons];
 }
 

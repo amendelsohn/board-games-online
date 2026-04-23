@@ -226,7 +226,7 @@ export const BAD_MOON_RISING_CHARACTERS: readonly Character[] = [
     firstNight: 21,
     otherNights: 37,
     reminders: ["Died today", "Dead"],
-    setup: true,
+    setup: false,
   },
   {
     id: "devilsadvocate",
