@@ -158,7 +158,12 @@ function StorytellerSetup({
 
   const autoAssign = async () => {
     const picked = pickBalanced(scriptCharacters, state.seatOrder.length);
-    if (!picked) return;
+    if (!picked || picked.length < state.seatOrder.length) {
+      // Custom script is too thin to populate every seat at the
+      // recommended T/O/M/D split. Bail rather than send a partial
+      // assignment that the ST didn't intend.
+      return;
+    }
     const shuffled = shuffle(picked);
     const next: Record<string, string> = {};
     state.seatOrder.forEach((seatId, i) => {
@@ -1902,7 +1907,8 @@ const SETUP_MODIFIERS: Readonly<Record<string, { outsider: number }>> = {
  *
  * If a picked Minion or Demon is in SETUP_MODIFIERS, the
  * Townsfolk/Outsider counts are shifted accordingly so the total still
- * equals playerCount.
+ * equals playerCount. Returns null when the pool is too thin to
+ * satisfy the recommended split (caller should fall back to manual).
  */
 function pickBalanced(
   scriptCharacters: Character[],
@@ -1915,6 +1921,7 @@ function pickBalanced(
     scriptCharacters.filter((c) => c.team === team);
   const minions = pickRandom(byTeam("minion"), m);
   const demons = pickRandom(byTeam("demon"), d);
+  if (minions.length < m || demons.length < d) return null;
   for (const c of [...minions, ...demons]) {
     const mod = SETUP_MODIFIERS[c.id];
     if (mod) {
@@ -1924,6 +1931,7 @@ function pickBalanced(
   }
   const townsfolk = pickRandom(byTeam("townsfolk"), t);
   const outsiders = pickRandom(byTeam("outsider"), o);
+  if (townsfolk.length < t || outsiders.length < o) return null;
   return [...townsfolk, ...outsiders, ...minions, ...demons];
 }
 
