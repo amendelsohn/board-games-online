@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getClientModule } from "@bgo/sdk-client";
-import type { PlayerWire, TableWire } from "@bgo/contracts";
+import type { GameMetaWire, PlayerWire, TableWire } from "@bgo/contracts";
 import { api } from "@/lib/apiClient";
 import { ensurePlayer } from "@/lib/playerSession";
 import { useMatchSocket, type ConnectionState } from "@/lib/useMatchSocket";
@@ -31,6 +31,22 @@ export default function PlayPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rematchPending, setRematchPending] = useState(false);
   const [debugSeat, setDebugSeat] = useState<string | null>(null);
+  const [gameMeta, setGameMeta] = useState<GameMetaWire[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .listGames()
+      .then((r) => {
+        if (!cancelled) setGameMeta(r.games);
+      })
+      .catch(() => {
+        // Non-fatal — header falls back to slug.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,6 +180,9 @@ export default function PlayPage() {
     <div className="max-w-5xl mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-16">
       <MatchHeader
         gameType={table.gameType}
+        gameDisplayName={
+          gameMeta?.find((g) => g.type === table.gameType)?.displayName ?? null
+        }
         players={table.players}
         currentActors={currentActors}
         me={effectiveSeat}
@@ -242,6 +261,7 @@ export default function PlayPage() {
 
 function MatchHeader({
   gameType,
+  gameDisplayName,
   players,
   currentActors,
   me,
@@ -250,6 +270,7 @@ function MatchHeader({
   reconnectAttempt,
 }: {
   gameType: string;
+  gameDisplayName: string | null;
   players: PlayerWire[];
   currentActors: string[];
   me: string;
@@ -272,7 +293,7 @@ function MatchHeader({
             {phase ? phaseLabel(phase) : "—"}
           </span>
           <h1 className="font-display text-xl md:text-2xl tracking-tight truncate">
-            {gameLabel(gameType)}
+            {gameDisplayName ?? prettifySlug(gameType)}
           </h1>
         </div>
         <span
@@ -523,12 +544,11 @@ function CenterMessage({
   );
 }
 
-function gameLabel(type: string): string {
-  if (type === "tic-tac-toe") return "Tic-Tac-Toe";
-  if (type === "connect-four") return "Connect Four";
-  if (type === "codenames") return "Codenames";
-  if (type === "spyfall") return "Spyfall";
-  return type;
+function prettifySlug(type: string): string {
+  return type
+    .split("-")
+    .map((part) => (part.length ? part[0].toUpperCase() + part.slice(1) : part))
+    .join(" ");
 }
 
 function connectionLabel(
