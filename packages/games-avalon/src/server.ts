@@ -94,6 +94,7 @@ export const avalonServerModule: GameModule<
   displayName: "Avalon",
   description:
     "Loyal servants vs. traitors — run five quests, and don't let the spies out Merlin.",
+  category: "party",
   minPlayers: 5,
   maxPlayers: 10,
 

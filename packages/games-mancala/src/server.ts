@@ -34,6 +34,7 @@ export const mancalaServerModule: GameModule<
   type: MANCALA_TYPE,
   displayName: "Mancala",
   description: "Sow stones, capture the opposite pit, fill your store.",
+  category: "classic",
   minPlayers: 2,
   maxPlayers: 2,
 

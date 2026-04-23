@@ -68,6 +68,7 @@ export const connectFourServerModule: GameModule<
   type: CONNECT_FOUR_TYPE,
   displayName: "Connect Four",
   description: "Drop discs into a 6×7 grid. First to line up four wins.",
+  category: "classic",
   minPlayers: 2,
   maxPlayers: 2,
 

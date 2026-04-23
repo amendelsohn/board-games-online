@@ -706,6 +706,7 @@ export const coupServerModule: GameModule<
   displayName: "Coup",
   description:
     "Lie about your cards, call out bluffs, and be the last influence standing.",
+  category: "party",
   minPlayers: 2,
   maxPlayers: 6,
 

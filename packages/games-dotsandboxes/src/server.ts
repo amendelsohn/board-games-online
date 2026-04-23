@@ -47,6 +47,7 @@ export const dotsAndBoxesServerModule: GameModule<
   type: DOTS_AND_BOXES_TYPE,
   displayName: "Dots and Boxes",
   description: "Draw a line, steal a box, steal another turn.",
+  category: "classic",
   minPlayers: 2,
   maxPlayers: 2,
 

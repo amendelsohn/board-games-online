@@ -86,6 +86,7 @@ export const spyfallServerModule: GameModule<
   displayName: "Spyfall",
   description:
     "One of you is a spy in disguise. Trade one-question probes to unmask them — or, if you're the spy, deduce the location before you're caught.",
+  category: "party",
   minPlayers: 3,
   maxPlayers: 10,
 

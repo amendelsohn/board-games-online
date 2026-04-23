@@ -90,6 +90,7 @@ export const reversiServerModule: GameModule<
   type: REVERSI_TYPE,
   displayName: "Reversi",
   description: "Outflank and flip — the 8×8 classic.",
+  category: "strategy",
   minPlayers: 2,
   maxPlayers: 2,
 

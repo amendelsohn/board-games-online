@@ -22,6 +22,7 @@ export const nimServerModule: GameModule<NimState, NimMove, NimConfig, NimView> 
   type: NIM_TYPE,
   displayName: "Nim",
   description: "Take from one pile at a time — don't be the one left with nothing.",
+  category: "classic",
   minPlayers: 2,
   maxPlayers: 2,
 

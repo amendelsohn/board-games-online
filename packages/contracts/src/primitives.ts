@@ -37,10 +37,19 @@ export const tableSchema = z.object({
 });
 export type TableWire = z.infer<typeof tableSchema>;
 
+export const gameCategorySchema = z.enum([
+  "classic",
+  "strategy",
+  "cards-dice",
+  "party",
+]);
+export type GameCategoryWire = z.infer<typeof gameCategorySchema>;
+
 export const gameMetaSchema = z.object({
   type: z.string(),
   displayName: z.string(),
   description: z.string(),
+  category: gameCategorySchema,
   minPlayers: z.number().int().positive(),
   maxPlayers: z.number().int().positive(),
 });

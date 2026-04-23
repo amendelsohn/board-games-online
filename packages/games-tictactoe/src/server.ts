@@ -42,6 +42,7 @@ export const ticTacToeServerModule: GameModule<
   type: TIC_TAC_TOE_TYPE,
   displayName: "Tic-Tac-Toe",
   description: "Classic 3×3 — three in a row wins.",
+  category: "classic",
   minPlayers: 2,
   maxPlayers: 2,
 

@@ -112,6 +112,7 @@ export const battleshipServerModule: GameModule<
   displayName: "Battleship",
   description:
     "Hide your fleet, hunt theirs — simultaneous placement, alternating salvos.",
+  category: "strategy",
   minPlayers: 2,
   maxPlayers: 2,
 

@@ -231,6 +231,7 @@ export const heartsServerModule: GameModule<
   displayName: "Hearts",
   description:
     "Shoot the moon or duck the queen — avoid hearts, dump the Q♠.",
+  category: "cards-dice",
   minPlayers: 4,
   maxPlayers: 4,
 

@@ -60,6 +60,7 @@ export const yahtzeeServerModule: GameModule<
   type: YAHTZEE_TYPE,
   displayName: "Yahtzee",
   description: "Roll, reroll, lock in — claim the right scorecard slots.",
+  category: "cards-dice",
   minPlayers: 2,
   maxPlayers: 4,
 

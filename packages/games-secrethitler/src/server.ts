@@ -136,6 +136,7 @@ export const secretHitlerServerModule: GameModule<
   displayName: "Secret Hitler",
   description:
     "Elect Chancellors, enact policies, and find the Fascist hiding in plain sight.",
+  category: "party",
   minPlayers: 5,
   maxPlayers: 10,
 

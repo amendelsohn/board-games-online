@@ -67,6 +67,7 @@ export const memoryServerModule: GameModule<
   type: MEMORY_TYPE,
   displayName: "Memory",
   description: "Flip two cards at a time — find pairs, remember the rest.",
+  category: "classic",
   minPlayers: 2,
   maxPlayers: 4,
 

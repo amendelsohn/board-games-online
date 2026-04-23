@@ -88,6 +88,7 @@ export const liarsDiceServerModule: GameModule<
   type: LIARS_DICE_TYPE,
   displayName: "Liar's Dice",
   description: "Bid on hidden dice, call bluffs, outlast your opponents.",
+  category: "cards-dice",
   minPlayers: 2,
   maxPlayers: 6,
 

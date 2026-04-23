@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { GameMetaWire } from "@bgo/contracts";
+import type { GameCategoryWire, GameMetaWire } from "@bgo/contracts";
 import { api } from "@/lib/apiClient";
 import { ensurePlayer, getStoredName, storeName } from "@/lib/playerSession";
 import { GameIcon } from "@/components/GameIcon";
@@ -68,7 +68,7 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-5 md:px-8 pt-10 md:pt-16 pb-20 flex flex-col gap-16">
+    <div className="max-w-5xl mx-auto px-5 md:px-8 pt-10 md:pt-16 pb-20 flex flex-col gap-20 md:gap-24">
       {/* ============ Hero ============ */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-end">
         <div className="lg:col-span-7 flex flex-col gap-6 parlor-rise">
@@ -159,18 +159,28 @@ export default function Home() {
       )}
 
       {/* ============ Catalog ============ */}
-      <section className="flex flex-col gap-6">
-        <div className="rule-ornament">
-          <span className="rule-ornament-line" />
-          <span>◆ Tonight's games ◆</span>
-          <span className="rule-ornament-line" />
+      <section className="flex flex-col gap-12 md:gap-16">
+        {/* Kicker + lede = tight title block */}
+        <div className="flex flex-col gap-4 md:gap-5">
+          <div className="rule-ornament">
+            <span className="rule-ornament-line" />
+            <span>◆ Tonight's games ◆</span>
+            <span className="rule-ornament-line" />
+          </div>
+          <div className="flex items-baseline justify-between gap-6 flex-wrap">
+            <h2
+              className="font-display tracking-tight leading-[1.02]"
+              style={{ fontSize: "var(--text-display-sm)" }}
+            >
+              The tables are set.
+            </h2>
+            {games && games.length > 0 && (
+              <span className="font-mono text-[11px] tabular uppercase tracking-[0.22em] text-base-content/45 whitespace-nowrap">
+                {games.length} games · 4 categories
+              </span>
+            )}
+          </div>
         </div>
-        <h2
-          className="font-display text-center"
-          style={{ fontSize: "var(--text-display-sm)" }}
-        >
-          Start a new one.
-        </h2>
 
         {games === null ? (
           <CatalogSkeleton />
@@ -179,22 +189,11 @@ export default function Home() {
             No games installed on this server yet.
           </div>
         ) : (
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            {games.map((g, i) => (
-              <li
-                key={g.type}
-                className="parlor-rise rise-stagger"
-                style={{ ["--i" as string]: i }}
-              >
-                <GameCard
-                  game={g}
-                  pending={pending === `create:${g.type}`}
-                  disabled={pending !== null}
-                  onStart={() => startNewGame(g.type)}
-                />
-              </li>
-            ))}
-          </ul>
+          <CatalogByCategory
+            games={games}
+            pending={pending}
+            onStart={startNewGame}
+          />
         )}
       </section>
 
@@ -220,6 +219,104 @@ export default function Home() {
           </Step>
         </ol>
       </section>
+    </div>
+  );
+}
+
+/* -------------------------- Catalog grouping -------------------------- */
+
+const CATEGORY_ORDER: GameCategoryWire[] = [
+  "classic",
+  "strategy",
+  "cards-dice",
+  "party",
+];
+
+const CATEGORY_LABEL: Record<GameCategoryWire, string> = {
+  classic: "Classics",
+  strategy: "Strategy",
+  "cards-dice": "Cards & Dice",
+  party: "Party & Bluffing",
+};
+
+const CATEGORY_BLURB: Record<GameCategoryWire, string> = {
+  classic: "Quick, timeless games for two.",
+  strategy: "Heavier thinking — boards worth studying.",
+  "cards-dice": "Cards and dice, a little luck, a little skill.",
+  party: "Group games with hidden roles, words, and bluffs.",
+};
+
+function categoryPlayerRange(games: GameMetaWire[]): string {
+  const min = Math.min(...games.map((g) => g.minPlayers));
+  const max = Math.max(...games.map((g) => g.maxPlayers));
+  if (min === max) return `${min} players`;
+  return `${min}–${max} players`;
+}
+
+function CatalogByCategory({
+  games,
+  pending,
+  onStart,
+}: {
+  games: GameMetaWire[];
+  pending: string | null;
+  onStart: (gameType: string) => void;
+}) {
+  const grouped = new Map<GameCategoryWire, GameMetaWire[]>();
+  for (const g of games) {
+    const bucket = grouped.get(g.category) ?? [];
+    bucket.push(g);
+    grouped.set(g.category, bucket);
+  }
+  const sections = CATEGORY_ORDER.filter((c) => grouped.has(c)).map((c) => ({
+    category: c,
+    games: grouped.get(c)!,
+  }));
+
+  return (
+    <div className="flex flex-col gap-14 md:gap-20">
+      {sections.map(({ category, games: gs }, sectionIdx) => (
+        <article
+          key={category}
+          className="flex flex-col gap-5 md:gap-6 parlor-rise"
+          style={{ animationDelay: `${sectionIdx * 90}ms` }}
+        >
+          <header className="flex flex-col gap-2">
+            <div className="flex items-baseline justify-between gap-4 flex-wrap">
+              <h3
+                className="font-display tracking-tight leading-[1.02]"
+                style={{ fontSize: "clamp(1.75rem, 2vw + 1rem, 2.5rem)" }}
+              >
+                {CATEGORY_LABEL[category]}
+              </h3>
+              <span className="font-mono text-[11px] tabular uppercase tracking-[0.22em] text-base-content/45 whitespace-nowrap">
+                {gs.length} {gs.length === 1 ? "game" : "games"}
+                <span className="mx-1.5 text-base-content/25">·</span>
+                {categoryPlayerRange(gs)}
+              </span>
+            </div>
+            <p className="text-sm md:text-[0.95rem] text-base-content/60 leading-relaxed max-w-[52ch]">
+              {CATEGORY_BLURB[category]}
+            </p>
+          </header>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            {gs.map((g, i) => (
+              <li
+                key={g.type}
+                className="parlor-rise rise-stagger"
+                style={{ ["--i" as string]: i }}
+              >
+                <GameCard
+                  game={g}
+                  pending={pending === `create:${g.type}`}
+                  disabled={pending !== null}
+                  onStart={() => onStart(g.type)}
+                />
+              </li>
+            ))}
+          </ul>
+        </article>
+      ))}
     </div>
   );
 }

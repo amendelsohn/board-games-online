@@ -70,6 +70,7 @@ export const gomokuServerModule: GameModule<
   type: GOMOKU_TYPE,
   displayName: "Gomoku",
   description: "Freestyle five-in-a-row on a 15×15 board.",
+  category: "strategy",
   minPlayers: 2,
   maxPlayers: 2,
 

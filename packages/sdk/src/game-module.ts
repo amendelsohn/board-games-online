@@ -12,10 +12,20 @@ import type { PhaseId, Player, PlayerId, Viewer } from "./types";
  *   Cfg — lobby-supplied configuration (team assignments, variants, etc.)
  *   V   — per-player view shape (what actually goes over the wire)
  */
+/**
+ * High-level grouping used for organizing the game catalog in UI.
+ *  - classic:    simple abstract 2-player games (tic-tac-toe, connect four, rps…)
+ *  - strategy:   deeper 2-player abstract/deduction games (checkers, reversi, battleship…)
+ *  - cards-dice: traditional card or dice games (hearts, yahtzee, liar's dice…)
+ *  - party:      group games built around bluffing / hidden roles / word play
+ */
+export type GameCategory = "classic" | "strategy" | "cards-dice" | "party";
+
 export interface GameModule<S, M, Cfg = unknown, V = unknown> {
   readonly type: string;
   readonly displayName: string;
   readonly description: string;
+  readonly category: GameCategory;
   readonly minPlayers: number;
   readonly maxPlayers: number;
 
@@ -66,6 +76,7 @@ export interface GameModuleMetadata {
   readonly type: string;
   readonly displayName: string;
   readonly description: string;
+  readonly category: GameCategory;
   readonly minPlayers: number;
   readonly maxPlayers: number;
 }
@@ -77,6 +88,7 @@ export function metadataOf<S, M, Cfg, V>(
     type: m.type,
     displayName: m.displayName,
     description: m.description,
+    category: m.category,
     minPlayers: m.minPlayers,
     maxPlayers: m.maxPlayers,
   };

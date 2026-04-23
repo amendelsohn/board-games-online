@@ -54,6 +54,7 @@ export const codenamesServerModule: GameModule<
   displayName: "Codenames",
   description:
     "Spymasters give one-word clues to help their team find their agents on a 5×5 grid. Don't guess the assassin.",
+  category: "party",
   minPlayers: 4,
   maxPlayers: 12,
 

@@ -502,6 +502,7 @@ export const loveLetterServerModule: GameModule<
   type: LOVE_LETTER_TYPE,
   displayName: "Love Letter",
   description: "Deduction by card, elimination by guess — the last heart wins.",
+  category: "party",
   minPlayers: 2,
   maxPlayers: 4,
 

@@ -98,6 +98,7 @@ export const mastermindServerModule: GameModule<
   displayName: "Mastermind",
   description:
     "Crack the secret code in ten guesses — or set one for your opponent.",
+  category: "strategy",
   minPlayers: 2,
   maxPlayers: 2,
 

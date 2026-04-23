@@ -108,6 +108,7 @@ export const checkersServerModule: GameModule<
   type: CHECKERS_TYPE,
   displayName: "Checkers",
   description: "Diagonal hops, forced jumps, crown your kings.",
+  category: "strategy",
   minPlayers: 2,
   maxPlayers: 2,
 

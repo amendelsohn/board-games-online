@@ -39,6 +39,7 @@ export const rpsServerModule: GameModule<
   displayName: "Rock Paper Scissors",
   description:
     "Five throws, five choices, one champion — Sam Kass's extended RPS.",
+  category: "classic",
   minPlayers: 2,
   maxPlayers: 2,
 
