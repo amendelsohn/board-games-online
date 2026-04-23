@@ -15,4 +15,14 @@ export interface Versioned<S> {
   version: number;
 }
 
+/**
+ * Who is looking at the game state, from a game module's perspective.
+ *  - A `PlayerId` is a seated participant.
+ *  - `"spectator"` is anyone watching but not seated.
+ *
+ * Storyteller-style games (where the host runs the table without playing)
+ * receive ST views via the separate `storytellerView()` method on
+ * `GameModule`, NOT through this type — so existing games' `view()`
+ * implementations stay narrowly typed.
+ */
 export type Viewer = PlayerId | "spectator";

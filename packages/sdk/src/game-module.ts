@@ -30,6 +30,15 @@ export interface GameModule<S, M, Cfg = unknown, V = unknown> {
   readonly maxPlayers: number;
 
   /**
+   * When false, the table host is NOT seated as a player — they act as a
+   * non-playing Storyteller / GM. Defaults to true (every other game).
+   * Modules that set this to false should expect to receive `Viewer =
+   * "storyteller"` when the host subscribes, and should gate their
+   * Storyteller-only moves on `actor === state.storytellerId`.
+   */
+  readonly hostSeated?: boolean;
+
+  /**
    * Validate and normalize host-supplied lobby config. Throw to reject.
    * Called before `createInitialState`.
    */
@@ -58,8 +67,19 @@ export interface GameModule<S, M, Cfg = unknown, V = unknown> {
   /**
    * THE projection boundary. Clients only ever see the output of this
    * function. Strip hidden info (spymaster grid, spy location, etc.) here.
+   *
+   * Receives only `PlayerId | "spectator"` viewers — never the host of a
+   * Storyteller-style game. Those are routed to `storytellerView()`.
    */
   view(state: S, viewer: Viewer): V;
+
+  /**
+   * Required when `hostSeated: false`. Produces the full Grimoire / GM view
+   * for the non-playing host. Kept as a separate method (rather than
+   * widening `Viewer`) so existing games stay cleanly typed against
+   * `PlayerId | "spectator"` only.
+   */
+  storytellerView?(state: S): V;
 
   phase(state: S): PhaseId;
 
@@ -79,6 +99,7 @@ export interface GameModuleMetadata {
   readonly category: GameCategory;
   readonly minPlayers: number;
   readonly maxPlayers: number;
+  readonly hostSeated: boolean;
 }
 
 export function metadataOf<S, M, Cfg, V>(
@@ -91,5 +112,6 @@ export function metadataOf<S, M, Cfg, V>(
     category: m.category,
     minPlayers: m.minPlayers,
     maxPlayers: m.maxPlayers,
+    hostSeated: m.hostSeated !== false,
   };
 }
