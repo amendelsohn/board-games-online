@@ -725,6 +725,40 @@ function handleExecuteNominee(
  * ST decides no one is executed today. Records a null execution so
  * the day's history stays complete.
  */
+/**
+ * End the match. The ST chooses the winning team (good or evil) and
+ * a short human reason that goes onto the post-mortem and the lobby
+ * "rematch" affordance. Per the digital-grimoire plan, win conditions
+ * are not auto-detected — too many TB exceptions (Saint, Mayor,
+ * Recluse) for an engine to be safer than the ST's call.
+ */
+function handleEndMatch(
+  state: BotCState,
+  winner: "good" | "evil",
+  reason: string,
+): MoveResult<BotCState> {
+  if (state.phase === "finished") {
+    return { ok: false, reason: "Match has already finished" };
+  }
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: "finished",
+      winner,
+      endReason: reason,
+      openVote: null,
+    },
+    events: [
+      {
+        kind: "botc.matchEnded",
+        payload: { winner, reason },
+        to: "all",
+      },
+    ],
+  };
+}
+
 function handleSkipExecution(state: BotCState): MoveResult<BotCState> {
   if (state.phase !== "day") {
     return { ok: false, reason: "Executions only happen during day" };
@@ -839,17 +873,14 @@ export const bloodClocktowerServerModule: GameModule<
         return handleExecuteNominee(state, m.nomineeId);
       case "st.skipExecution":
         return handleSkipExecution(state);
+      case "st.endMatch":
+        return handleEndMatch(state, m.winner, m.reason);
       case "p.nominate":
         return openNomination(state, actor, m.nominee, false);
       case "p.castVote":
         return handleCastVote(state, actor, m.nominationId, m.vote);
       case "p.acknowledgeWake":
         return handleAcknowledgeWake(state);
-      default:
-        return {
-          ok: false,
-          reason: `Move "${m.kind}" is not yet implemented`,
-        };
     }
   },
 

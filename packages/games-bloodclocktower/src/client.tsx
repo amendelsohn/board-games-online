@@ -60,7 +60,7 @@ function BotCBoard({
     );
   }
   if (view.viewer === "spectator") {
-    return <SpectatorPlaceholder view={view} />;
+    return <SpectatorPlaceholder view={view} players={players} />;
   }
   return (
     <PlayerSurface
@@ -315,6 +315,8 @@ function StorytellerGrimoire({
   const advance = () => sendMove({ kind: "st.advancePhase" });
   const advanceLabel = phaseAdvanceLabel(state.phase, state.dayNumber);
   const isNight = state.phase === "firstNight" || state.phase === "night";
+  const isFinished = state.phase === "finished";
+  const [endingMatch, setEndingMatch] = useState(false);
 
   return (
     <div className="max-w-5xl w-full flex flex-col gap-4">
@@ -326,16 +328,41 @@ function StorytellerGrimoire({
           </span>
           <h2 className="font-display text-2xl tracking-tight">Grimoire</h2>
         </div>
-        {advanceLabel && (
-          <button
-            type="button"
-            className="btn btn-primary rounded-full px-5"
-            onClick={advance}
-          >
-            {advanceLabel}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!isFinished && (
+            <button
+              type="button"
+              className="text-xs px-3 py-1.5 rounded-full border border-base-content/20 text-base-content/65 hover:bg-base-content/5"
+              onClick={() => setEndingMatch(true)}
+            >
+              End match…
+            </button>
+          )}
+          {advanceLabel && (
+            <button
+              type="button"
+              className="btn btn-primary rounded-full px-5"
+              onClick={advance}
+            >
+              {advanceLabel}
+            </button>
+          )}
+        </div>
       </header>
+
+      {isFinished && state.winner && (
+        <FinishedBanner winner={state.winner} reason={state.endReason} />
+      )}
+
+      {endingMatch && (
+        <EndMatchModal
+          onConfirm={(winner, reason) => {
+            void sendMove({ kind: "st.endMatch", winner, reason });
+            setEndingMatch(false);
+          }}
+          onCancel={() => setEndingMatch(false)}
+        />
+      )}
 
       {isNight && (
         <NightOrderPanel
@@ -677,6 +704,113 @@ function SendInfoForm({
           send →
         </button>
       </div>
+    </div>
+  );
+}
+
+function FinishedBanner({
+  winner,
+  reason,
+}: {
+  winner: "good" | "evil";
+  reason: string | null;
+}) {
+  const tint =
+    winner === "good"
+      ? "bg-info/15 text-info border-info/35"
+      : "bg-error/15 text-error border-error/35";
+  return (
+    <section
+      className={`p-4 rounded-md border flex flex-col gap-1 ${tint}`}
+    >
+      <span className="text-[10px] uppercase tracking-[0.22em] opacity-80">
+        Match ended
+      </span>
+      <h3 className="font-display text-xl">
+        {winner === "good" ? "Good wins" : "Evil wins"}
+      </h3>
+      {reason && <p className="text-sm opacity-90">{reason}</p>}
+    </section>
+  );
+}
+
+function EndMatchModal({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: (winner: "good" | "evil", reason: string) => void;
+  onCancel: () => void;
+}) {
+  const [winner, setWinner] = useState<"good" | "evil">("good");
+  const [reason, setReason] = useState("");
+  const submit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    onConfirm(winner, reason.trim() || "Storyteller called the game.");
+  };
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+      onClick={onCancel}
+    >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={submit}
+        className="surface-ivory p-6 max-w-md w-full flex flex-col gap-4"
+      >
+        <header className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+            End match
+          </span>
+          <h3 className="font-display text-xl">Who wins?</h3>
+        </header>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setWinner("good")}
+            className={`flex-1 px-3 py-2 rounded-full border ${
+              winner === "good"
+                ? "bg-info/15 text-info border-info/35"
+                : "border-base-content/15 text-base-content/55"
+            }`}
+          >
+            Good wins
+          </button>
+          <button
+            type="button"
+            onClick={() => setWinner("evil")}
+            className={`flex-1 px-3 py-2 rounded-full border ${
+              winner === "evil"
+                ? "bg-error/15 text-error border-error/35"
+                : "border-base-content/15 text-base-content/55"
+            }`}
+          >
+            Evil wins
+          </button>
+        </div>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="How? (e.g. 'Imp executed on day 3', 'town reduced to 2')"
+          rows={2}
+          maxLength={120}
+          className="bg-transparent border border-base-content/15 rounded px-2 py-1 text-sm resize-y"
+        />
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-1.5 rounded-full text-sm text-base-content/65 hover:bg-base-content/5"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary rounded-full px-5"
+          >
+            End match
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -1176,6 +1310,9 @@ function PlayerSurface({
           sendMove={sendMove}
         />
       )}
+      {view.phase === "finished" && view.winner && (
+        <FinishedBanner winner={view.winner} reason={view.endReason} />
+      )}
       {pending && (
         <PrivateInfoModal
           info={pending}
@@ -1426,22 +1563,61 @@ function PrivateInfoModal({
 
 function SpectatorPlaceholder({
   view,
+  players,
 }: {
   view: Extract<BotCView, { viewer: "spectator" }>;
+  players: SeatPlayer[];
 }) {
+  const playerById = useMemo(
+    () => Object.fromEntries(players.map((p) => [p.id, p])),
+    [players],
+  );
+  const isFinished = view.phase === "finished";
   return (
-    <div className="surface-ivory p-6 max-w-md w-full flex flex-col gap-4">
+    <div className="surface-ivory p-6 max-w-2xl w-full flex flex-col gap-4">
       <header className="flex flex-col gap-1">
         <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
-          Spectating
+          Spectating · {phaseLabel(view.phase, view.dayNumber)}
         </span>
         <h2 className="font-display text-2xl tracking-tight">Town square</h2>
       </header>
-      <p className="text-sm text-base-content/65 leading-relaxed">
-        Phase:{" "}
-        <span className="font-mono text-base-content/85">{view.phase}</span>.
-        Roles and Grimoire reveal at the end of the match.
-      </p>
+      {!isFinished && (
+        <p className="text-sm text-base-content/65 leading-relaxed">
+          Roles and Grimoire reveal at the end of the match.
+        </p>
+      )}
+      {isFinished && view.winner && (
+        <FinishedBanner winner={view.winner} reason={view.endReason} />
+      )}
+      {isFinished && view.finalGrimoire && (
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
+          {view.seatOrder.map((id) => {
+            const seat = view.finalGrimoire?.[id];
+            const c = seat?.characterId
+              ? (TROUBLE_BREWING_BY_ID[seat.characterId] ?? null)
+              : null;
+            return (
+              <li
+                key={id}
+                className={`flex items-baseline justify-between gap-3 px-2 py-1 rounded ${
+                  seat?.isAlive ? "" : "opacity-50"
+                }`}
+              >
+                <span className="font-display truncate">
+                  {playerById[id]?.name ?? id}
+                </span>
+                <span
+                  className={`font-mono text-xs ${
+                    c ? TEAM_TINT[c.team] : "text-base-content/40"
+                  }`}
+                >
+                  {c?.name ?? "—"}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
