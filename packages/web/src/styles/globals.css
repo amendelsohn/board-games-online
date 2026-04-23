@@ -1,15 +1,7 @@
 @import "tailwindcss";
 
-/* Scan game packages so Tailwind sees the classes used in their Boards. */
-@source "../../../games-tictactoe/src/**/*.{ts,tsx}";
-@source "../../../games-connectfour/src/**/*.{ts,tsx}";
-@source "../../../games-codenames/src/**/*.{ts,tsx}";
-@source "../../../games-spyfall/src/**/*.{ts,tsx}";
-@source "../../../games-memory/src/**/*.{ts,tsx}";
-@source "../../../games-nothanks/src/**/*.{ts,tsx}";
-@source "../../../games-forsale/src/**/*.{ts,tsx}";
-@source "../../../games-sushigo/src/**/*.{ts,tsx}";
-@source "../../../games-secrethitler/src/**/*.{ts,tsx}";
+/* Scan all game packages so Tailwind sees the classes used in their Boards. */
+@source "../../../games-*/src/**/*.{ts,tsx}";
 /* Shared client components (e.g. card primitives) live in sdk-client. */
 @source "../../../sdk-client/src/**/*.{ts,tsx}";
 

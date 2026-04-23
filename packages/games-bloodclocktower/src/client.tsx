@@ -497,6 +497,13 @@ function DistributionStat({
   );
 }
 
+/**
+ * Single-viewport ST grimoire. Modeled after clocktower.online: ring
+ * fills the canvas, center has phase-aware controls, left rail (when
+ * night) has the wake order, right rail (when a seat is selected)
+ * has the SeatSheet for editing. No vertical scroll past the
+ * grimoire — everything fits the tablet viewport.
+ */
 function StorytellerGrimoire({
   state,
   players,
@@ -520,17 +527,119 @@ function StorytellerGrimoire({
   const advanceLabel = phaseAdvanceLabel(state.phase, state.dayNumber);
   const isNight = state.phase === "firstNight" || state.phase === "night";
   const isFinished = state.phase === "finished";
+  const isDay = state.phase === "day";
+
+  const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
   const [endingMatch, setEndingMatch] = useState(false);
+  const [pendingNomination, setPendingNomination] = useState<
+    { nominator: string | null } | null
+  >(null);
+
+  // If a seat goes away (post-rematch player swap), clear selection.
+  useEffect(() => {
+    if (selectedSeatId && !state.grimoire[selectedSeatId]) {
+      setSelectedSeatId(null);
+    }
+  }, [selectedSeatId, state.grimoire]);
+
+  // The nomination flow ends once a vote opens.
+  useEffect(() => {
+    if (state.openVote && pendingNomination) setPendingNomination(null);
+  }, [state.openVote, pendingNomination]);
+
+  // Highlight ring seats during the 2-tap nomination flow.
+  const highlightSeatIds = useMemo(() => {
+    if (!pendingNomination || !isDay || state.playMode !== "virtual") {
+      return undefined;
+    }
+    const set = new Set<string>();
+    if (pendingNomination.nominator === null) {
+      // Picking nominator — highlight all living seats.
+      for (const id of state.seatOrder) {
+        if (state.grimoire[id]?.isAlive) set.add(id);
+      }
+    } else {
+      // Picking nominee — highlight everyone who isn't already a nominee
+      // today and isn't the nominator themselves.
+      const taken = new Set(state.nominations.map((n) => n.nominee));
+      for (const id of state.seatOrder) {
+        if (
+          id !== pendingNomination.nominator &&
+          !taken.has(id) &&
+          state.grimoire[id]
+        ) {
+          set.add(id);
+        }
+      }
+    }
+    return set;
+  }, [
+    pendingNomination,
+    isDay,
+    state.playMode,
+    state.seatOrder,
+    state.grimoire,
+    state.nominations,
+  ]);
+
+  // Yes-vote raised hands (visible to ST; will be public to all once
+  // spinning-hand server changes land).
+  const voteYesSeats = useMemo(() => {
+    if (!state.openVote) return undefined;
+    const set = new Set<string>();
+    for (const [seatId, v] of Object.entries(state.openVote.votes)) {
+      if (v === "yes") set.add(seatId);
+    }
+    return set;
+  }, [state.openVote]);
+
+  /**
+   * Routes a ring-token tap depending on what mode we're in.
+   *  - Virtual day with a pendingNomination: complete the nominator/nominee step.
+   *  - Otherwise: open / toggle the SeatSheet.
+   */
+  const handleSeatClick = (seatId: string) => {
+    if (
+      isDay &&
+      state.playMode === "virtual" &&
+      pendingNomination &&
+      !state.openVote
+    ) {
+      if (pendingNomination.nominator === null) {
+        if (state.grimoire[seatId]?.isAlive) {
+          setPendingNomination({ nominator: seatId });
+        }
+        return;
+      }
+      const nominator = pendingNomination.nominator;
+      if (seatId === nominator) {
+        setPendingNomination(null);
+        return;
+      }
+      if (state.nominations.some((n) => n.nominee === seatId)) return;
+      void sendMove({
+        kind: "st.openNomination",
+        nominator,
+        nominee: seatId,
+      });
+      setPendingNomination(null);
+      return;
+    }
+    setSelectedSeatId(seatId === selectedSeatId ? null : seatId);
+  };
 
   return (
-    <div className="max-w-5xl w-full flex flex-col gap-4">
-      <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div className="flex flex-col gap-1">
+    <div className="w-full flex flex-col gap-3">
+      <header className="flex items-center justify-between gap-3 flex-wrap px-1">
+        <div className="flex flex-col leading-tight">
           <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
             Storyteller · {phaseLabel(state.phase, state.dayNumber)} ·{" "}
-            {livingCount}/{state.seatOrder.length} alive
+            {livingCount}/{state.seatOrder.length} alive ·{" "}
+            {state.playMode === "irl" ? "in-person" : "virtual"}
           </span>
-          <h2 className="font-display text-2xl tracking-tight">Grimoire</h2>
+          <h2 className="font-display text-xl tracking-tight">
+            {scriptDisplayName(state.scriptId)}
+          </h2>
         </div>
         <div className="flex items-center gap-2">
           {!isFinished && (
@@ -558,6 +667,88 @@ function StorytellerGrimoire({
         <FinishedBanner winner={state.winner} reason={state.endReason} />
       )}
 
+      {/* Main grimoire surface. Sized so the whole thing fits a typical
+          tablet viewport (1024×768 landscape) without any internal
+          scrolling. Inner panels (rails, sheet) overlay the ring with a
+          translucent backdrop so seats behind them remain visible. */}
+      <div
+        className="relative w-full rounded-2xl border border-base-content/10 bg-base-100/40 overflow-hidden"
+        style={{
+          height: "min(calc(100vh - 280px), 640px)",
+          minHeight: 500,
+        }}
+      >
+        <SeatRing
+          seatOrder={state.seatOrder}
+          grimoire={state.grimoire}
+          playerById={playerById}
+          selectedSeatId={selectedSeatId}
+          onSeatClick={handleSeatClick}
+          highlightSeatIds={highlightSeatIds}
+          voteYesSeats={voteYesSeats}
+        />
+
+        <CenterControls
+          state={state}
+          playerById={playerById}
+          sendMove={sendMove}
+          pendingNomination={pendingNomination}
+          setPendingNomination={setPendingNomination}
+        />
+
+        {isNight && (
+          <aside className="absolute left-2 top-2 bottom-2 w-60 z-30 pointer-events-auto overflow-y-auto rounded-lg">
+            <NightOrderPanel
+              state={state}
+              playerById={playerById}
+              sendMove={sendMove}
+            />
+          </aside>
+        )}
+
+        {selectedSeatId && state.grimoire[selectedSeatId] && (
+          <aside className="absolute right-2 top-2 bottom-2 w-64 z-30 pointer-events-auto">
+            <SeatSheet
+              seatId={selectedSeatId}
+              seat={state.grimoire[selectedSeatId]!}
+              playerName={
+                playerById[selectedSeatId]?.name ?? selectedSeatId
+              }
+              phase={state.phase}
+              playMode={state.playMode}
+              hasOpenVote={state.openVote !== null}
+              onClose={() => setSelectedSeatId(null)}
+              sendMove={sendMove}
+            />
+          </aside>
+        )}
+
+        {/* Day execution log — small horizontal strip at the bottom so
+            past nominations / executions stay visible without crowding
+            the ring. */}
+        {isDay && state.executions.length > 0 && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[80%] z-10 pointer-events-none">
+            <ul className="flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-[10px] text-base-content/45 font-mono bg-base-100/70 backdrop-blur px-3 py-1 rounded-full">
+              {state.executions.slice(-4).map((e, i) => (
+                <li key={i} className="whitespace-nowrap">
+                  d{e.dayNumber}:{" "}
+                  {e.executed
+                    ? (playerById[e.executed]?.name ?? e.executed)
+                    : "—"}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Fabled corner — always present but compact. */}
+        {(state.fabled.length > 0 || !isFinished) && (
+          <div className="absolute bottom-3 right-3 z-20 max-w-[260px] pointer-events-auto">
+            <FabledPanel fabled={state.fabled} sendMove={sendMove} compact />
+          </div>
+        )}
+      </div>
+
       {endingMatch && (
         <EndMatchModal
           onConfirm={(winner, reason) => {
@@ -567,58 +758,161 @@ function StorytellerGrimoire({
           onCancel={() => setEndingMatch(false)}
         />
       )}
+    </div>
+  );
+}
 
-      {isNight && (
-        <NightOrderPanel
-          state={state}
-          playerById={playerById}
-          sendMove={sendMove}
-        />
-      )}
+/**
+ * Token size + ring radius for a given seat count. Tuned to fit a
+ * ~500px container at 15 players (so the ring stays inside a tablet
+ * viewport between the night-order rail and the seat sheet), while
+ * still leaving room for the ~140-wide center controls.
+ */
+function ringGeometry(n: number) {
+  const tokenSize =
+    n <= 6 ? 96 : n <= 9 ? 80 : n <= 11 ? 72 : n <= 13 ? 64 : 58;
+  const minGap = tokenSize * 1.18;
+  const radius = Math.max(150, minGap / (2 * Math.sin(Math.PI / n)));
+  // Reserve room for the center controls (~140 wide) — push the ring
+  // out if it'd otherwise crowd the center.
+  const radiusCenterGuarded = Math.max(radius, tokenSize / 2 + 88);
+  // Container has to fit the outermost token edge + a label band (the
+  // player name renders below each token). 32 below + 4 above is enough
+  // for a single-line text-[11px] label with leading-tight.
+  const labelPadding = 36;
+  const containerSize =
+    (radiusCenterGuarded + tokenSize / 2) * 2 + labelPadding;
+  return {
+    tokenSize,
+    radius: radiusCenterGuarded,
+    containerSize,
+  };
+}
 
-      {state.phase === "day" && state.playMode === "virtual" && (
-        <NominationsPanel
-          nominations={state.nominations}
-          openVote={state.openVote}
-          grimoire={state.grimoire}
-          executions={state.executions}
-          seatOrder={state.seatOrder}
-          playerById={playerById}
-          sendMove={sendMove}
-        />
-      )}
-      {state.phase === "day" && state.playMode === "irl" && (
-        <IRLDayPanel
-          grimoire={state.grimoire}
-          executions={state.executions}
-          dayNumber={state.dayNumber}
-          seatOrder={state.seatOrder}
-          playerById={playerById}
-          sendMove={sendMove}
-        />
-      )}
+/**
+ * Town-square ring. The whole grimoire is built around this — tokens
+ * are clickable to open a SeatSheet on the right, the center is left
+ * empty for CenterControls, and the night-order rail floats on the
+ * left during night phases.
+ *
+ * Tokens are absolutely positioned by polar coordinates from the
+ * container center, starting at -90° (top) and going clockwise.
+ */
+function SeatRing({
+  seatOrder,
+  grimoire,
+  playerById,
+  selectedSeatId,
+  onSeatClick,
+  highlightSeatIds,
+  voteYesSeats,
+}: {
+  seatOrder: readonly string[];
+  grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
+  playerById: Record<string, SeatPlayer>;
+  selectedSeatId: string | null;
+  onSeatClick: (id: string) => void;
+  /** Seats to outline — used by the nomination flow to mark candidates. */
+  highlightSeatIds?: ReadonlySet<string>;
+  /** Seats currently voting "yes" — surfaces a raised-hand chip. */
+  voteYesSeats?: ReadonlySet<string>;
+}) {
+  const pool = useCharacterPool();
+  const n = seatOrder.length;
+  if (n === 0) return null;
+  const { tokenSize, radius, containerSize } = ringGeometry(n);
 
-      <SeatRing
-        seatOrder={state.seatOrder}
-        grimoire={state.grimoire}
-        playerById={playerById}
-      />
-
-      <FabledPanel fabled={state.fabled} sendMove={sendMove} />
-
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {state.seatOrder.map((seatId) => {
-          const seat = state.grimoire[seatId];
-          if (!seat) return null;
+  return (
+    <div
+      className="absolute inset-0 flex items-center justify-center pointer-events-none"
+    >
+      <div
+        className="relative pointer-events-none"
+        style={{
+          width: containerSize,
+          height: containerSize,
+          maxWidth: "100%",
+          maxHeight: "100%",
+        }}
+      >
+        {seatOrder.map((seatId, i) => {
+          const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+          const x = radius * Math.cos(angle);
+          const y = radius * Math.sin(angle);
+          const seat = grimoire[seatId];
+          const c = seat?.characterId ? (pool[seat.characterId] ?? null) : null;
+          const playerName = playerById[seatId]?.name ?? seatId;
+          const isSelected = selectedSeatId === seatId;
+          const isHighlighted = highlightSeatIds?.has(seatId) ?? false;
+          const showHand = voteYesSeats?.has(seatId) ?? false;
           return (
-            <SeatCard
+            <button
               key={seatId}
-              seatId={seatId}
-              seat={seat}
-              playerName={playerById[seatId]?.name ?? seatId}
-              sendMove={sendMove}
-            />
+              type="button"
+              onClick={() => onSeatClick(seatId)}
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: `translate(${x}px, ${y}px) translate(-50%, -50%)`,
+                width: tokenSize + 18,
+              }}
+              className={`flex flex-col items-center gap-1 group focus:outline-none transition-transform pointer-events-auto ${
+                isSelected ? "scale-110 z-20" : "hover:scale-105"
+              }`}
+              aria-label={`${playerName}${c ? ` — ${c.name}` : ""}`}
+            >
+              <span
+                className={`relative rounded-full ${
+                  isSelected
+                    ? "ring-4 ring-primary/70 shadow-[0_0_18px_rgba(179,90,31,0.4)]"
+                    : isHighlighted
+                      ? "ring-4 ring-info/60"
+                      : ""
+                }`}
+              >
+                <RoleToken
+                  character={c}
+                  size={tokenSize}
+                  dead={!seat?.isAlive}
+                  poisoned={seat?.isPoisoned}
+                  drunk={seat?.isDrunk}
+                />
+                {showHand && (
+                  <span
+                    className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-warning text-warning-content shadow-md"
+                    style={{
+                      width: Math.round(tokenSize * 0.32),
+                      height: Math.round(tokenSize * 0.32),
+                      fontSize: Math.round(tokenSize * 0.22),
+                    }}
+                    aria-label="voting yes"
+                  >
+                    ✋
+                  </span>
+                )}
+                {seat?.reminders && seat.reminders.length > 0 && (
+                  <span
+                    className="absolute -bottom-1 -left-1 inline-flex items-center justify-center rounded-full bg-amber-200 text-amber-900 font-mono shadow-sm"
+                    style={{
+                      width: Math.round(tokenSize * 0.26),
+                      height: Math.round(tokenSize * 0.26),
+                      fontSize: Math.round(tokenSize * 0.18),
+                    }}
+                    aria-label={`${seat.reminders.length} reminder tokens`}
+                  >
+                    {seat.reminders.length}
+                  </span>
+                )}
+              </span>
+              <span
+                className={`font-display text-[11px] text-center truncate w-full leading-tight ${
+                  isSelected ? "text-primary" : "text-base-content/85"
+                }`}
+              >
+                {playerName}
+              </span>
+            </button>
           );
         })}
       </div>
@@ -627,110 +921,509 @@ function StorytellerGrimoire({
 }
 
 /**
- * Town-square ring layout: each seat positioned around a circle in
- * clockwise order starting at the top. Tokens scale to keep adjacent
- * tokens from overlapping for any 5–15 player count.
- *
- * Clicking a seat scrolls its detail card (in the grid below) into
- * view and gives it a brief highlight pulse — the ring is a spatial
- * map; the grid is where you actually edit reminders / status.
+ * Right-rail edit sheet for one seat. Replaces the old SeatCard grid —
+ * the ST taps a token in the ring and this slides in with full edit
+ * controls (alive / poisoned / drunk, reminder tokens, character
+ * info, plus phase-specific actions like a big "Execute" button on
+ * day phase).
  */
-function SeatRing({
-  seatOrder,
-  grimoire,
-  playerById,
+function SeatSheet({
+  seatId,
+  seat,
+  playerName,
+  phase,
+  playMode,
+  hasOpenVote,
+  onClose,
+  sendMove,
 }: {
-  seatOrder: readonly string[];
-  grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
-  playerById: Record<string, SeatPlayer>;
+  seatId: string;
+  seat: SeatGrimoire;
+  playerName: string;
+  phase: BotCPhase;
+  playMode: "irl" | "virtual";
+  hasOpenVote: boolean;
+  onClose: () => void;
+  sendMove: Send;
 }) {
   const pool = useCharacterPool();
-  const n = seatOrder.length;
-  if (n === 0) return null;
+  const character = seat.characterId
+    ? (pool[seat.characterId] ?? null)
+    : null;
+  const [reminderDraft, setReminderDraft] = useState("");
 
-  // Token size and ring radius. For 15 players we need radius ≈ 264 to
-  // fit non-overlapping 110-wide tokens; for 5 players ≈ 95 is enough,
-  // but we floor at 150 so the layout doesn't look cramped against
-  // the surrounding panels.
-  const tokenSize = 96;
-  const minGap = tokenSize * 1.15;
-  const radius = Math.max(150, minGap / (2 * Math.sin(Math.PI / n)));
-  const containerSize = (radius + tokenSize / 2) * 2 + 32;
+  const setAlive = (alive: boolean) =>
+    sendMove({ kind: "st.setAlive", seatId, alive });
+  const setPoisoned = (poisoned: boolean) =>
+    sendMove({ kind: "st.setPoisoned", seatId, poisoned });
+  const setDrunk = (drunk: boolean) =>
+    sendMove({ kind: "st.setDrunk", seatId, drunk });
+  const addReminder = (label: string, characterId?: string) =>
+    sendMove({
+      kind: "st.addReminder",
+      seatId,
+      label,
+      ...(characterId ? { characterId } : {}),
+    });
+  const removeReminder = (reminderId: string) =>
+    sendMove({ kind: "st.removeReminder", seatId, reminderId });
+  const execute = () =>
+    sendMove({ kind: "st.executeNominee", nomineeId: seatId });
 
-  const focusSeat = (seatId: string) => {
-    const card = document.getElementById(`seat-card-${seatId}`);
-    if (!card) return;
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.classList.add("seat-card-flash");
-    window.setTimeout(() => card.classList.remove("seat-card-flash"), 1200);
+  const submitDraft = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmed = reminderDraft.trim();
+    if (!trimmed) return;
+    void addReminder(trimmed.slice(0, 48));
+    setReminderDraft("");
   };
 
+  const canExecute =
+    phase === "day" && seat.isAlive && (playMode === "irl" || !hasOpenVote);
+
   return (
-    <section className="surface-ivory p-4 flex flex-col items-center gap-3 overflow-hidden">
-      <header className="self-start flex items-baseline gap-3 flex-wrap">
-        <h3 className="font-display text-lg">Town square</h3>
-        <span className="text-[11px] text-base-content/55 italic">
-          Click a seat to jump to its details below.
-        </span>
-      </header>
-      <style>{`
-        @keyframes seatCardFlash {
-          0%, 100% { outline-color: transparent; outline-offset: 0; }
-          25% { outline-color: var(--color-primary, #b35a1f); outline-offset: 4px; }
-        }
-        .seat-card-flash {
-          outline: 2px solid transparent;
-          animation: seatCardFlash 1.2s ease-out;
-        }
-      `}</style>
-      <div
-        style={{
-          position: "relative",
-          width: containerSize,
-          height: containerSize,
-          maxWidth: "100%",
-        }}
-      >
-        {seatOrder.map((seatId, i) => {
-          // Start at -90° (top of circle), go clockwise.
-          const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
-          const x = radius * Math.cos(angle);
-          const y = radius * Math.sin(angle);
-          const seat = grimoire[seatId];
-          const c = seat?.characterId
-            ? (pool[seat.characterId] ?? null)
-            : null;
-          const playerName = playerById[seatId]?.name ?? seatId;
-          return (
-            <button
-              key={seatId}
-              type="button"
-              onClick={() => focusSeat(seatId)}
-              style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: `translate(${x}px, ${y}px) translate(-50%, -50%)`,
-                width: tokenSize + 24,
-              }}
-              className="flex flex-col items-center gap-1 group focus:outline-none"
-              aria-label={`${playerName}${c ? ` — ${c.name}` : ""}`}
-            >
-              <RoleToken
-                character={c}
-                size={tokenSize}
-                dead={!seat?.isAlive}
-                poisoned={seat?.isPoisoned}
-                drunk={seat?.isDrunk}
-              />
-              <span className="font-display text-xs text-center truncate w-full max-w-[120px] group-hover:text-primary transition-colors">
-                {playerName}
+    <section
+      className={`surface-ivory shadow-xl flex flex-col gap-3 p-4 overflow-y-auto h-full transition-opacity ${
+        seat.isAlive ? "" : "opacity-90"
+      }`}
+    >
+      <header className="flex items-start justify-between gap-2 -mt-1">
+        <div className="flex items-center gap-3 min-w-0">
+          <RoleToken
+            character={character}
+            size={48}
+            dead={!seat.isAlive}
+            poisoned={seat.isPoisoned}
+            drunk={seat.isDrunk}
+          />
+          <div className="min-w-0 flex flex-col">
+            <span className="font-display text-base truncate">
+              {playerName}
+            </span>
+            {character ? (
+              <span
+                className={`font-mono text-[11px] uppercase tracking-wider ${TEAM_TINT[character.team]}`}
+              >
+                {character.name}
               </span>
-            </button>
-          );
-        })}
+            ) : (
+              <span className="font-mono text-[11px] text-base-content/40">
+                no character
+              </span>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-base-content/45 hover:text-base-content/85 text-xl leading-none -mt-0.5"
+          aria-label="Close seat sheet"
+        >
+          ×
+        </button>
+      </header>
+
+      {character && (
+        <p className="text-xs text-base-content/70 leading-relaxed border-l-2 border-base-content/15 pl-3 -ml-1">
+          {character.ability}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-1.5 text-[11px]">
+        <Pill
+          on={!seat.isAlive}
+          tint="error"
+          onClick={() => void setAlive(!seat.isAlive)}
+        >
+          {seat.isAlive ? "alive" : "dead"}
+        </Pill>
+        <Pill
+          on={seat.isPoisoned}
+          tint="warning"
+          onClick={() => void setPoisoned(!seat.isPoisoned)}
+        >
+          poisoned
+        </Pill>
+        <Pill
+          on={seat.isDrunk}
+          tint="warning"
+          onClick={() => void setDrunk(!seat.isDrunk)}
+        >
+          drunk
+        </Pill>
+        {!seat.isAlive && (
+          <Pill
+            on={seat.ghostVoteUsed}
+            tint="info"
+            onClick={() => {
+              /* read-only here; ghost vote is consumed in the vote flow */
+            }}
+          >
+            {seat.ghostVoteUsed ? "ghost vote used" : "ghost vote"}
+          </Pill>
+        )}
       </div>
+
+      {canExecute && (
+        <button
+          type="button"
+          onClick={() => void execute()}
+          className="self-start text-sm px-4 py-2 rounded-lg border border-error/35 text-error bg-error/5 hover:bg-error/15"
+        >
+          Execute {playerName}
+        </button>
+      )}
+
+      {seat.reminders.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            On this seat
+          </span>
+          <ul className="flex flex-wrap gap-1 text-[11px]">
+            {seat.reminders.map((r) => (
+              <ReminderChip
+                key={r.id}
+                reminder={r}
+                onRemove={removeReminder}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {character && character.reminders.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            Add a reminder
+          </span>
+          <div className="flex flex-wrap gap-1 text-[11px]">
+            {character.reminders.map((label) => (
+              <button
+                key={label}
+                type="button"
+                className="px-2 py-0.5 rounded-full border border-base-content/15 text-base-content/65 hover:bg-base-content/5"
+                onClick={() => void addReminder(label, character.id)}
+              >
+                + {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={submitDraft} className="flex items-center gap-1.5 mt-auto">
+        <input
+          type="text"
+          value={reminderDraft}
+          onChange={(e) => setReminderDraft(e.target.value)}
+          placeholder="custom reminder…"
+          maxLength={48}
+          className="flex-1 min-w-0 bg-transparent border-b border-base-content/15 text-xs px-1 py-0.5 outline-none focus:border-base-content/40"
+        />
+        {reminderDraft.trim() && (
+          <button
+            type="submit"
+            className="text-[11px] px-2 py-0.5 rounded-full bg-base-content/10 hover:bg-base-content/15"
+          >
+            add
+          </button>
+        )}
+      </form>
     </section>
+  );
+}
+
+/**
+ * Center overlay inside the ring — phase-specific controls. Sized to
+ * the empty space inside the ring (radius leaves room for it).
+ *
+ * Variants:
+ *  - night:    "Wake order" link (rail on left has the full list)
+ *  - day:      nomination + vote controls (virtual) or skipped
+ *              (irl — IRL day flow lives in the ring tap targets)
+ *  - finished: outcome blurb (the main banner sits above the ring)
+ */
+function CenterControls({
+  state,
+  playerById,
+  sendMove,
+  pendingNomination,
+  setPendingNomination,
+}: {
+  state: Extract<BotCView, { viewer: "storyteller" }>["state"];
+  playerById: Record<string, SeatPlayer>;
+  sendMove: Send;
+  pendingNomination: { nominator: string | null } | null;
+  setPendingNomination: (
+    next: { nominator: string | null } | null,
+  ) => void;
+}) {
+  const isNight = state.phase === "firstNight" || state.phase === "night";
+  const inSetup = state.phase === "setup";
+  const isFinished = state.phase === "finished";
+  const isDay = state.phase === "day";
+
+  if (inSetup || isFinished) return null;
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div
+        className="surface-ivory shadow-md rounded-2xl px-4 py-3 flex flex-col items-center gap-2 pointer-events-auto z-10"
+        style={{ maxWidth: 220 }}
+      >
+        {isNight && (
+          <NightCenterControls state={state} sendMove={sendMove} />
+        )}
+        {isDay && state.playMode === "virtual" && (
+          <DayCenterControls
+            state={state}
+            playerById={playerById}
+            sendMove={sendMove}
+            pendingNomination={pendingNomination}
+            setPendingNomination={setPendingNomination}
+          />
+        )}
+        {isDay && state.playMode === "irl" && (
+          <IRLDayCenter state={state} sendMove={sendMove} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NightCenterControls({
+  state,
+  sendMove,
+}: {
+  state: Extract<BotCView, { viewer: "storyteller" }>["state"];
+  sendMove: Send;
+}) {
+  const pool = useCharacterPool();
+  const isFirstNight = state.phase === "firstNight";
+  const order = useMemo(
+    () => tonightOrder(state.grimoire, isFirstNight, (id) => pool[id]),
+    [state.grimoire, isFirstNight, pool],
+  );
+  if (order.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-1 text-center">
+        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+          {isFirstNight ? "First night" : `Night ${state.dayNumber}`}
+        </span>
+        <span className="text-xs italic text-base-content/55">
+          Nobody wakes tonight.
+        </span>
+      </div>
+    );
+  }
+  const currentIndex = Math.min(state.nightStep, order.length - 1);
+  const step = order[currentIndex];
+  const character = step?.character ?? null;
+  const advance = () =>
+    sendMove({
+      kind: "st.setNightStep",
+      index: Math.min(currentIndex + 1, order.length - 1),
+    });
+  const back = () =>
+    sendMove({
+      kind: "st.setNightStep",
+      index: Math.max(currentIndex - 1, 0),
+    });
+
+  return (
+    <div className="flex flex-col items-center gap-2 text-center">
+      <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+        {isFirstNight ? "First night" : `Night ${state.dayNumber}`} · step{" "}
+        {currentIndex + 1}/{order.length}
+      </span>
+      <RoleToken character={character} size={56} />
+      {character && (
+        <span
+          className={`font-display text-sm ${TEAM_TINT[character.team]}`}
+        >
+          {character.name}
+        </span>
+      )}
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={back}
+          disabled={currentIndex === 0}
+          className="px-2 py-1 rounded-full text-xs border border-base-content/15 text-base-content/55 disabled:opacity-30"
+          aria-label="Previous night step"
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          onClick={advance}
+          disabled={currentIndex >= order.length - 1}
+          className="px-2 py-1 rounded-full text-xs border border-base-content/15 text-base-content/55 disabled:opacity-30"
+          aria-label="Next night step"
+        >
+          →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DayCenterControls({
+  state,
+  playerById,
+  sendMove,
+  pendingNomination,
+  setPendingNomination,
+}: {
+  state: Extract<BotCView, { viewer: "storyteller" }>["state"];
+  playerById: Record<string, SeatPlayer>;
+  sendMove: Send;
+  pendingNomination: { nominator: string | null } | null;
+  setPendingNomination: (
+    next: { nominator: string | null } | null,
+  ) => void;
+}) {
+  const livingCount = state.seatOrder.reduce(
+    (n, id) => n + (state.grimoire[id]?.isAlive ? 1 : 0),
+    0,
+  );
+  const threshold = Math.ceil(livingCount / 2);
+  const openVote = state.openVote;
+  const openNom = openVote
+    ? state.nominations.find((n) => n.id === openVote.nominationId)
+    : undefined;
+
+  if (openVote && openNom) {
+    const yesCount = Object.values(openVote.votes).filter(
+      (v) => v === "yes",
+    ).length;
+    const noCount = Object.values(openVote.votes).filter(
+      (v) => v === "no",
+    ).length;
+    return (
+      <div className="flex flex-col items-center gap-1.5 text-center">
+        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+          Vote
+        </span>
+        <span className="font-display text-sm truncate max-w-[180px]">
+          {playerById[openNom.nominator]?.name ?? openNom.nominator} →{" "}
+          {playerById[openNom.nominee]?.name ?? openNom.nominee}
+        </span>
+        <span className="font-mono text-base">
+          <span className="text-success">{yesCount}</span>
+          {" / "}
+          <span className="text-base-content/55">{noCount}</span>
+          <span className="text-base-content/45 text-[10px] ml-1">
+            (need {threshold})
+          </span>
+        </span>
+        <button
+          type="button"
+          onClick={() => void sendMove({ kind: "st.closeVote" })}
+          className="text-xs px-3 py-1 rounded-full bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25"
+        >
+          Close vote
+        </button>
+      </div>
+    );
+  }
+
+  if (pendingNomination) {
+    return (
+      <div className="flex flex-col items-center gap-1 text-center">
+        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+          Open nomination
+        </span>
+        <span className="text-xs text-base-content/65 leading-snug">
+          {pendingNomination.nominator
+            ? `${playerById[pendingNomination.nominator]?.name ?? pendingNomination.nominator} → tap nominee`
+            : "Tap the nominator on the ring"}
+        </span>
+        <button
+          type="button"
+          onClick={() => setPendingNomination(null)}
+          className="text-[11px] text-base-content/55 hover:text-base-content/85 underline"
+        >
+          cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1.5 text-center">
+      <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+        Day {state.dayNumber}
+      </span>
+      <span className="font-mono text-[11px] text-base-content/55">
+        {livingCount} alive · {threshold} to block
+      </span>
+      <button
+        type="button"
+        onClick={() => setPendingNomination({ nominator: null })}
+        className="text-xs px-3 py-1 rounded-full bg-base-content/10 hover:bg-base-content/15"
+      >
+        Open nomination
+      </button>
+      <button
+        type="button"
+        onClick={() => void sendMove({ kind: "st.skipExecution" })}
+        className="text-[11px] text-base-content/55 hover:text-base-content/85 underline"
+      >
+        no execution
+      </button>
+    </div>
+  );
+}
+
+function IRLDayCenter({
+  state,
+  sendMove,
+}: {
+  state: Extract<BotCView, { viewer: "storyteller" }>["state"];
+  sendMove: Send;
+}) {
+  const livingCount = state.seatOrder.reduce(
+    (n, id) => n + (state.grimoire[id]?.isAlive ? 1 : 0),
+    0,
+  );
+  const todayExec = state.executions.find(
+    (e) => e.dayNumber === state.dayNumber,
+  );
+  return (
+    <div className="flex flex-col items-center gap-1.5 text-center">
+      <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+        Day {state.dayNumber} · IRL
+      </span>
+      <span className="font-mono text-[11px] text-base-content/55">
+        {livingCount} alive
+      </span>
+      {todayExec ? (
+        <span className="text-xs text-base-content/65">
+          Today:{" "}
+          {todayExec.executed ? (
+            <strong className="font-display text-error/85">
+              executed
+            </strong>
+          ) : (
+            <em>no execution</em>
+          )}
+        </span>
+      ) : (
+        <>
+          <span className="text-[11px] text-base-content/55 italic leading-snug">
+            Tap a seat to execute
+          </span>
+          <button
+            type="button"
+            onClick={() => void sendMove({ kind: "st.skipExecution" })}
+            className="text-[11px] text-base-content/55 hover:text-base-content/85 underline"
+          >
+            no execution today
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1305,9 +1998,11 @@ function EndMatchModal({
 function FabledPanel({
   fabled,
   sendMove,
+  compact = false,
 }: {
   fabled: readonly string[];
   sendMove: Send;
+  compact?: boolean;
 }) {
   const pool = useCharacterPool();
   const [open, setOpen] = useState(false);
@@ -1316,10 +2011,30 @@ function FabledPanel({
     .filter((c): c is Character => Boolean(c));
   const available = FABLED_IDS.filter((id) => !fabled.includes(id));
 
+  // Compact mode (corner overlay in the new tablet grimoire): hide
+  // entirely until there's something interesting OR the ST pops it
+  // open via the trigger pill.
+  if (compact && active.length === 0 && !open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-[11px] px-2.5 py-1 rounded-full bg-base-100/70 backdrop-blur border border-base-content/15 text-base-content/55 hover:bg-base-100/90 shadow-sm"
+        title="Add a Fabled character"
+      >
+        + Fabled
+      </button>
+    );
+  }
+
   return (
-    <section className="surface-ivory p-3 flex flex-col gap-2">
+    <section
+      className={`surface-ivory ${compact ? "p-2 shadow-md" : "p-3"} flex flex-col gap-2`}
+    >
       <header className="flex items-baseline justify-between gap-2 flex-wrap">
-        <h3 className="font-display text-sm">Fabled</h3>
+        <h3 className={`font-display ${compact ? "text-xs" : "text-sm"}`}>
+          Fabled
+        </h3>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
@@ -1341,9 +2056,11 @@ function FabledPanel({
               className="flex items-baseline gap-2 px-2 py-1 rounded text-xs bg-secondary/8"
             >
               <span className="font-display text-secondary">{c.name}</span>
-              <span className="flex-1 text-base-content/70 leading-snug">
-                {c.ability}
-              </span>
+              {!compact && (
+                <span className="flex-1 text-base-content/70 leading-snug">
+                  {c.ability}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() =>
@@ -1359,7 +2076,11 @@ function FabledPanel({
         </ul>
       )}
       {open && available.length > 0 && (
-        <div className="flex flex-wrap gap-1 pt-1 border-t border-base-content/10 text-[11px]">
+        <div
+          className={`flex flex-wrap gap-1 ${
+            active.length > 0 ? "pt-1 border-t border-base-content/10" : ""
+          } text-[11px] ${compact ? "max-h-40 overflow-y-auto" : ""}`}
+        >
           {available.map((id) => {
             const c = pool[id];
             if (!c) return null;
@@ -1384,495 +2105,6 @@ function FabledPanel({
   );
 }
 
-function NominationsPanel({
-  nominations,
-  openVote,
-  grimoire,
-  executions,
-  seatOrder,
-  playerById,
-  sendMove,
-}: {
-  nominations: Extract<BotCView, { viewer: "storyteller" }>["state"]["nominations"];
-  openVote: Extract<BotCView, { viewer: "storyteller" }>["state"]["openVote"];
-  grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
-  executions: Extract<BotCView, { viewer: "storyteller" }>["state"]["executions"];
-  seatOrder: readonly string[];
-  playerById: Record<string, SeatPlayer>;
-  sendMove: Send;
-}) {
-  const pool = useCharacterPool();
-  const livingCount = seatOrder.reduce(
-    (n, id) => n + (grimoire[id]?.isAlive ? 1 : 0),
-    0,
-  );
-  const threshold = Math.ceil(livingCount / 2);
-
-  const closeVote = () => sendMove({ kind: "st.closeVote" });
-  const execute = (nomineeId: string) =>
-    sendMove({ kind: "st.executeNominee", nomineeId });
-  const skip = () => sendMove({ kind: "st.skipExecution" });
-  const stOpen = (nominator: string, nominee: string) =>
-    sendMove({ kind: "st.openNomination", nominator, nominee });
-
-  const [stNominator, setStNominator] = useState("");
-  const [stNominee, setStNominee] = useState("");
-
-  return (
-    <section className="surface-ivory p-4 flex flex-col gap-3">
-      <header className="flex items-baseline justify-between gap-3 flex-wrap">
-        <h3 className="font-display text-lg">Today's nominations</h3>
-        <span className="text-[11px] text-base-content/55 font-mono">
-          threshold to put on the block: {threshold} of {livingCount}
-        </span>
-      </header>
-
-      {executions.length > 0 && (
-        <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-base-content/55 font-mono">
-          {executions.map((e, i) => {
-            const charName = e.executed
-              ? (pool[
-                  grimoire[e.executed]?.characterId ?? ""
-                ]?.name ?? "?")
-              : null;
-            return (
-              <li key={i} className="whitespace-nowrap">
-                day {e.dayNumber}:{" "}
-                {e.executed ? (
-                  <>
-                    <span className="text-base-content/75">
-                      {playerById[e.executed]?.name ?? e.executed}
-                    </span>{" "}
-                    <span className="text-base-content/45">({charName})</span>
-                  </>
-                ) : (
-                  <span className="italic">no execution</span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {nominations.length === 0 ? (
-        <p className="text-sm text-base-content/55 italic">
-          No nominations yet today.
-        </p>
-      ) : (
-        <ol className="flex flex-col gap-1.5">
-          {nominations.map((n) => {
-            const isOpenHere = openVote?.nominationId === n.id;
-            const tally = isOpenHere
-              ? Object.values(openVote.votes).reduce(
-                  (acc, v) => {
-                    if (v === "yes") acc.yes++;
-                    else acc.no++;
-                    return acc;
-                  },
-                  { yes: 0, no: 0 },
-                )
-              : null;
-            const result = n.result;
-            const nomineeAlive = grimoire[n.nominee]?.isAlive ?? false;
-            return (
-              <li
-                key={n.id}
-                className={`flex items-baseline gap-2 px-2 py-1.5 rounded text-sm flex-wrap ${
-                  result?.onTheBlock
-                    ? "bg-error/8"
-                    : isOpenHere
-                      ? "bg-primary/8"
-                      : "hover:bg-base-content/4"
-                }`}
-              >
-                <span className="font-display">
-                  {playerById[n.nominator]?.name ?? n.nominator}
-                </span>
-                <span className="text-base-content/55">→</span>
-                <span className="font-display">
-                  {playerById[n.nominee]?.name ?? n.nominee}
-                </span>
-                <span className="flex-1" />
-                {tally && (
-                  <span className="font-mono text-xs text-base-content/65">
-                    voting: {tally.yes} yes / {tally.no} no
-                  </span>
-                )}
-                {result && (
-                  <span className="font-mono text-xs">
-                    {result.yesCount} yes / {result.noCount} no
-                    {result.onTheBlock && (
-                      <span className="ml-2 text-error font-display uppercase tracking-[0.18em] text-[10px]">
-                        on the block
-                      </span>
-                    )}
-                  </span>
-                )}
-                {isOpenHere && (
-                  <button
-                    type="button"
-                    className="text-[11px] px-2 py-0.5 rounded-full bg-primary/15 text-primary hover:bg-primary/25"
-                    onClick={() => void closeVote()}
-                  >
-                    close vote
-                  </button>
-                )}
-                {result && nomineeAlive && (
-                  <button
-                    type="button"
-                    className="text-[11px] px-2 py-0.5 rounded-full bg-error/15 text-error hover:bg-error/25"
-                    onClick={() => void execute(n.nominee)}
-                  >
-                    execute
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      )}
-
-      {!openVote && (
-        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-base-content/10 text-xs">
-          <span className="text-base-content/55">ST nominate:</span>
-          <select
-            className="bg-transparent border-b border-base-content/15 px-1"
-            value={stNominator}
-            onChange={(e) => setStNominator(e.target.value)}
-          >
-            <option value="">— nominator —</option>
-            {seatOrder
-              .filter((id) => grimoire[id]?.isAlive)
-              .map((id) => (
-                <option key={id} value={id}>
-                  {playerById[id]?.name ?? id}
-                </option>
-              ))}
-          </select>
-          <span className="text-base-content/55">→</span>
-          <select
-            className="bg-transparent border-b border-base-content/15 px-1"
-            value={stNominee}
-            onChange={(e) => setStNominee(e.target.value)}
-          >
-            <option value="">— nominee —</option>
-            {seatOrder.map((id) => (
-              <option key={id} value={id}>
-                {playerById[id]?.name ?? id}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            disabled={!stNominator || !stNominee}
-            className="text-[11px] px-2.5 py-1 rounded-full bg-base-content/10 hover:bg-base-content/15 disabled:opacity-40"
-            onClick={() => {
-              void stOpen(stNominator, stNominee);
-              setStNominator("");
-              setStNominee("");
-            }}
-          >
-            open
-          </button>
-          <span className="flex-1" />
-          <button
-            type="button"
-            className="text-[11px] px-2.5 py-1 rounded-full bg-base-content/10 hover:bg-base-content/15"
-            onClick={() => void skip()}
-          >
-            skip execution
-          </button>
-        </div>
-      )}
-    </section>
-  );
-}
-
-/**
- * IRL-mode day panel. The ST is using the app as a Grimoire only —
- * nominations and votes happen in the physical room — so this panel
- * just records what was decided: tap a seat to mark them executed,
- * tap "no execution" to record a skipped day. The execution log
- * above mirrors the same data the virtual NominationsPanel shows.
- */
-function IRLDayPanel({
-  grimoire,
-  executions,
-  dayNumber,
-  seatOrder,
-  playerById,
-  sendMove,
-}: {
-  grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
-  executions: Extract<BotCView, { viewer: "storyteller" }>["state"]["executions"];
-  dayNumber: number;
-  seatOrder: readonly string[];
-  playerById: Record<string, SeatPlayer>;
-  sendMove: Send;
-}) {
-  const pool = useCharacterPool();
-  const execute = (nomineeId: string) =>
-    sendMove({ kind: "st.executeNominee", nomineeId });
-  const skip = () => sendMove({ kind: "st.skipExecution" });
-
-  const todayExecution = executions.find((e) => e.dayNumber === dayNumber);
-
-  return (
-    <section className="surface-ivory p-4 flex flex-col gap-3">
-      <header className="flex items-baseline justify-between gap-3 flex-wrap">
-        <h3 className="font-display text-lg">Day {dayNumber}</h3>
-        <span className="text-[11px] text-base-content/55 italic">
-          Voting at the table — record the outcome here.
-        </span>
-      </header>
-
-      {executions.length > 0 && (
-        <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-base-content/55 font-mono">
-          {executions.map((e, i) => {
-            const charName = e.executed
-              ? (pool[grimoire[e.executed]?.characterId ?? ""]?.name ?? "?")
-              : null;
-            return (
-              <li key={i} className="whitespace-nowrap">
-                day {e.dayNumber}:{" "}
-                {e.executed ? (
-                  <>
-                    <span className="text-base-content/75">
-                      {playerById[e.executed]?.name ?? e.executed}
-                    </span>{" "}
-                    <span className="text-base-content/45">({charName})</span>
-                  </>
-                ) : (
-                  <span className="italic">no execution</span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {todayExecution ? (
-        <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-base-content/5 border border-base-content/10">
-          <span className="text-sm">
-            <span className="text-base-content/55">Today: </span>
-            {todayExecution.executed ? (
-              <>
-                executed{" "}
-                <strong className="font-display">
-                  {playerById[todayExecution.executed]?.name ??
-                    todayExecution.executed}
-                </strong>
-              </>
-            ) : (
-              <em className="text-base-content/65">no execution</em>
-            )}
-          </span>
-          <span className="text-[11px] text-base-content/45">
-            advance to night when ready
-          </span>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
-            Mark today's execution
-          </span>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
-            {seatOrder.map((seatId) => {
-              const seat = grimoire[seatId];
-              if (!seat || !seat.isAlive) return null;
-              const character = seat.characterId
-                ? pool[seat.characterId]
-                : null;
-              return (
-                <button
-                  key={seatId}
-                  type="button"
-                  onClick={() => void execute(seatId)}
-                  className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border border-error/25 text-error hover:bg-error/10 active:bg-error/15 text-sm text-left min-h-[3rem]"
-                >
-                  <span className="font-display truncate w-full">
-                    {playerById[seatId]?.name ?? seatId}
-                  </span>
-                  {character && (
-                    <span className="font-mono text-[10px] text-base-content/55 truncate w-full">
-                      {character.name}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => void skip()}
-            className="self-end text-xs px-3 py-1.5 rounded-full text-base-content/65 hover:bg-base-content/5 border border-base-content/15"
-          >
-            No execution today
-          </button>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function SeatCard({
-  seatId,
-  seat,
-  playerName,
-  sendMove,
-}: {
-  seatId: string;
-  seat: SeatGrimoire;
-  playerName: string;
-  sendMove: Send;
-}) {
-  const pool = useCharacterPool();
-  const character = seat.characterId
-    ? pool[seat.characterId] ?? null
-    : null;
-  const [reminderDraft, setReminderDraft] = useState("");
-
-  const setAlive = (alive: boolean) =>
-    sendMove({ kind: "st.setAlive", seatId, alive });
-  const setPoisoned = (poisoned: boolean) =>
-    sendMove({ kind: "st.setPoisoned", seatId, poisoned });
-  const setDrunk = (drunk: boolean) =>
-    sendMove({ kind: "st.setDrunk", seatId, drunk });
-  const addReminder = (label: string, characterId?: string) =>
-    sendMove({
-      kind: "st.addReminder",
-      seatId,
-      label,
-      ...(characterId ? { characterId } : {}),
-    });
-  const removeReminder = (reminderId: string) =>
-    sendMove({ kind: "st.removeReminder", seatId, reminderId });
-
-  const submitDraft = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = reminderDraft.trim();
-    if (!trimmed) return;
-    void addReminder(trimmed.slice(0, 48));
-    setReminderDraft("");
-  };
-
-  return (
-    <div
-      id={`seat-card-${seatId}`}
-      className={`surface-ivory p-3 flex flex-col gap-2 transition-opacity scroll-mt-4 ${
-        seat.isAlive ? "" : "opacity-60"
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <RoleToken
-          character={character}
-          size={56}
-          dead={!seat.isAlive}
-          poisoned={seat.isPoisoned}
-          drunk={seat.isDrunk}
-        />
-        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="font-display text-sm truncate">{playerName}</span>
-            {character ? (
-              <span
-                className={`font-mono text-[11px] uppercase tracking-wider ${
-                  TEAM_TINT[character.team]
-                }`}
-              >
-                {character.name}
-              </span>
-            ) : (
-              <span className="font-mono text-[11px] text-base-content/40">—</span>
-            )}
-          </div>
-          {character && (
-            <p className="text-xs text-base-content/65 leading-snug line-clamp-3">
-              {character.ability}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5 text-[11px]">
-        <Pill
-          on={!seat.isAlive}
-          tint="error"
-          onClick={() => void setAlive(!seat.isAlive)}
-        >
-          {seat.isAlive ? "alive" : "dead"}
-        </Pill>
-        <Pill
-          on={seat.isPoisoned}
-          tint="warning"
-          onClick={() => void setPoisoned(!seat.isPoisoned)}
-        >
-          poisoned
-        </Pill>
-        <Pill
-          on={seat.isDrunk}
-          tint="warning"
-          onClick={() => void setDrunk(!seat.isDrunk)}
-        >
-          drunk
-        </Pill>
-        {!seat.isAlive && (
-          <Pill
-            on={seat.ghostVoteUsed}
-            tint="info"
-            onClick={() => {
-              /* ghost vote tracked in voting flow, read-only here */
-            }}
-          >
-            {seat.ghostVoteUsed ? "ghost vote used" : "ghost vote"}
-          </Pill>
-        )}
-      </div>
-
-      {seat.reminders.length > 0 && (
-        <ul className="flex flex-wrap gap-1 text-[11px]">
-          {seat.reminders.map((r) => (
-            <ReminderChip key={r.id} reminder={r} onRemove={removeReminder} />
-          ))}
-        </ul>
-      )}
-
-      {character && character.reminders.length > 0 && (
-        <div className="flex flex-wrap gap-1 text-[11px]">
-          {character.reminders.map((label) => (
-            <button
-              key={label}
-              type="button"
-              className="px-1.5 py-0.5 rounded-full border border-base-content/15 text-base-content/60 hover:bg-base-content/5"
-              onClick={() => void addReminder(label, character.id)}
-            >
-              + {label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <form onSubmit={submitDraft} className="flex items-center gap-1.5">
-        <input
-          type="text"
-          value={reminderDraft}
-          onChange={(e) => setReminderDraft(e.target.value)}
-          placeholder="add reminder…"
-          maxLength={48}
-          className="flex-1 min-w-0 bg-transparent border-b border-base-content/15 text-xs px-1 py-0.5 outline-none focus:border-base-content/40"
-        />
-        {reminderDraft.trim() && (
-          <button
-            type="submit"
-            className="text-[11px] px-2 py-0.5 rounded-full bg-base-content/10 hover:bg-base-content/15"
-          >
-            add
-          </button>
-        )}
-      </form>
-    </div>
-  );
-}
 
 function ReminderChip({
   reminder,
