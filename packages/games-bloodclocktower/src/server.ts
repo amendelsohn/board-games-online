@@ -86,6 +86,20 @@ function emptyState(
  * about other seats' characters or status flags (poison/drunk) — those only
  * appear in the storyteller view.
  */
+/**
+ * Strip the voter-identity arrays from a Nomination's result before
+ * serving it to non-ST viewers. `yesCount` / `noCount` / `onTheBlock`
+ * stay; the per-voter lists are ST-only so a future "private vote"
+ * mechanic (Tea Lady, etc.) doesn't silently leak.
+ */
+function publicNomination(
+  n: BotCState["nominations"][number],
+): BotCState["nominations"][number] {
+  if (!n.result) return { ...n };
+  const { yesVotes: _yes, noVotes: _no, ...publicResult } = n.result;
+  return { ...n, result: publicResult };
+}
+
 function makePlayerView(state: BotCState, viewer: PlayerId): PlayerView {
   const seat = state.grimoire[viewer];
   const me = seat
@@ -104,7 +118,7 @@ function makePlayerView(state: BotCState, viewer: PlayerId): PlayerView {
     seatOrder: [...state.seatOrder],
     phase: state.phase,
     dayNumber: state.dayNumber,
-    nominations: state.nominations.map((n) => ({ ...n })),
+    nominations: state.nominations.map(publicNomination),
     openVote: state.openVote ? { ...state.openVote, votes: { ...state.openVote.votes } } : null,
     executions: state.executions.map((e) => ({ ...e })),
     fabled: [...state.fabled],
@@ -126,7 +140,7 @@ function makeSpectatorView(state: BotCState): SpectatorView {
     seatOrder: [...state.seatOrder],
     phase: state.phase,
     dayNumber: state.dayNumber,
-    nominations: state.nominations.map((n) => ({ ...n })),
+    nominations: state.nominations.map(publicNomination),
     openVote: state.openVote ? { ...state.openVote, votes: { ...state.openVote.votes } } : null,
     executions: state.executions.map((e) => ({ ...e })),
     fabled: [...state.fabled],
@@ -641,6 +655,15 @@ function handleCloseVote(state: BotCState): MoveResult<BotCState> {
   if (!state.openVote) {
     return { ok: false, reason: "No open vote to close" };
   }
+  const nominationId = state.openVote.nominationId;
+  // Defensive: openVote should always reference a real nomination, but if
+  // a bug ever decoupled them we'd silently drop the close. Fail loudly.
+  if (!state.nominations.some((n) => n.id === nominationId)) {
+    return {
+      ok: false,
+      reason: `Open vote references unknown nomination ${nominationId}`,
+    };
+  }
   const yesVotes: PlayerId[] = [];
   const noVotes: PlayerId[] = [];
   for (const [voter, v] of Object.entries(state.openVote.votes)) {
@@ -649,10 +672,18 @@ function handleCloseVote(state: BotCState): MoveResult<BotCState> {
   }
   const livingCount = countLiving(state);
   const onTheBlock = yesVotes.length >= Math.ceil(livingCount / 2);
-  const nominationId = state.openVote.nominationId;
   const nominations = state.nominations.map((n) =>
     n.id === nominationId
-      ? { ...n, result: { yesVotes, noVotes, onTheBlock } }
+      ? {
+          ...n,
+          result: {
+            yesCount: yesVotes.length,
+            noCount: noVotes.length,
+            onTheBlock,
+            yesVotes,
+            noVotes,
+          },
+        }
       : n,
   );
   return {

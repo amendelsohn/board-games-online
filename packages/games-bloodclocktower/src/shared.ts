@@ -89,10 +89,19 @@ export interface Nomination {
 }
 
 export interface NominationResult {
-  yesVotes: PlayerId[];
-  noVotes: PlayerId[];
+  /** Final tallies. Always present in every view (count info is public). */
+  yesCount: number;
+  noCount: number;
   /** Whether this nomination crossed the threshold (≥ half of living). */
   onTheBlock: boolean;
+  /**
+   * Identities of yes / no voters. ST-only: stripped from PlayerView and
+   * SpectatorView so a future "private vote" mechanic doesn't silently
+   * leak. Even for the public BotC vote, keeping identities ST-only
+   * makes the redaction surface explicit.
+   */
+  yesVotes?: PlayerId[];
+  noVotes?: PlayerId[];
 }
 
 export interface OpenVote {

@@ -901,7 +901,7 @@ function NominationsPanel({
                 )}
                 {result && (
                   <span className="font-mono text-xs">
-                    {result.yesVotes.length} yes / {result.noVotes.length} no
+                    {result.yesCount} yes / {result.noCount} no
                     {result.onTheBlock && (
                       <span className="ml-2 text-error font-display uppercase tracking-[0.18em] text-[10px]">
                         on the block
@@ -1459,7 +1459,7 @@ function DayActions({
                 </span>
                 {n.result && (
                   <span className="text-base-content/55">
-                    · {n.result.yesVotes.length} yes
+                    · {n.result.yesCount} yes
                     {n.result.onTheBlock && " (block)"}
                   </span>
                 )}
