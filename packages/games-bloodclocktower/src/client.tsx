@@ -377,6 +377,7 @@ function StorytellerGrimoire({
           nominations={state.nominations}
           openVote={state.openVote}
           grimoire={state.grimoire}
+          executions={state.executions}
           seatOrder={state.seatOrder}
           playerById={playerById}
           sendMove={sendMove}
@@ -819,6 +820,7 @@ function NominationsPanel({
   nominations,
   openVote,
   grimoire,
+  executions,
   seatOrder,
   playerById,
   sendMove,
@@ -826,6 +828,7 @@ function NominationsPanel({
   nominations: Extract<BotCView, { viewer: "storyteller" }>["state"]["nominations"];
   openVote: Extract<BotCView, { viewer: "storyteller" }>["state"]["openVote"];
   grimoire: Extract<BotCView, { viewer: "storyteller" }>["state"]["grimoire"];
+  executions: Extract<BotCView, { viewer: "storyteller" }>["state"]["executions"];
   seatOrder: readonly string[];
   playerById: Record<string, SeatPlayer>;
   sendMove: Send;
@@ -854,6 +857,33 @@ function NominationsPanel({
           threshold to put on the block: {threshold} of {livingCount}
         </span>
       </header>
+
+      {executions.length > 0 && (
+        <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-base-content/55 font-mono">
+          {executions.map((e, i) => {
+            const charName = e.executed
+              ? (TROUBLE_BREWING_BY_ID[
+                  grimoire[e.executed]?.characterId ?? ""
+                ]?.name ?? "?")
+              : null;
+            return (
+              <li key={i} className="whitespace-nowrap">
+                day {e.dayNumber}:{" "}
+                {e.executed ? (
+                  <>
+                    <span className="text-base-content/75">
+                      {playerById[e.executed]?.name ?? e.executed}
+                    </span>{" "}
+                    <span className="text-base-content/45">({charName})</span>
+                  </>
+                ) : (
+                  <span className="italic">no execution</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {nominations.length === 0 ? (
         <p className="text-sm text-base-content/55 italic">
@@ -1188,6 +1218,22 @@ function Pill({
   );
 }
 
+/**
+ * Count seats eligible to vote on an open nomination: every living
+ * seat, plus every dead seat whose ghost vote hasn't been spent. This
+ * is what gets shown on the player UI as the denominator of the
+ * "x of y voted" running progress.
+ */
+function countEligibleVoters(
+  seats: Record<string, { isAlive: boolean; ghostVoteUsed: boolean }>,
+): number {
+  let n = 0;
+  for (const s of Object.values(seats)) {
+    if (s.isAlive || !s.ghostVoteUsed) n++;
+  }
+  return n;
+}
+
 function phaseLabel(phase: BotCPhase, dayNumber: number): string {
   switch (phase) {
     case "setup":
@@ -1380,6 +1426,9 @@ function DayActions({
             {openNominee
               ? (playerById[openNominee]?.name ?? openNominee)
               : "—"}
+            <span className="ml-2 font-mono text-base-content/45 normal-case tracking-normal">
+              {openVote.votedCount} / {countEligibleVoters(seats)} voted
+            </span>
           </span>
           {myVote ? (
             <span className="text-sm">
