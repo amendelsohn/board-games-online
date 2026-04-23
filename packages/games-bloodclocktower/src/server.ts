@@ -9,7 +9,9 @@ import type {
   Viewer,
 } from "@bgo/sdk";
 import {
+  BAD_MOON_RISING_IDS,
   BOTC_TYPE,
+  SECTS_AND_VIOLETS_IDS,
   TROUBLE_BREWING_IDS,
   configSchema,
   moveSchema,
@@ -31,9 +33,13 @@ function scriptIdsFor(scriptId: string): string[] {
   switch (scriptId) {
     case "trouble-brewing":
       return [...TROUBLE_BREWING_IDS];
+    case "bad-moon-rising":
+      return [...BAD_MOON_RISING_IDS];
+    case "sects-and-violets":
+      return [...SECTS_AND_VIOLETS_IDS];
     default:
-      // Defensive: defaultConfig + Zod validation ensure this branch is
-      // unreachable for now, but throwing makes a future typo loud.
+      // Defensive: configSchema validates the enum so this branch is
+      // unreachable for now. Throwing makes a future typo loud.
       throw new Error(`Unknown BotC script: ${scriptId}`);
   }
 }

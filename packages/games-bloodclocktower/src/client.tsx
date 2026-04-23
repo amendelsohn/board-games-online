@@ -8,15 +8,23 @@ import {
   type ReactNode,
 } from "react";
 import type { GameEvent } from "@bgo/sdk";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import type {
+  BoardProps,
+  ClientGameModule,
+  LobbyPanelProps,
+} from "@bgo/sdk-client";
 import {
   BOTC_TYPE,
+  BUILT_IN_SCRIPT_IDS,
+  SCRIPT_LABELS,
   TB_DISTRIBUTION,
-  TROUBLE_BREWING_BY_ID,
+  ALL_CHARACTERS_BY_ID,
   tonightOrder,
+  type BotCConfig,
   type BotCMove,
   type BotCPhase,
   type BotCView,
+  type BuiltInScriptId,
   type Character,
   type CharacterTeam,
   type NightStep,
@@ -109,7 +117,7 @@ function StorytellerSetup({
   const scriptCharacters = useMemo(
     () =>
       state.scriptCharacterIds
-        .map((id) => TROUBLE_BREWING_BY_ID[id])
+        .map((id) => ALL_CHARACTERS_BY_ID[id])
         .filter((c): c is Character => Boolean(c)),
     [state.scriptCharacterIds],
   );
@@ -421,7 +429,7 @@ function CharactersMultiPicker({
   const notInPlay = scriptCharacterIds.filter((id) => !inPlayCharacterIds.has(id));
   const inPlay = scriptCharacterIds.filter((id) => inPlayCharacterIds.has(id));
   const Chip = ({ id, dim }: { id: string; dim?: boolean }) => {
-    const c = TROUBLE_BREWING_BY_ID[id];
+    const c = ALL_CHARACTERS_BY_ID[id];
     const on = picked.has(id);
     return (
       <button
@@ -735,7 +743,7 @@ function SendInfoForm({
             >
               <option value="">—</option>
               {scriptCharacterIds.map((id) => {
-                const c = TROUBLE_BREWING_BY_ID[id];
+                const c = ALL_CHARACTERS_BY_ID[id];
                 return (
                   <option key={id} value={id}>
                     {c?.name ?? id}
@@ -827,7 +835,7 @@ function FinalGrimoireList({
         {seatOrder.map((id) => {
           const seat = finalGrimoire[id];
           const c = seat?.characterId
-            ? (TROUBLE_BREWING_BY_ID[seat.characterId] ?? null)
+            ? (ALL_CHARACTERS_BY_ID[seat.characterId] ?? null)
             : null;
           const isMe = id === mySeatId;
           return (
@@ -1013,7 +1021,7 @@ function NominationsPanel({
         <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-base-content/55 font-mono">
           {executions.map((e, i) => {
             const charName = e.executed
-              ? (TROUBLE_BREWING_BY_ID[
+              ? (ALL_CHARACTERS_BY_ID[
                   grimoire[e.executed]?.characterId ?? ""
                 ]?.name ?? "?")
               : null;
@@ -1182,7 +1190,7 @@ function SeatCard({
   sendMove: Send;
 }) {
   const character = seat.characterId
-    ? TROUBLE_BREWING_BY_ID[seat.characterId] ?? null
+    ? ALL_CHARACTERS_BY_ID[seat.characterId] ?? null
     : null;
   const [reminderDraft, setReminderDraft] = useState("");
 
@@ -1431,7 +1439,7 @@ function PlayerSurface({
   onEvent: OnEvent;
 }) {
   const character = view.me?.characterId
-    ? TROUBLE_BREWING_BY_ID[view.me.characterId]
+    ? ALL_CHARACTERS_BY_ID[view.me.characterId]
     : null;
 
   const playerById = useMemo(
@@ -1690,7 +1698,7 @@ function PrivateInfoModal({
   onDismiss: () => void;
 }) {
   const character = info.character
-    ? TROUBLE_BREWING_BY_ID[info.character] ?? null
+    ? ALL_CHARACTERS_BY_ID[info.character] ?? null
     : null;
   return (
     <div
@@ -1746,7 +1754,7 @@ function PrivateInfoModal({
             </span>
             <ul className="flex flex-wrap gap-1.5">
               {info.characters.map((id) => {
-                const c = TROUBLE_BREWING_BY_ID[id];
+                const c = ALL_CHARACTERS_BY_ID[id];
                 return (
                   <li
                     key={id}
@@ -1918,11 +1926,49 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+function BotCLobbyPanel({
+  config,
+  isHost,
+  onChange,
+}: LobbyPanelProps<BotCConfig>) {
+  const scriptId = (config?.scriptId as BuiltInScriptId) ?? "trouble-brewing";
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="text-sm text-base-content/65">
+        {isHost
+          ? "Pick the edition you'll Storytell. You can change this until the match starts."
+          : "Storyteller is choosing the edition."}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {BUILT_IN_SCRIPT_IDS.map((id) => {
+          const active = scriptId === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              disabled={!isHost}
+              onClick={() => onChange({ ...(config ?? {}), scriptId: id })}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                active
+                  ? "bg-primary/15 text-primary border-primary/40"
+                  : "border-base-content/15 text-base-content/65 hover:bg-base-content/5"
+              } ${!isHost ? "opacity-60" : ""}`}
+            >
+              {SCRIPT_LABELS[id]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export const bloodClocktowerClientModule: ClientGameModule<
   BotCView,
   BotCMove,
-  unknown
+  BotCConfig
 > = {
   type: BOTC_TYPE,
   Board: BotCBoard,
+  LobbyPanel: BotCLobbyPanel,
 };

@@ -3,11 +3,16 @@ import type { Character } from "../shared";
 /**
  * Trouble Brewing — the base edition's 22 characters.
  *
+ * IDs and night-order numbers match the canonical bra1n/townsquare and
+ * Pandemonium Institute roles.json scale, so when a custom script mixes
+ * Trouble Brewing with Bad Moon Rising or Sects & Violets the ordering
+ * still makes sense (lower numbers fire earlier, globally).
+ *
  * Ability text is reproduced verbatim from the official character cards.
- * Night-order numbers are relative within this edition: lower fires first.
- * `null` means the character is not part of the scheduled night phase
- * (their ability is either passive, triggered by another event like death
- * or nomination, or invoked by the player during the day).
+ * `null` for firstNight / otherNights means the character is not part of
+ * the scheduled night phase (their ability is either passive, triggered
+ * by another event like death or nomination, or invoked by the player
+ * during the day).
  *
  * "Minion info" (wake all minions, learn each other + the Demon) and
  * "Demon info" (wake Demon, learn Minions + 3 bluffs) are first-night
@@ -23,7 +28,7 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     edition: "tb",
     ability:
       "You start knowing that 1 of 2 players is a particular Townsfolk.",
-    firstNight: 3,
+    firstNight: 33,
     otherNights: null,
     reminders: ["Townsfolk", "Wrong"],
     setup: false,
@@ -35,7 +40,7 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     edition: "tb",
     ability:
       "You start knowing that 1 of 2 players is a particular Outsider. (Or that zero are in play.)",
-    firstNight: 4,
+    firstNight: 34,
     otherNights: null,
     reminders: ["Outsider", "Wrong"],
     setup: false,
@@ -47,7 +52,7 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     edition: "tb",
     ability:
       "You start knowing that 1 of 2 players is a particular Minion.",
-    firstNight: 5,
+    firstNight: 35,
     otherNights: null,
     reminders: ["Minion", "Wrong"],
     setup: false,
@@ -58,7 +63,7 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     team: "townsfolk",
     edition: "tb",
     ability: "You start knowing how many pairs of evil players are neighbours.",
-    firstNight: 6,
+    firstNight: 36,
     otherNights: null,
     reminders: [],
     setup: false,
@@ -70,20 +75,20 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     edition: "tb",
     ability:
       "Each night, you learn how many of your 2 alive neighbours are evil.",
-    firstNight: 7,
-    otherNights: 6,
+    firstNight: 37,
+    otherNights: 53,
     reminders: [],
     setup: false,
   },
   {
-    id: "fortune_teller",
+    id: "fortuneteller",
     name: "Fortune Teller",
     team: "townsfolk",
     edition: "tb",
     ability:
       "Each night, choose 2 players: you learn if either is a Demon. There is a good player that registers as a Demon to you.",
-    firstNight: 8,
-    otherNights: 7,
+    firstNight: 38,
+    otherNights: 54,
     reminders: ["Red Herring"],
     setup: false,
   },
@@ -95,7 +100,7 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     ability:
       "Each night*, you learn which character died by execution today.",
     firstNight: null,
-    otherNights: 5,
+    otherNights: 55,
     reminders: [],
     setup: false,
   },
@@ -107,7 +112,7 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     ability:
       "Each night*, choose a player (not yourself): they are safe from the Demon tonight.",
     firstNight: null,
-    otherNights: 2,
+    otherNights: 12,
     reminders: ["Safe"],
     setup: false,
   },
@@ -119,7 +124,7 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     ability:
       "If you die at night, you are woken to choose a player: you learn their character.",
     firstNight: null,
-    otherNights: 4,
+    otherNights: 52,
     reminders: [],
     setup: false,
   },
@@ -179,8 +184,8 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     edition: "tb",
     ability:
       "Each night, choose a player (not yourself): tomorrow, you may only vote if they are voting too.",
-    firstNight: 9,
-    otherNights: 8,
+    firstNight: 39,
+    otherNights: 67,
     reminders: ["Master"],
     setup: false,
   },
@@ -228,8 +233,8 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     edition: "tb",
     ability:
       "Each night, choose a player: they are poisoned tonight and tomorrow day.",
-    firstNight: 1,
-    otherNights: 1,
+    firstNight: 17,
+    otherNights: 7,
     reminders: ["Poisoned"],
     setup: false,
   },
@@ -240,20 +245,20 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     edition: "tb",
     ability:
       "Each night, you see the Grimoire. You might register as good & as a Townsfolk or Outsider, even if dead.",
-    firstNight: 2,
-    otherNights: 9,
+    firstNight: 49,
+    otherNights: 68,
     reminders: [],
     setup: false,
   },
   {
-    id: "scarlet_woman",
+    id: "scarletwoman",
     name: "Scarlet Woman",
     team: "minion",
     edition: "tb",
     ability:
       "If there are 5 or more players alive & the Demon dies, you become the Demon. (Travellers don't count.)",
     firstNight: null,
-    otherNights: null,
+    otherNights: 19,
     reminders: ["Is the Demon"],
     setup: false,
   },
@@ -278,7 +283,7 @@ export const TROUBLE_BREWING_CHARACTERS: readonly Character[] = [
     ability:
       "Each night*, choose a player: they die. If you choose yourself, you die & a Minion becomes the Imp.",
     firstNight: null,
-    otherNights: 3,
+    otherNights: 24,
     reminders: ["Dead"],
     setup: false,
   },

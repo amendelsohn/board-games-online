@@ -1,5 +1,5 @@
 import type { Character } from "../shared";
-import { TROUBLE_BREWING_BY_ID } from "./trouble-brewing";
+import { ALL_CHARACTERS_BY_ID } from "./all";
 
 /**
  * Single entry the Storyteller's Night Order panel renders. Each one
@@ -42,7 +42,7 @@ export function tonightOrder(
   grimoire: Record<string, { characterId: string | null }>,
   isFirstNight: boolean,
   characterLookup: (id: string) => Character | undefined = (id) =>
-    TROUBLE_BREWING_BY_ID[id],
+    ALL_CHARACTERS_BY_ID[id],
 ): NightStep[] {
   const steps: NightStep[] = [];
 

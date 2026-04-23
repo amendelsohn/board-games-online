@@ -168,12 +168,26 @@ export interface SeatPublic {
 // Config
 // ============================================================================
 
+/** Canonical script ids that ship with the package. */
+export const BUILT_IN_SCRIPT_IDS = [
+  "trouble-brewing",
+  "bad-moon-rising",
+  "sects-and-violets",
+] as const;
+export type BuiltInScriptId = (typeof BUILT_IN_SCRIPT_IDS)[number];
+
+export const SCRIPT_LABELS: Readonly<Record<BuiltInScriptId, string>> = {
+  "trouble-brewing": "Trouble Brewing",
+  "bad-moon-rising": "Bad Moon Rising",
+  "sects-and-violets": "Sects & Violets",
+};
+
 export const configSchema = z.object({
   /**
-   * Which script to play. v1 ships only "trouble-brewing"; later phases will
-   * accept "bad-moon-rising", "sects-and-violets", or a custom script id.
+   * Which canonical script to play. Custom JSON scripts come in Phase 3
+   * and will use a different config shape.
    */
-  scriptId: z.literal("trouble-brewing").default("trouble-brewing"),
+  scriptId: z.enum(BUILT_IN_SCRIPT_IDS).default("trouble-brewing"),
 });
 export type BotCConfig = z.infer<typeof configSchema>;
 
@@ -369,6 +383,23 @@ export {
   TROUBLE_BREWING_BY_ID,
   TROUBLE_BREWING_IDS,
 } from "./characters/trouble-brewing";
+
+export {
+  BAD_MOON_RISING_CHARACTERS,
+  BAD_MOON_RISING_BY_ID,
+  BAD_MOON_RISING_IDS,
+} from "./characters/bad-moon-rising";
+
+export {
+  SECTS_AND_VIOLETS_CHARACTERS,
+  SECTS_AND_VIOLETS_BY_ID,
+  SECTS_AND_VIOLETS_IDS,
+} from "./characters/sects-and-violets";
+
+export {
+  ALL_CHARACTERS_BY_ID,
+  lookupCharacter,
+} from "./characters/all";
 
 export { tonightOrder, type NightStep } from "./characters/night-order";
 
