@@ -12,6 +12,12 @@ import { PlayerAvatar } from "@/components/PlayerAvatar";
 
 registerAllClientGames();
 
+// Dev-only feature: lets a single browser session play-test a multi-seat
+// game by switching which seat it controls. Next.js inlines NODE_ENV at
+// build time, so the whole debug panel + its imports tree-shake out of
+// production bundles.
+const DEBUG_MODE = process.env.NODE_ENV !== "production";
+
 export default function PlayPage() {
   const params = useParams();
   const search = useSearchParams();
@@ -24,6 +30,7 @@ export default function PlayPage() {
   const [table, setTable] = useState<TableWire | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rematchPending, setRematchPending] = useState(false);
+  const [debugSeat, setDebugSeat] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +58,7 @@ export default function PlayPage() {
     matchId,
     playerId: player?.id ?? null,
     sessionToken,
+    debugSeat: DEBUG_MODE ? debugSeat : null,
   });
   const {
     view,
@@ -146,7 +154,11 @@ export default function PlayPage() {
 
   const Board = module_.Board;
   const Summary = module_.Summary;
-  const isMyTurn = currentActors.includes(player.id);
+  // In debug mode the page acts as whichever seat is currently selected;
+  // the game's Board component is untouched and just receives a different
+  // `me` prop.
+  const effectiveSeat = DEBUG_MODE && debugSeat ? debugSeat : player.id;
+  const isMyTurn = currentActors.includes(effectiveSeat);
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-16">
@@ -154,11 +166,23 @@ export default function PlayPage() {
         gameType={table.gameType}
         players={table.players}
         currentActors={currentActors}
-        me={player.id}
+        me={effectiveSeat}
         phase={phase}
         connectionState={connectionState}
         reconnectAttempt={reconnectAttempt}
       />
+
+      {DEBUG_MODE && table.players.length > 1 && (
+        <DebugSeatBar
+          players={table.players}
+          sessionPlayerId={player.id}
+          activeSeat={effectiveSeat}
+          currentActors={currentActors}
+          onPick={(seatId) =>
+            setDebugSeat(seatId === player.id ? null : seatId)
+          }
+        />
+      )}
 
       {error && (
         <div
@@ -172,7 +196,7 @@ export default function PlayPage() {
       {isTerminal && outcome && (
         <OutcomeBanner
           outcome={outcome}
-          me={player.id}
+          me={effectiveSeat}
           players={table.players}
           isHost={player.id === table.hostPlayerId}
           rematchPending={rematchPending}
@@ -184,7 +208,7 @@ export default function PlayPage() {
         <Board
           view={view}
           phase={phase ?? "unknown"}
-          me={player.id}
+          me={effectiveSeat}
           players={table.players}
           isMyTurn={isMyTurn}
           sendMove={sendMove}
@@ -402,6 +426,62 @@ function OutcomeBanner({
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Dev-only: a tiny chip bar above the board that lets one browser drive
+ * every seat at the table. Clicking a chip swaps the page's viewer +
+ * move-actor to that seat; the Board component is blissfully unaware.
+ */
+function DebugSeatBar({
+  players,
+  sessionPlayerId,
+  activeSeat,
+  currentActors,
+  onPick,
+}: {
+  players: PlayerWire[];
+  sessionPlayerId: string;
+  activeSeat: string;
+  currentActors: string[];
+  onPick: (seatId: string) => void;
+}) {
+  return (
+    <div
+      className="mt-3 flex items-center gap-2 flex-wrap rounded-md border border-dashed border-warning/50 bg-warning/5 px-3 py-2 text-xs"
+      role="group"
+      aria-label="Debug seat switcher"
+    >
+      <span className="font-mono uppercase tracking-[0.22em] text-warning-content/70 shrink-0">
+        🐞 seat
+      </span>
+      {players.map((p) => {
+        const isActive = p.id === activeSeat;
+        const isTurn = currentActors.includes(p.id);
+        return (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onPick(p.id)}
+            className={[
+              "rounded-full px-2.5 py-1 font-medium transition-colors",
+              isActive
+                ? "bg-warning text-warning-content"
+                : "bg-base-200 text-base-content/70 hover:bg-base-300",
+            ].join(" ")}
+          >
+            {p.name}
+            {p.id === sessionPlayerId && (
+              <span className="ml-1 text-[10px] uppercase tracking-[0.18em] opacity-60">
+                self
+              </span>
+            )}
+            {isTurn && <span className="ml-1 text-primary">●</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

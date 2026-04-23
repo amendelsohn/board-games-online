@@ -7,6 +7,11 @@ import { api } from "@/lib/apiClient";
 import { ensurePlayer, getStoredName, storeName } from "@/lib/playerSession";
 import { GameIcon } from "@/components/GameIcon";
 
+// Dev-only: exposes the one-click "fully-seated debug table" flow. Next.js
+// inlines NODE_ENV at build time, so the debug button, its handler, and all
+// its branches tree-shake out of production bundles.
+const DEBUG_MODE = process.env.NODE_ENV !== "production";
+
 export default function Home() {
   const router = useRouter();
   const [games, setGames] = useState<GameMetaWire[] | null>(null);
@@ -41,6 +46,23 @@ export default function Home() {
       if (playerName) await saveName(playerName);
       const { table } = await api.createTable({ gameType });
       router.push(`/lobby/${table.joinCode}`);
+    } catch (err) {
+      setError((err as Error).message);
+      setPending(null);
+    }
+  };
+
+  const startDebugGame = async (gameType: string) => {
+    setError(null);
+    setPending(`debug:${gameType}`);
+    try {
+      const playerName = name.trim() || getStoredName() || "Debug host";
+      await ensurePlayer(playerName);
+      const { table } = await api.createTable({ gameType });
+      await api.fillDevTable(table.id);
+      const { table: started } = await api.startTable(table.id);
+      if (!started.matchId) throw new Error("Match did not start");
+      router.push(`/play/${started.matchId}?table=${started.id}`);
     } catch (err) {
       setError((err as Error).message);
       setPending(null);
@@ -193,6 +215,7 @@ export default function Home() {
             games={games}
             pending={pending}
             onStart={startNewGame}
+            onDebug={DEBUG_MODE ? startDebugGame : null}
           />
         )}
       </section>
@@ -257,10 +280,12 @@ function CatalogByCategory({
   games,
   pending,
   onStart,
+  onDebug,
 }: {
   games: GameMetaWire[];
   pending: string | null;
   onStart: (gameType: string) => void;
+  onDebug: ((gameType: string) => void) | null;
 }) {
   const grouped = new Map<GameCategoryWire, GameMetaWire[]>();
   for (const g of games) {
@@ -309,8 +334,10 @@ function CatalogByCategory({
                 <GameCard
                   game={g}
                   pending={pending === `create:${g.type}`}
+                  debugPending={pending === `debug:${g.type}`}
                   disabled={pending !== null}
                   onStart={() => onStart(g.type)}
+                  onDebug={onDebug ? () => onDebug(g.type) : null}
                 />
               </li>
             ))}
@@ -348,59 +375,85 @@ function Field({
 function GameCard({
   game,
   pending,
+  debugPending,
   disabled,
   onStart,
+  onDebug,
 }: {
   game: GameMetaWire;
   pending: boolean;
+  debugPending: boolean;
   disabled: boolean;
   onStart: () => void;
+  onDebug: (() => void) | null;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onStart}
-      disabled={disabled}
-      className={[
-        "group block w-full text-left",
-        "surface-ivory",
-        "px-5 py-5",
-        "transition-all duration-200",
-        "hover:-translate-y-0.5 hover:shadow-[var(--shadow-float)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        "disabled:opacity-60 disabled:pointer-events-none",
-      ].join(" ")}
-    >
-      <div className="flex items-start gap-4">
-        <GameIcon type={game.type} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline justify-between gap-3">
-            <h3 className="font-display text-xl md:text-2xl tracking-tight">
-              {game.displayName}
-            </h3>
-            <span className="text-xs tabular text-base-content/50 shrink-0">
-              {game.minPlayers === game.maxPlayers
-                ? `${game.minPlayers} pl`
-                : `${game.minPlayers}–${game.maxPlayers} pl`}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-base-content/65 leading-relaxed">
-            {game.description}
-          </p>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs uppercase tracking-[0.18em] text-base-content/45">
-              {pending ? "Opening…" : "Open a table"}
-            </span>
-            <span
-              aria-hidden
-              className="text-primary font-semibold text-sm transition-transform group-hover:translate-x-1"
-            >
-              →
-            </span>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onStart}
+        disabled={disabled}
+        className={[
+          "group block w-full text-left",
+          "surface-ivory",
+          "px-5 py-5",
+          "transition-all duration-200",
+          "hover:-translate-y-0.5 hover:shadow-[var(--shadow-float)]",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+          "disabled:opacity-60 disabled:pointer-events-none",
+        ].join(" ")}
+      >
+        <div className="flex items-start gap-4">
+          <GameIcon type={game.type} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="font-display text-xl md:text-2xl tracking-tight">
+                {game.displayName}
+              </h3>
+              <span className="text-xs tabular text-base-content/50 shrink-0">
+                {game.minPlayers === game.maxPlayers
+                  ? `${game.minPlayers} pl`
+                  : `${game.minPlayers}–${game.maxPlayers} pl`}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-base-content/65 leading-relaxed">
+              {game.description}
+            </p>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs uppercase tracking-[0.18em] text-base-content/45">
+                {pending ? "Opening…" : "Open a table"}
+              </span>
+              <span
+                aria-hidden
+                className="text-primary font-semibold text-sm transition-transform group-hover:translate-x-1"
+              >
+                →
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    </button>
+      </button>
+      {onDebug && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDebug();
+          }}
+          disabled={disabled}
+          title="Dev only — open a fully-seated debug table"
+          className={[
+            "absolute top-2 right-2 z-10",
+            "rounded-full px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.18em]",
+            "border border-dashed border-warning/60 bg-warning/10 text-warning-content/80",
+            "hover:bg-warning hover:text-warning-content transition-colors",
+            "disabled:opacity-40 disabled:pointer-events-none",
+          ].join(" ")}
+        >
+          {debugPending ? "…" : "🐞 debug"}
+        </button>
+      )}
+    </div>
   );
 }
 

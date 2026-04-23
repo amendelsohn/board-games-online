@@ -20,6 +20,12 @@ export const subscribeMatchPayload = z.object({
   matchId: matchIdSchema,
   playerId: playerIdSchema,
   sessionToken: sessionTokenSchema,
+  /**
+   * Dev-only: subscribe as a different seated player. The authenticated
+   * session must still be valid and seated at the same table. Ignored when
+   * the server is running in production.
+   */
+  viewerId: playerIdSchema.optional(),
 });
 export type SubscribeMatchPayload = z.infer<typeof subscribeMatchPayload>;
 
@@ -27,6 +33,12 @@ export const submitMovePayload = z.object({
   matchId: matchIdSchema,
   /** Module-specific move shape; module validates via its own Zod schema. */
   move: z.unknown(),
+  /**
+   * Dev-only: submit the move on behalf of a different seated player. The
+   * authenticated session must still be valid and seated at the same table.
+   * Ignored when the server is running in production.
+   */
+  actor: playerIdSchema.optional(),
 });
 export type SubmitMovePayload = z.infer<typeof submitMovePayload>;
 

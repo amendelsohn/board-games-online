@@ -18,7 +18,9 @@ import {
   leaveMatchPayload,
   WS,
   type SubscribeMatchPayload,
+  type SubmitMovePayload,
 } from '@bgo/contracts';
+import type { PlayerId } from '@bgo/sdk';
 import { MatchService } from './match.service';
 import { LobbyStore, StoredPlayer } from '../state/lobby-store.service';
 
@@ -99,16 +101,17 @@ export class MatchGateway
     @MessageBody() raw: unknown,
   ): Promise<void> {
     const payload = this.parse(subscribeMatchPayload, raw);
-    const player = this.resolvePlayer(payload);
+    const sessionPlayer = this.resolvePlayer(payload);
+    const viewerId = this.resolveViewer(sessionPlayer.id, payload);
 
     const matchId = payload.matchId;
     const existingSubs = this.subscriptions.get(client.id)!;
     if (existingSubs.has(matchId)) return; // already subscribed
 
     await client.join(`match:${matchId}`);
-    await client.join(`player:${matchId}:${player.id}`);
+    await client.join(`player:${matchId}:${viewerId}`);
 
-    const off = this.match.subscribeViews(matchId, player.id, (snapshot) => {
+    const off = this.match.subscribeViews(matchId, viewerId, (snapshot) => {
       client.emit(WS.VIEW_UPDATED, {
         matchId,
         version: snapshot.version,
@@ -127,7 +130,7 @@ export class MatchGateway
     existingSubs.set(matchId, off);
 
     // Emit current view immediately.
-    const current = await this.match.getView(matchId, player.id);
+    const current = await this.match.getView(matchId, viewerId);
     if (current) {
       client.emit(WS.VIEW_UPDATED, {
         matchId,
@@ -172,10 +175,11 @@ export class MatchGateway
     }
 
     const payload = this.parse(submitMovePayload, raw);
-    const player = this.resolvePlayerBySocket(client);
+    const sessionPlayer = this.resolvePlayerBySocket(client);
+    const actor = this.resolveActor(sessionPlayer.id, payload);
     const result = await this.match.submitMove(
       payload.matchId,
-      player.id,
+      actor,
       payload.move,
     );
     if (!result.ok) {
@@ -250,5 +254,53 @@ export class MatchGateway
       });
     }
     return player;
+  }
+
+  /** True when the server is *not* running a production build. */
+  private isDevMode(): boolean {
+    return process.env.NODE_ENV !== 'production';
+  }
+
+  /**
+   * Dev-only: subscribe as any seated player so a single browser can switch
+   * between seats. In prod the override is silently ignored and the viewer
+   * is pinned to the session player.
+   */
+  private resolveViewer(
+    sessionPlayerId: PlayerId,
+    payload: SubscribeMatchPayload,
+  ): PlayerId {
+    if (!payload.viewerId) return sessionPlayerId;
+    if (!this.isDevMode()) return sessionPlayerId;
+    if (payload.viewerId === sessionPlayerId) return sessionPlayerId;
+    const table = this.match.getMatchTable(payload.matchId);
+    if (!table || !table.playerIds.includes(payload.viewerId)) {
+      throw new WsException({
+        code: 'UNAUTHORIZED',
+        message: 'viewerId is not seated at this match',
+      });
+    }
+    return payload.viewerId;
+  }
+
+  /**
+   * Dev-only: submit moves as any seated player. In prod the override is
+   * silently ignored and the actor is pinned to the session player.
+   */
+  private resolveActor(
+    sessionPlayerId: PlayerId,
+    payload: SubmitMovePayload,
+  ): PlayerId {
+    if (!payload.actor) return sessionPlayerId;
+    if (!this.isDevMode()) return sessionPlayerId;
+    if (payload.actor === sessionPlayerId) return sessionPlayerId;
+    const table = this.match.getMatchTable(payload.matchId);
+    if (!table || !table.playerIds.includes(payload.actor)) {
+      throw new WsException({
+        code: 'UNAUTHORIZED',
+        message: 'actor is not seated at this match',
+      });
+    }
+    return payload.actor;
   }
 }

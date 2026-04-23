@@ -39,6 +39,12 @@ export interface UseMatchSocketOptions {
   matchId: string | null;
   playerId: string | null;
   sessionToken: string | null;
+  /**
+   * Dev-only: subscribe and submit moves as this seated player instead of the
+   * session player. Used by the seat-switcher on the play page. When set on a
+   * production server, the override is silently ignored server-side.
+   */
+  debugSeat?: string | null;
 }
 
 /**
@@ -55,7 +61,9 @@ export function useMatchSocket<V = unknown>({
   matchId,
   playerId,
   sessionToken,
+  debugSeat,
 }: UseMatchSocketOptions): MatchSocketState<V> {
+  const effectiveSeat = debugSeat ?? playerId;
   const [view, setView] = useState<V | null>(null);
   const [phase, setPhase] = useState<string | null>(null);
   const [currentActors, setCurrentActors] = useState<string[]>([]);
@@ -101,6 +109,11 @@ export function useMatchSocket<V = unknown>({
         matchId,
         playerId,
         sessionToken,
+        // Only send the viewer override when it differs from the session
+        // player. Prod ignores this field; dev honors it for seat switching.
+        ...(effectiveSeat && effectiveSeat !== playerId
+          ? { viewerId: effectiveSeat }
+          : {}),
       });
     });
 
@@ -178,7 +191,10 @@ export function useMatchSocket<V = unknown>({
       setConnectionState("idle");
       setReconnectAttempt(0);
     };
-  }, [matchId, playerId, sessionToken]);
+    // effectiveSeat is in the dep list so that switching seats mid-match
+    // tears down the socket and re-subscribes under the new viewer — this is
+    // the cheapest way to refresh the per-player view projection.
+  }, [matchId, playerId, sessionToken, effectiveSeat]);
 
   const sendMove = useCallback(
     async (move: unknown) => {
@@ -187,12 +203,22 @@ export function useMatchSocket<V = unknown>({
         throw new Error("Not connected");
       }
       if (!matchId) throw new Error("No match");
+      const payload: {
+        matchId: string;
+        move: unknown;
+        actor?: string;
+      } = { matchId, move };
+      // Only attach the dev-only actor override when it differs from the
+      // session player. Prod silently ignores it; dev honors it.
+      if (effectiveSeat && effectiveSeat !== playerId) {
+        payload.actor = effectiveSeat;
+      }
       await new Promise<void>((resolve, reject) => {
         socket
           .timeout(5000)
           .emit(
             WS.SUBMIT_MOVE,
-            { matchId, move },
+            payload,
             (err: Error | null, ack: { ok: boolean; reason?: string }) => {
               if (err) return reject(err);
               if (!ack?.ok) return reject(new Error(ack?.reason ?? "Move rejected"));
@@ -201,7 +227,7 @@ export function useMatchSocket<V = unknown>({
           );
       });
     },
-    [matchId],
+    [matchId, effectiveSeat, playerId],
   );
 
   const addEventListener = useCallback(

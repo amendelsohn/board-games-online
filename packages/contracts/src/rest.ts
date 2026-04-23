@@ -107,3 +107,19 @@ export const errorResponse = z.object({
   }),
 });
 export type ErrorResponse = z.infer<typeof errorResponse>;
+
+/* ------------------ Dev-only (NODE_ENV != 'production') ------------------ */
+
+// POST /dev/tables/:id/fill — seats auto-generated "Debug N" players so a
+// single browser can play-test a multi-player game. Returns the updated
+// table. 404 in production builds.
+export const fillTableBody = z.object({
+  /** Target total seat count; defaults to the game's max. */
+  count: z.number().int().positive().optional(),
+});
+export type FillTableBody = z.infer<typeof fillTableBody>;
+
+export const fillTableResponse = z.object({
+  table: tableSchema,
+});
+export type FillTableResponse = z.infer<typeof fillTableResponse>;

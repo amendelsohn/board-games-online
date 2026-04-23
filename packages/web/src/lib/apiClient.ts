@@ -4,6 +4,8 @@ import type {
   CreateTableBody,
   CreateTableResponse,
   ErrorResponse,
+  FillTableBody,
+  FillTableResponse,
   GetMeResponse,
   GetTableResponse,
   JoinTableResponse,
@@ -95,6 +97,16 @@ export const api = {
 
   leaveTable: (id: string) =>
     request<{ ok: true }>(`/tables/${id}/leave`, { method: "POST" }),
+
+  /**
+   * Dev-only: fill a table with fake "Debug N" players so one browser can
+   * play-test a multi-seat game. 404s against production servers.
+   */
+  fillDevTable: (id: string, body: FillTableBody = {}) =>
+    request<FillTableResponse>(`/dev/tables/${id}/fill`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 export const BASE_WS_URL = BASE_URL;
