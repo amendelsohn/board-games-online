@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import type {
-  BoardProps,
-  ClientGameModule,
-  SummaryProps,
+import {
+  Card as CardShell,
+  type BoardProps,
+  type CardSize,
+  type ClientGameModule,
+  type SummaryProps,
 } from "@bgo/sdk-client";
 import {
   CARDS,
@@ -46,82 +48,267 @@ function CardFace({
   rank,
   size = "md",
   dim,
+  selected,
+  onClick,
 }: {
   rank: Rank;
-  size?: "sm" | "md" | "lg";
+  size?: CardSize;
   dim?: boolean;
+  selected?: boolean;
+  onClick?: () => void;
 }) {
   const def = CARDS[rank];
-  const dims =
-    size === "lg"
-      ? "w-32 h-44 md:w-36 md:h-48 text-3xl"
-      : size === "sm"
-        ? "w-14 h-20 text-lg"
-        : "w-24 h-32 text-2xl";
   return (
-    <div
-      className={[
-        "relative rounded-xl flex flex-col items-center justify-between p-2.5",
-        dims,
-        dim ? "opacity-60" : "",
-      ].join(" ")}
-      style={{
-        background: `linear-gradient(160deg, color-mix(in oklch, ${rankColor(
-          rank,
-        )} 18%, var(--color-base-100)) 0%, var(--color-base-100) 100%)`,
-        border: `1.5px solid color-mix(in oklch, ${rankColor(rank)} 45%, transparent)`,
-        boxShadow: dim
-          ? "none"
-          : "inset 0 1px 0 oklch(100% 0 0 / 0.2), 0 4px 12px oklch(0% 0 0 / 0.12)",
-      }}
+    <CardShell
+      size={size}
+      ghost={dim}
+      selected={selected}
+      onClick={onClick}
+      ariaLabel={`${def.rank} · ${def.name}`}
     >
-      <div
-        className="text-[9px] uppercase tracking-[0.22em] font-semibold self-start"
-        style={{ color: rankColor(rank) }}
-      >
-        {def.rank}
-      </div>
-      <div
-        className="font-display tracking-tight text-center leading-none"
-        style={{
-          color: rankColor(rank),
-          fontSize: size === "lg" ? "1.75rem" : size === "sm" ? "0.875rem" : "1.25rem",
-        }}
-      >
-        {def.name}
-      </div>
-      <div
-        className="text-[9px] uppercase tracking-[0.22em] font-semibold self-end"
-        style={{ color: rankColor(rank) }}
-      >
-        {def.rank}
-      </div>
-    </div>
+      <LoveLetterFace rank={rank} />
+    </CardShell>
   );
 }
 
-function CardBack({ size = "sm" }: { size?: "sm" | "md" | "lg" }) {
-  const dims =
-    size === "lg"
-      ? "w-32 h-44 md:w-36 md:h-48"
-      : size === "sm"
-        ? "w-14 h-20"
-        : "w-24 h-32";
+function CardBack({ size = "sm" }: { size?: CardSize }) {
+  return <CardShell size={size} faceDown ariaLabel="opponent card, face down" />;
+}
+
+/**
+ * Game-specific SVG card face for Love Letter. Each rank gets a small
+ * pictogram in the parlor palette: shield, eye, swords, fan, crown, king's
+ * crown, laurel, and a heart-rose for the Princess.
+ */
+function LoveLetterFace({ rank }: { rank: Rank }) {
+  const def = CARDS[rank];
+  const accent = rankColor(rank);
   return (
-    <div
-      className={[
-        "rounded-xl",
-        dims,
-      ].join(" ")}
-      style={{
-        background:
-          "repeating-linear-gradient(135deg, color-mix(in oklch, var(--color-primary) 32%, var(--color-base-300)) 0 6px, color-mix(in oklch, var(--color-secondary) 26%, var(--color-base-300)) 6px 12px)",
-        border: "1.5px solid color-mix(in oklch, var(--color-primary) 40%, transparent)",
-        boxShadow:
-          "inset 0 1px 0 oklch(100% 0 0 / 0.15), 0 2px 6px oklch(0% 0 0 / 0.2)",
-      }}
-    />
+    <svg
+      viewBox="0 0 100 140"
+      preserveAspectRatio="xMidYMid meet"
+      width="100%"
+      height="100%"
+      style={{ display: "block", color: accent }}
+    >
+      {/* Soft tinted background plate so each rank reads as its own color. */}
+      <rect
+        x="0"
+        y="0"
+        width="100"
+        height="140"
+        fill="currentColor"
+        opacity="0.08"
+      />
+      <rect
+        x="6"
+        y="6"
+        width="88"
+        height="128"
+        rx="6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        opacity="0.32"
+      />
+      {/* Top-left rank */}
+      <text
+        x="10"
+        y="22"
+        fontSize="15"
+        fontWeight={700}
+        fontFamily="var(--font-display, serif)"
+        fill="currentColor"
+        letterSpacing="-0.04em"
+      >
+        {def.rank}
+      </text>
+      {/* Bottom-right rank, rotated */}
+      <g transform="translate(90, 130) rotate(180)">
+        <text
+          x="0"
+          y="0"
+          fontSize="15"
+          fontWeight={700}
+          fontFamily="var(--font-display, serif)"
+          fill="currentColor"
+          letterSpacing="-0.04em"
+        >
+          {def.rank}
+        </text>
+      </g>
+      {/* Center pictogram */}
+      <g transform="translate(50, 64)">
+        <RankGlyph rank={rank} />
+      </g>
+      {/* Card name */}
+      <text
+        x="50"
+        y="118"
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight={600}
+        fontFamily="var(--font-display, serif)"
+        fill="currentColor"
+        letterSpacing="0.02em"
+      >
+        {def.name}
+      </text>
+    </svg>
   );
+}
+
+/**
+ * The pictographic glyph for a Love Letter rank, drawn centered around (0,0)
+ * within roughly a ±22 box. Stroke-based to keep the silhouette clean.
+ */
+function RankGlyph({ rank }: { rank: Rank }) {
+  const stroke = "currentColor";
+  const sw = 1.6;
+  const cap = "round" as const;
+  switch (rank) {
+    case 1: // Guard — shield
+      return (
+        <g
+          fill="none"
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin={cap}
+          strokeLinecap={cap}
+        >
+          <path d="M 0 -22 L 18 -16 L 18 -2 C 18 12, 8 20, 0 24 C -8 20, -18 12, -18 -2 L -18 -16 Z" />
+          <path d="M -7 -4 L -2 4 L 9 -10" strokeWidth={sw + 0.4} />
+        </g>
+      );
+    case 2: // Priest — eye
+      return (
+        <g
+          fill="none"
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin={cap}
+          strokeLinecap={cap}
+        >
+          <path d="M -22 0 C -14 -14, 14 -14, 22 0 C 14 14, -14 14, -22 0 Z" />
+          <circle cx="0" cy="0" r="6" />
+          <circle cx="0" cy="0" r="2.4" fill={stroke} />
+        </g>
+      );
+    case 3: // Baron — crossed swords
+      return (
+        <g
+          fill="none"
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin={cap}
+          strokeLinecap={cap}
+        >
+          <line x1="-18" y1="-18" x2="18" y2="18" />
+          <line x1="18" y1="-18" x2="-18" y2="18" />
+          {/* hilts */}
+          <line x1="-22" y1="-12" x2="-12" y2="-22" strokeWidth={sw + 0.6} />
+          <line x1="12" y1="-22" x2="22" y2="-12" strokeWidth={sw + 0.6} />
+          {/* pommels */}
+          <circle cx="-21" cy="-21" r="2" fill={stroke} />
+          <circle cx="21" cy="-21" r="2" fill={stroke} />
+        </g>
+      );
+    case 4: // Handmaid — folded fan
+      return (
+        <g
+          fill="none"
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin={cap}
+          strokeLinecap={cap}
+        >
+          <path d="M 0 18 L -22 -8 A 22 22 0 0 1 22 -8 Z" />
+          <line x1="0" y1="18" x2="-16" y2="-2" />
+          <line x1="0" y1="18" x2="-8" y2="-8" />
+          <line x1="0" y1="18" x2="0" y2="-12" />
+          <line x1="0" y1="18" x2="8" y2="-8" />
+          <line x1="0" y1="18" x2="16" y2="-2" />
+          <circle cx="0" cy="18" r="1.6" fill={stroke} />
+        </g>
+      );
+    case 5: // Prince — small coronet
+      return (
+        <g
+          fill="none"
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin={cap}
+          strokeLinecap={cap}
+        >
+          <path d="M -18 8 L -14 -10 L -6 0 L 0 -14 L 6 0 L 14 -10 L 18 8 Z" />
+          <line x1="-18" y1="11" x2="18" y2="11" strokeWidth={sw + 0.4} />
+          <circle cx="-14" cy="-12" r="1.6" fill={stroke} />
+          <circle cx="0" cy="-16" r="1.8" fill={stroke} />
+          <circle cx="14" cy="-12" r="1.6" fill={stroke} />
+        </g>
+      );
+    case 6: // King — large crown with cross
+      return (
+        <g
+          fill="none"
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin={cap}
+          strokeLinecap={cap}
+        >
+          <path d="M -20 12 L -16 -10 L -8 -2 L 0 -14 L 8 -2 L 16 -10 L 20 12 Z" />
+          <line x1="-20" y1="15" x2="20" y2="15" strokeWidth={sw + 0.6} />
+          {/* gemstones */}
+          <circle cx="0" cy="-14" r="2" fill={stroke} />
+          <circle cx="-16" cy="-10" r="1.6" fill={stroke} />
+          <circle cx="16" cy="-10" r="1.6" fill={stroke} />
+          {/* cross above */}
+          <line x1="0" y1="-22" x2="0" y2="-16" strokeWidth={sw + 0.4} />
+          <line x1="-3" y1="-19" x2="3" y2="-19" strokeWidth={sw + 0.4} />
+        </g>
+      );
+    case 7: // Countess — laurel wreath
+      return (
+        <g
+          fill="none"
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin={cap}
+          strokeLinecap={cap}
+        >
+          <path d="M -20 6 C -22 -8, -14 -20, 0 -22 C 14 -20, 22 -8, 20 6" />
+          {/* leaves left */}
+          <path d="M -18 -4 q -4 -2 -6 0 q 2 4 6 4" />
+          <path d="M -16 -10 q -4 -2 -6 0 q 2 4 6 4" />
+          <path d="M -10 -16 q -4 -1 -6 1 q 2 4 6 4" />
+          {/* leaves right */}
+          <path d="M 18 -4 q 4 -2 6 0 q -2 4 -6 4" />
+          <path d="M 16 -10 q 4 -2 6 0 q -2 4 -6 4" />
+          <path d="M 10 -16 q 4 -1 6 1 q -2 4 -6 4" />
+          {/* tie */}
+          <path d="M -4 8 L 0 12 L 4 8" />
+        </g>
+      );
+    case 8: // Princess — heart-rose
+      return (
+        <g stroke={stroke} strokeWidth={sw} strokeLinejoin={cap}>
+          {/* heart base */}
+          <path
+            fill="currentColor"
+            opacity="0.18"
+            d="M 0 22 C -8 16, -22 6, -22 -6 C -22 -14, -14 -20, -8 -20 C -3 -20, 0 -16, 0 -12 C 0 -16, 3 -20, 8 -20 C 14 -20, 22 -14, 22 -6 C 22 6, 8 16, 0 22 Z"
+          />
+          <path
+            fill="none"
+            d="M 0 22 C -8 16, -22 6, -22 -6 C -22 -14, -14 -20, -8 -20 C -3 -20, 0 -16, 0 -12 C 0 -16, 3 -20, 8 -20 C 14 -20, 22 -14, 22 -6 C 22 6, 8 16, 0 22 Z"
+          />
+          {/* rose center */}
+          <circle cx="0" cy="-2" r="6" fill="none" />
+          <path d="M -3 -2 q 3 -4 6 0 q -3 4 -6 0 Z" fill={stroke} />
+          <path d="M -1.5 -3.5 q 1.5 -2 3 0" fill="none" />
+        </g>
+      );
+  }
 }
 
 // ------------------------- Board -------------------------
@@ -409,13 +596,15 @@ function OpponentsRow({
               }}
             >
               {pv.hand && pv.hand.length > 0 ? (
-                <CardFace rank={pv.hand[0]!} size="sm" dim={pv.eliminated} />
+                <CardFace rank={pv.hand[0]!} size="md" dim={pv.eliminated} />
               ) : pv.handCount > 0 ? (
-                <CardBack size="sm" />
+                <CardBack size="md" />
               ) : (
                 <div
-                  className="w-14 h-20 rounded-xl flex items-center justify-center text-xs uppercase tracking-[0.18em] text-base-content/45 font-semibold"
+                  className="rounded-md flex items-center justify-center text-xs uppercase tracking-[0.18em] text-base-content/45 font-semibold"
                   style={{
+                    width: 60,
+                    height: 86,
                     border:
                       "1.5px dashed color-mix(in oklch, var(--color-base-content) 22%, transparent)",
                   }}
@@ -524,20 +713,14 @@ function YourHand({
             (!mustPlayCountess || r === 7);
           const isPending = pending?.cardIndex === cardIndex;
           return (
-            <button
-              type="button"
+            <CardFace
               key={i}
-              disabled={!canPlay}
-              onClick={() => onPlay(cardIndex)}
-              className={[
-                "transition-transform rounded-xl",
-                canPlay ? "hover:-translate-y-1 cursor-pointer" : "",
-                isPending ? "ring-2 ring-primary -translate-y-1" : "",
-                !canPlay && !isPending ? "opacity-60" : "",
-              ].join(" ")}
-            >
-              <CardFace rank={r} size="lg" />
-            </button>
+              rank={r}
+              size="xl"
+              selected={isPending}
+              dim={!canPlay && !isPending}
+              onClick={canPlay ? () => onPlay(cardIndex) : undefined}
+            />
           );
         })}
       </div>

@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import type { BoardProps, ClientGameModule, SummaryProps } from "@bgo/sdk-client";
+import {
+  Card as CardShell,
+  PlayingCard as PlayingCardFace,
+  type Rank as DeckRank,
+  type Suit as DeckSuit,
+  type BoardProps,
+  type ClientGameModule,
+  type SummaryProps,
+} from "@bgo/sdk-client";
 import type { PlayerId } from "@bgo/sdk";
 import {
   HEARTS_TYPE,
@@ -9,18 +17,12 @@ import {
   isHeart,
   isQueenOfSpades,
   isTwoOfClubs,
-  suitSymbol,
   type Card,
   type HeartsMove,
   type HeartsView,
-  type Suit,
 } from "./shared";
 
 const PASS_COUNT = 3;
-
-function isRedSuit(s: Suit): boolean {
-  return s === "H" || s === "D";
-}
 
 function HeartsBoard({
   view,
@@ -327,33 +329,18 @@ function OpponentCard({
           {isOver && ` · ${score} pts`}
         </div>
       </div>
-      <div className="relative h-10" style={{ width: 14 + visible * 6 }}>
+      <div className="relative h-12" style={{ width: 32 + visible * 8 }}>
         {Array.from({ length: visible }).map((_, i) => (
-          <FaceDownCard
+          <div
             key={i}
-            style={{ left: i * 6, top: 0, position: "absolute" }}
-          />
+            className="absolute top-0"
+            style={{ left: i * 8 }}
+          >
+            <CardShell size="xs" faceDown ariaLabel="face-down card" />
+          </div>
         ))}
       </div>
     </div>
-  );
-}
-
-function FaceDownCard({ style }: { style?: React.CSSProperties }) {
-  return (
-    <div
-      style={{
-        width: 22,
-        height: 32,
-        borderRadius: 4,
-        background:
-          "linear-gradient(135deg, color-mix(in oklch, var(--color-primary) 80%, black) 0%, var(--color-primary) 100%)",
-        border: "1px solid color-mix(in oklch, var(--color-primary-content) 35%, transparent)",
-        boxShadow:
-          "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -1px 0 oklch(0% 0 0 / 0.2)",
-        ...style,
-      }}
-    />
   );
 }
 
@@ -410,84 +397,46 @@ function MaybeCard({ card }: { card: Card | null }) {
     return (
       <div
         style={{
-          width: 38,
-          height: 54,
+          width: 44,
+          height: 64,
           borderRadius: 5,
-          border: "1px dashed color-mix(in oklch, var(--color-base-content) 22%, transparent)",
+          border:
+            "1px dashed color-mix(in oklch, var(--color-base-content) 22%, transparent)",
           opacity: 0.35,
         }}
       />
     );
   }
-  return <PlayingCard card={card} />;
+  return <HandCard card={card} size="sm" />;
 }
 
-function PlayingCard({
+function HandCard({
   card,
+  size = "md",
   selected,
   disabled,
   onClick,
 }: {
   card: Card;
+  size?: "xs" | "sm" | "md" | "lg";
   selected?: boolean;
   disabled?: boolean;
   onClick?: () => void;
 }) {
-  const red = isRedSuit(card.suit);
-  const interactive = !!onClick && !disabled;
   return (
-    <button
-      type="button"
-      disabled={!interactive}
+    <CardShell
+      size={size}
+      selected={selected}
+      disabled={disabled}
       onClick={onClick}
-      aria-label={cardLabel(card)}
-      className={[
-        "relative inline-flex flex-col items-center justify-between",
-        "rounded-md bg-base-100",
-        interactive ? "cursor-pointer hover:-translate-y-1 transition-transform" : "cursor-default",
-        selected ? "ring-2" : "",
-      ].join(" ")}
-      style={{
-        width: 40,
-        height: 58,
-        padding: "4px 2px",
-        color: red ? "var(--color-error)" : "var(--color-base-content)",
-        borderTop: "1px solid color-mix(in oklch, var(--color-base-content) 15%, transparent)",
-        borderLeft: "1px solid color-mix(in oklch, var(--color-base-content) 12%, transparent)",
-        borderRight: "1px solid color-mix(in oklch, var(--color-base-content) 22%, transparent)",
-        borderBottom: "1px solid color-mix(in oklch, var(--color-base-content) 28%, transparent)",
-        boxShadow: selected
-          ? "0 0 0 2px var(--color-primary), 0 8px 20px color-mix(in oklch, var(--color-primary) 20%, transparent)"
-          : "0 1px 2px oklch(0% 0 0 / 0.12)",
-        opacity: disabled && !selected ? 0.45 : 1,
-        transform: selected ? "translateY(-6px)" : undefined,
-      }}
+      ariaLabel={cardLabel(card)}
     >
-      <span
-        className="text-xs font-bold leading-none self-start ml-0.5"
-        style={{ letterSpacing: "-0.03em" }}
-      >
-        {rankText(card.rank)}
-      </span>
-      <span className="text-lg leading-none" aria-hidden>
-        {suitSymbol(card.suit)}
-      </span>
-      <span
-        className="text-xs font-bold leading-none self-end mr-0.5 rotate-180"
-        style={{ letterSpacing: "-0.03em" }}
-      >
-        {rankText(card.rank)}
-      </span>
-    </button>
+      <PlayingCardFace
+        suit={card.suit as DeckSuit}
+        rank={card.rank as DeckRank}
+      />
+    </CardShell>
   );
-}
-
-function rankText(rank: number): string {
-  if (rank <= 10) return String(rank);
-  if (rank === 11) return "J";
-  if (rank === 12) return "Q";
-  if (rank === 13) return "K";
-  return "A";
 }
 
 function SelfPanel({
@@ -542,9 +491,10 @@ function SelfPanel({
               ? () => onPlay(card)
               : undefined;
           return (
-            <PlayingCard
+            <HandCard
               key={cardKey(card)}
               card={card}
+              size="md"
               selected={isSel}
               disabled={disabled || submitting}
               onClick={handler}

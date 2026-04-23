@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import type {
-  BoardProps,
-  ClientGameModule,
-  SummaryProps,
+import {
+  Card as CardShell,
+  type BoardProps,
+  type ClientGameModule,
+  type SummaryProps,
 } from "@bgo/sdk-client";
 import {
   FASCIST_TRACK_WIN,
@@ -644,6 +645,115 @@ function VotePanel({
   );
 }
 
+/** SVG art for one policy card. Liberal = dove; Fascist = eagle silhouette. */
+function PolicyFace({ policy }: { policy: SHPolicy }) {
+  const isLiberal = policy === "liberal";
+  const bg = isLiberal ? "var(--color-info)" : "var(--color-error)";
+  const fg = isLiberal
+    ? "var(--color-info-content)"
+    : "var(--color-error-content)";
+  const ink = `color-mix(in oklch, ${fg} 85%, transparent)`;
+  const accent = `color-mix(in oklch, ${fg} 25%, transparent)`;
+  const id = `policy-grad-${policy}`;
+  return (
+    <svg
+      viewBox="0 0 100 140"
+      preserveAspectRatio="none"
+      width="100%"
+      height="100%"
+      style={{ display: "block" }}
+    >
+      <defs>
+        <linearGradient id={id} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={`color-mix(in oklch, ${bg} 80%, white)`} />
+          <stop offset="100%" stopColor={`color-mix(in oklch, ${bg} 100%, black)`} />
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="100" height="140" fill={`url(#${id})`} />
+      {/* Inner deco frame */}
+      <rect
+        x="6"
+        y="6"
+        width="88"
+        height="128"
+        rx="4"
+        fill="none"
+        stroke={accent}
+        strokeWidth="1"
+      />
+      {/* Header strip */}
+      <text
+        x="50"
+        y="22"
+        fill={ink}
+        fontFamily="var(--font-display, serif)"
+        fontWeight="700"
+        fontSize="8"
+        letterSpacing="2"
+        textAnchor="middle"
+      >
+        POLICY
+      </text>
+      <line x1="20" y1="26" x2="80" y2="26" stroke={accent} strokeWidth="0.8" />
+
+      {/* Symbol */}
+      {isLiberal ? (
+        <g transform="translate(50 70)">
+          {/* Dove silhouette */}
+          <path
+            d="M -22 6 Q -18 -2 -8 -6 Q -2 -10 6 -10 Q 14 -10 18 -4 L 22 -8 L 18 0 L 24 4 L 16 6 Q 12 14 0 14 Q -12 14 -22 6 Z"
+            fill={fg}
+            stroke={accent}
+            strokeWidth="0.6"
+          />
+          {/* Eye */}
+          <circle cx="14" cy="-4" r="1.2" fill={bg} />
+          {/* Wing detail */}
+          <path d="M -10 4 Q -2 -2 8 0" stroke={accent} strokeWidth="0.8" fill="none" />
+          {/* Olive branch */}
+          <path d="M -22 8 Q -28 12 -32 18" stroke={fg} strokeWidth="1.2" fill="none" />
+          <ellipse cx="-28" cy="14" rx="2.5" ry="1" fill={fg} transform="rotate(40 -28 14)" />
+          <ellipse cx="-31" cy="17" rx="2" ry="0.9" fill={fg} transform="rotate(40 -31 17)" />
+        </g>
+      ) : (
+        <g transform="translate(50 70)">
+          {/* Eagle silhouette - aggressive spread wings */}
+          <path
+            d="M 0 -14 Q -4 -8 -10 -10 L -28 -4 L -22 0 L -28 4 L -10 4 Q -6 8 -6 14 L 6 14 Q 6 8 10 4 L 28 4 L 22 0 L 28 -4 L 10 -10 Q 4 -8 0 -14 Z"
+            fill={fg}
+            stroke={accent}
+            strokeWidth="0.6"
+          />
+          {/* Head */}
+          <circle cx="0" cy="-14" r="3" fill={fg} />
+          {/* Beak */}
+          <path d="M 0 -11 L -2 -8 L 2 -8 Z" fill={bg} />
+          {/* Wing feather lines */}
+          <line x1="-22" y1="-2" x2="-12" y2="0" stroke={accent} strokeWidth="0.8" />
+          <line x1="-20" y1="2" x2="-10" y2="2" stroke={accent} strokeWidth="0.8" />
+          <line x1="22" y1="-2" x2="12" y2="0" stroke={accent} strokeWidth="0.8" />
+          <line x1="20" y1="2" x2="10" y2="2" stroke={accent} strokeWidth="0.8" />
+        </g>
+      )}
+
+      {/* Footer label */}
+      <line x1="20" y1="112" x2="80" y2="112" stroke={accent} strokeWidth="0.8" />
+      <text
+        x="50"
+        y="126"
+        fill={ink}
+        fontFamily="var(--font-display, serif)"
+        fontWeight="800"
+        fontSize="13"
+        letterSpacing="1"
+        textAnchor="middle"
+      >
+        {isLiberal ? "LIBERAL" : "FASCIST"}
+      </text>
+    </svg>
+  );
+}
+
 function PolicyCard({
   policy,
   onClick,
@@ -656,43 +766,28 @@ function PolicyCard({
   action: "discard" | "enact";
 }) {
   const isLiberal = policy === "liberal";
-  const bg = isLiberal ? "var(--color-info)" : "var(--color-error)";
-  const fg = isLiberal
-    ? "var(--color-info-content)"
-    : "var(--color-error-content)";
-  const label = isLiberal ? "Liberal" : "Fascist";
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={[
-        "rounded-xl px-3 py-5 min-w-[110px] flex flex-col items-center gap-2",
-        "transition-transform hover:scale-[1.03] disabled:cursor-default disabled:hover:scale-100",
-      ].join(" ")}
-      style={{
-        background: bg,
-        color: fg,
-        boxShadow:
-          "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -3px 0 oklch(0% 0 0 / 0.22), 0 6px 14px oklch(0% 0 0 / 0.2)",
-        opacity: disabled ? 0.7 : 1,
-      }}
-    >
-      <div className="text-[10px] uppercase tracking-[0.22em] opacity-80 font-semibold">
-        Policy
-      </div>
-      <div
-        className="font-display tracking-tight"
-        style={{ fontSize: "var(--text-display-xs)" }}
+    <div className="flex flex-col items-center gap-1">
+      <CardShell
+        size="lg"
+        onClick={disabled ? undefined : onClick}
+        disabled={disabled}
+        highlight={isLiberal ? "info" : "error"}
+        ariaLabel={`${isLiberal ? "Liberal" : "Fascist"} policy${onClick && !disabled ? ` — tap to ${action}` : ""}`}
       >
-        {label}
-      </div>
+        <PolicyFace policy={policy} />
+      </CardShell>
       {onClick && !disabled && (
-        <div className="text-[10px] uppercase tracking-[0.22em] font-semibold mt-1">
+        <div
+          className="text-[10px] uppercase tracking-[0.22em] font-semibold"
+          style={{
+            color: isLiberal ? "var(--color-info)" : "var(--color-error)",
+          }}
+        >
           {action === "discard" ? "Tap to discard" : "Tap to enact"}
         </div>
       )}
-    </button>
+    </div>
   );
 }
 

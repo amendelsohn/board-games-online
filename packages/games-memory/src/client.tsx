@@ -1,10 +1,62 @@
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  Card as CardShell,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   GRID_COLS,
   MEMORY_TYPE,
   type MemoryMove,
   type MemoryView,
 } from "./shared";
+
+/**
+ * Face-up content for a memory cell. The big symbol sits centered on a tinted
+ * background; when claimed by a player the background gets that player's color
+ * wash + a faint owner badge in the corner.
+ */
+function MemoryFace({
+  symbol,
+  ownerColor,
+  ownerInitial,
+}: {
+  symbol: string | null;
+  ownerColor: string | null;
+  ownerInitial: string | null;
+}) {
+  return (
+    <div
+      className="absolute inset-0 flex items-center justify-center parlor-fade"
+      style={{
+        background: ownerColor
+          ? `color-mix(in oklch, ${ownerColor} 18%, var(--color-base-100))`
+          : "var(--color-base-100)",
+      }}
+    >
+      <span
+        className="font-display leading-none text-3xl md:text-4xl"
+        style={{
+          color: ownerColor ?? "var(--color-base-content)",
+          fontVariationSettings: "'wght' 700",
+          textShadow: ownerColor
+            ? `0 1px 0 color-mix(in oklch, ${ownerColor} 30%, transparent)`
+            : undefined,
+        }}
+      >
+        {symbol}
+      </span>
+      {ownerColor && ownerInitial && (
+        <span
+          aria-hidden
+          className="absolute top-1 right-1.5 text-[8px] font-bold uppercase tracking-wider"
+          style={{ color: ownerColor, opacity: 0.7 }}
+        >
+          {ownerInitial}
+        </span>
+      )}
+    </div>
+  );
+}
 
 /**
  * Four player slots → four distinct theme colors. Assigned in join order
@@ -136,6 +188,7 @@ function MemoryBoard({
             "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
           boxShadow:
             "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
+          width: "min(92vw, 540px)",
         }}
       >
         <div
@@ -151,6 +204,9 @@ function MemoryBoard({
             const ownerColor = claimed
               ? colorForPlayer(view.players, card.owner)
               : null;
+            const ownerInitial = claimed
+              ? (nameOf(card.owner!).slice(0, 1).toUpperCase() || null)
+              : null;
 
             const disabled =
               isOver ||
@@ -161,78 +217,33 @@ function MemoryBoard({
               view.revealed.length >= 2;
 
             return (
-              <button
+              <CardShell
                 key={i}
-                type="button"
+                size="md"
+                faceDown={!faceUp}
                 disabled={disabled}
-                onClick={() => handleFlip(i)}
-                className={[
-                  "relative aspect-square rounded-xl",
-                  "transition-all duration-200",
-                  !disabled
-                    ? "hover:scale-[1.04] cursor-pointer"
-                    : "cursor-default",
-                  "parlor-rise",
-                ].join(" ")}
-                style={{
-                  background: claimed
-                    ? `color-mix(in oklch, ${ownerColor} 22%, var(--color-base-100))`
-                    : faceUp
-                      ? "var(--color-base-100)"
-                      : "color-mix(in oklch, var(--color-neutral) 55%, var(--color-base-300))",
-                  boxShadow: claimed
-                    ? `inset 0 0 0 2px ${ownerColor}, inset 0 1px 0 oklch(100% 0 0 / 0.12)`
-                    : faceUp
-                      ? "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.08)"
-                      : "inset 0 1px 0 oklch(100% 0 0 / 0.08), inset 0 -1px 0 oklch(0% 0 0 / 0.25)",
-                }}
-                aria-label={
+                onClick={disabled ? undefined : () => handleFlip(i)}
+                ariaLabel={
                   faceUp
                     ? `card ${i} showing ${card.symbol}${claimed ? ` owned by ${nameOf(card.owner!)}` : ""}`
                     : `face-down card ${i}`
                 }
+                className="parlor-rise"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  aspectRatio: "1 / 1",
+                  borderRadius: 12,
+                }}
               >
-                {faceUp ? (
-                  <span
-                    className={[
-                      "absolute inset-0 flex items-center justify-center",
-                      "font-display leading-none parlor-fade",
-                      "text-3xl md:text-4xl",
-                    ].join(" ")}
-                    style={{
-                      color: claimed
-                        ? ownerColor!
-                        : "var(--color-base-content)",
-                      fontVariationSettings: "'wght' 700",
-                    }}
-                  >
-                    {card.symbol}
-                  </span>
-                ) : (
-                  // Tactile patterned back — diagonal weave with a centered dot.
-                  <span
-                    aria-hidden
-                    className="absolute inset-1 rounded-lg overflow-hidden"
-                    style={{
-                      background:
-                        "repeating-linear-gradient(45deg, color-mix(in oklch, var(--color-primary) 28%, transparent) 0 4px, color-mix(in oklch, var(--color-secondary) 20%, transparent) 4px 8px)",
-                      boxShadow:
-                        "inset 0 0 0 1px color-mix(in oklch, oklch(0% 0 0) 30%, transparent)",
-                    }}
-                  >
-                    <span
-                      className="absolute inset-0 flex items-center justify-center"
-                      style={{
-                        color: "color-mix(in oklch, oklch(100% 0 0) 55%, transparent)",
-                        fontSize: "1.3rem",
-                        textShadow: "0 1px 2px oklch(0% 0 0 / 0.35)",
-                      }}
-                    >
-                      ◆
-                    </span>
-                  </span>
+                {faceUp && (
+                  <MemoryFace
+                    symbol={card.symbol}
+                    ownerColor={ownerColor}
+                    ownerInitial={ownerInitial}
+                  />
                 )}
-              </button>
+              </CardShell>
             );
           })}
         </div>

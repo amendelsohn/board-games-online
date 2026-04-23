@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import type {
-  BoardProps,
-  ClientGameModule,
-  SummaryProps,
+import {
+  Card as CardShell,
+  type BoardProps,
+  type ClientGameModule,
+  type SummaryProps,
 } from "@bgo/sdk-client";
 import {
   COUP_TYPE,
@@ -322,36 +323,224 @@ function CardBadge({
 }) {
   if (faceDown) {
     return (
-      <span
-        className="rounded-md w-8 h-11 inline-flex items-center justify-center"
-        style={{
-          background:
-            "repeating-linear-gradient(45deg, color-mix(in oklch, var(--color-primary) 40%, transparent) 0 3px, color-mix(in oklch, var(--color-secondary) 30%, transparent) 3px 6px)",
-          boxShadow: "inset 0 0 0 1px color-mix(in oklch, oklch(0% 0 0) 25%, transparent)",
-        }}
-        title="Face-down card"
-      />
+      <CardShell size="xs" faceDown ariaLabel="hidden influence" />
     );
   }
   if (!card) return null;
+  return (
+    <CardShell
+      size="xs"
+      ghost={revealed}
+      ariaLabel={`${CARD_LABEL[card]}${revealed ? " (revealed)" : ""}`}
+    >
+      <CoupFace card={card} revealed={revealed} />
+    </CardShell>
+  );
+}
+
+/**
+ * Coup role face — one bespoke pictogram per role, drawn in the role's color.
+ * - Duke: stack of three coins
+ * - Assassin: hooded figure with dagger
+ * - Captain: anchor
+ * - Ambassador: scroll
+ * - Contessa: rose with stem
+ */
+function CoupFace({ card, revealed }: { card: Card; revealed: boolean }) {
   const color = CARD_COLOR[card];
   return (
-    <span
-      className="rounded-md w-8 h-11 inline-flex items-center justify-center text-[9px] font-semibold uppercase tracking-[0.08em] text-center leading-tight px-0.5"
+    <svg
+      viewBox="0 0 100 140"
+      preserveAspectRatio="xMidYMid meet"
+      width="100%"
+      height="100%"
       style={{
-        background: revealed
-          ? "color-mix(in oklch, var(--color-base-300) 85%, transparent)"
-          : `color-mix(in oklch, ${color} 22%, var(--color-base-100))`,
-        color: revealed ? "var(--color-base-content)" : color,
-        boxShadow: `inset 0 0 0 1px ${color}`,
-        opacity: revealed ? 0.6 : 1,
+        display: "block",
+        color,
         textDecoration: revealed ? "line-through" : "none",
       }}
-      title={CARD_LABEL[card]}
     >
-      {CARD_LABEL[card].slice(0, 4)}
-    </span>
+      <rect
+        x="0"
+        y="0"
+        width="100"
+        height="140"
+        fill="currentColor"
+        opacity={revealed ? 0.05 : 0.1}
+      />
+      <rect
+        x="6"
+        y="6"
+        width="88"
+        height="128"
+        rx="6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        opacity="0.4"
+      />
+      <g transform="translate(50, 60)">
+        <CoupGlyph card={card} />
+      </g>
+      <text
+        x="50"
+        y="118"
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight={700}
+        fontFamily="var(--font-display, serif)"
+        fill="currentColor"
+        letterSpacing="0.04em"
+      >
+        {CARD_LABEL[card]}
+      </text>
+      {revealed && (
+        <line
+          x1="14"
+          y1="70"
+          x2="86"
+          y2="70"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          opacity="0.55"
+        />
+      )}
+    </svg>
   );
+}
+
+function CoupGlyph({ card }: { card: Card }) {
+  const sw = 1.6;
+  switch (card) {
+    case "duke":
+      // Stack of three coins, with edge ticks.
+      return (
+        <g
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={sw}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        >
+          <ellipse cx="0" cy="14" rx="20" ry="5" fill="currentColor" opacity="0.18" />
+          <ellipse cx="0" cy="14" rx="20" ry="5" />
+          <line x1="-20" y1="14" x2="-20" y2="6" />
+          <line x1="20" y1="14" x2="20" y2="6" />
+          <ellipse cx="0" cy="6" rx="20" ry="5" fill="currentColor" opacity="0.18" />
+          <ellipse cx="0" cy="6" rx="20" ry="5" />
+          <line x1="-20" y1="6" x2="-20" y2="-2" />
+          <line x1="20" y1="6" x2="20" y2="-2" />
+          <ellipse cx="0" cy="-2" rx="20" ry="5" fill="currentColor" opacity="0.18" />
+          <ellipse cx="0" cy="-2" rx="20" ry="5" />
+          {/* engraving on top coin */}
+          <text
+            x="0"
+            y="0"
+            textAnchor="middle"
+            fontSize="7"
+            fontWeight={700}
+            fontFamily="var(--font-display, serif)"
+            fill="currentColor"
+            opacity="0.9"
+          >
+            ◎
+          </text>
+        </g>
+      );
+    case "assassin":
+      // Hooded silhouette with a dagger.
+      return (
+        <g
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={sw}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        >
+          {/* hood + face */}
+          <path
+            fill="currentColor"
+            opacity="0.18"
+            d="M -14 -16 C -14 -22, 14 -22, 14 -16 L 16 6 C 16 14, -16 14, -16 6 Z"
+          />
+          <path d="M -14 -16 C -14 -22, 14 -22, 14 -16 L 16 6 C 16 14, -16 14, -16 6 Z" />
+          <path d="M -10 -2 L -4 -2 M 4 -2 L 10 -2" />
+          {/* dagger crossing the body */}
+          <line x1="6" y1="20" x2="20" y2="6" strokeWidth={sw + 0.4} />
+          <line x1="2" y1="22" x2="6" y2="20" />
+          <line x1="20" y1="6" x2="22" y2="2" />
+          <line x1="16" y1="2" x2="20" y2="6" />
+          <line x1="20" y1="6" x2="24" y2="10" />
+        </g>
+      );
+    case "captain":
+      // Anchor.
+      return (
+        <g
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={sw}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        >
+          <circle cx="0" cy="-16" r="4" />
+          <line x1="0" y1="-12" x2="0" y2="16" strokeWidth={sw + 0.4} />
+          <line x1="-8" y1="-6" x2="8" y2="-6" />
+          <path d="M -16 8 C -16 18, 16 18, 16 8" />
+          <line x1="-16" y1="8" x2="-20" y2="4" />
+          <line x1="16" y1="8" x2="20" y2="4" />
+          <line x1="0" y1="16" x2="-4" y2="12" />
+          <line x1="0" y1="16" x2="4" y2="12" />
+        </g>
+      );
+    case "ambassador":
+      // Scroll with seal.
+      return (
+        <g
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={sw}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        >
+          <rect
+            x="-18"
+            y="-14"
+            width="36"
+            height="22"
+            rx="4"
+            fill="currentColor"
+            opacity="0.16"
+          />
+          <rect x="-18" y="-14" width="36" height="22" rx="4" />
+          <line x1="-12" y1="-6" x2="12" y2="-6" />
+          <line x1="-12" y1="0" x2="6" y2="0" />
+          {/* curl ends */}
+          <ellipse cx="-18" cy="-3" rx="3" ry="11" fill="currentColor" opacity="0.16" />
+          <ellipse cx="-18" cy="-3" rx="3" ry="11" />
+          <ellipse cx="18" cy="-3" rx="3" ry="11" fill="currentColor" opacity="0.16" />
+          <ellipse cx="18" cy="-3" rx="3" ry="11" />
+          {/* wax seal */}
+          <circle cx="0" cy="14" r="5" fill="currentColor" opacity="0.4" />
+          <circle cx="0" cy="14" r="5" />
+        </g>
+      );
+    case "contessa":
+      // Rose with stem and leaf.
+      return (
+        <g stroke="currentColor" strokeWidth={sw} strokeLinejoin="round">
+          <circle cx="0" cy="-8" r="10" fill="currentColor" opacity="0.18" />
+          <circle cx="0" cy="-8" r="10" fill="none" />
+          <path d="M -5 -8 C -2 -12, 2 -12, 5 -8 C 2 -4, -2 -4, -5 -8 Z" fill="currentColor" />
+          <path d="M -3 -8 C -1 -10, 1 -10, 3 -8" fill="none" stroke="white" strokeOpacity="0.4" />
+          {/* stem */}
+          <line x1="0" y1="2" x2="0" y2="20" strokeWidth={sw + 0.4} />
+          {/* leaf */}
+          <path d="M 0 12 Q 12 8, 14 18 Q 4 18, 0 14" fill="currentColor" opacity="0.4" />
+        </g>
+      );
+  }
 }
 
 // ------------------------- Action panel -------------------------
