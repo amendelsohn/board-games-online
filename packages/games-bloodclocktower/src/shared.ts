@@ -297,6 +297,14 @@ const stMoveSchema = z.discriminatedUnion("kind", [
     winner: z.enum(["good", "evil"]),
     reason: z.string().min(1).max(120),
   }),
+  z.object({
+    kind: z.literal("st.addFabled"),
+    fabledId: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal("st.removeFabled"),
+    fabledId: z.string().min(1),
+  }),
 ]);
 
 const playerMoveSchema = z.discriminatedUnion("kind", [
@@ -410,6 +418,12 @@ export {
   SECTS_AND_VIOLETS_BY_ID,
   SECTS_AND_VIOLETS_IDS,
 } from "./characters/sects-and-violets";
+
+export {
+  FABLED_CHARACTERS,
+  FABLED_BY_ID,
+  FABLED_IDS,
+} from "./characters/fabled";
 
 export {
   ALL_CHARACTERS_BY_ID,

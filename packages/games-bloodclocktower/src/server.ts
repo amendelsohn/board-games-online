@@ -813,6 +813,33 @@ function handleExecuteNominee(
  * are not auto-detected — too many TB exceptions (Saint, Mayor,
  * Recluse) for an engine to be safer than the ST's call.
  */
+function handleAddFabled(
+  state: BotCState,
+  fabledId: string,
+): MoveResult<BotCState> {
+  if (state.phase === "finished") {
+    return { ok: false, reason: "Match has already finished" };
+  }
+  if (state.fabled.includes(fabledId)) {
+    return { ok: true, state }; // idempotent
+  }
+  return { ok: true, state: { ...state, fabled: [...state.fabled, fabledId] } };
+}
+
+function handleRemoveFabled(
+  state: BotCState,
+  fabledId: string,
+): MoveResult<BotCState> {
+  if (state.phase === "finished") {
+    return { ok: false, reason: "Match has already finished" };
+  }
+  const next = state.fabled.filter((id) => id !== fabledId);
+  if (next.length === state.fabled.length) {
+    return { ok: false, reason: `Fabled ${fabledId} is not active` };
+  }
+  return { ok: true, state: { ...state, fabled: next } };
+}
+
 function handleEndMatch(
   state: BotCState,
   winner: "good" | "evil",
@@ -956,6 +983,10 @@ export const bloodClocktowerServerModule: GameModule<
         return handleSkipExecution(state);
       case "st.endMatch":
         return handleEndMatch(state, m.winner, m.reason);
+      case "st.addFabled":
+        return handleAddFabled(state, m.fabledId);
+      case "st.removeFabled":
+        return handleRemoveFabled(state, m.fabledId);
       case "p.nominate":
         return openNomination(state, actor, m.nominee, false);
       case "p.castVote":

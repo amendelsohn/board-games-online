@@ -2,10 +2,11 @@ import type { Character } from "../shared";
 import { TROUBLE_BREWING_BY_ID } from "./trouble-brewing";
 import { BAD_MOON_RISING_BY_ID } from "./bad-moon-rising";
 import { SECTS_AND_VIOLETS_BY_ID } from "./sects-and-violets";
+import { FABLED_BY_ID } from "./fabled";
 
 /**
  * Unified id → character lookup spanning Trouble Brewing, Bad Moon
- * Rising, and Sects & Violets. Used by helpers (night order,
+ * Rising, Sects & Violets, and Fabled. Used by helpers (night order,
  * client UI) that need to resolve any character regardless of which
  * edition the active script came from.
  *
@@ -17,6 +18,7 @@ export const ALL_CHARACTERS_BY_ID: Readonly<Record<string, Character>> = {
   ...TROUBLE_BREWING_BY_ID,
   ...BAD_MOON_RISING_BY_ID,
   ...SECTS_AND_VIOLETS_BY_ID,
+  ...FABLED_BY_ID,
 };
 
 export function lookupCharacter(id: string): Character | undefined {

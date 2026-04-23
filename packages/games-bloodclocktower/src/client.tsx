@@ -16,6 +16,7 @@ import type {
 import {
   BOTC_TYPE,
   BUILT_IN_SCRIPT_IDS,
+  FABLED_IDS,
   SCRIPT_LABELS,
   TB_DISTRIBUTION,
   ALL_CHARACTERS_BY_ID,
@@ -397,6 +398,9 @@ function StorytellerGrimoire({
           sendMove={sendMove}
         />
       )}
+
+      <FabledPanel fabled={state.fabled} sendMove={sendMove} />
+
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {state.seatOrder.map((seatId) => {
@@ -978,6 +982,87 @@ function EndMatchModal({
         </div>
       </form>
     </div>
+  );
+}
+
+function FabledPanel({
+  fabled,
+  sendMove,
+}: {
+  fabled: readonly string[];
+  sendMove: Send;
+}) {
+  const [open, setOpen] = useState(false);
+  const active = fabled
+    .map((id) => ALL_CHARACTERS_BY_ID[id])
+    .filter((c): c is Character => Boolean(c));
+  const available = FABLED_IDS.filter((id) => !fabled.includes(id));
+
+  return (
+    <section className="surface-ivory p-3 flex flex-col gap-2">
+      <header className="flex items-baseline justify-between gap-2 flex-wrap">
+        <h3 className="font-display text-sm">Fabled</h3>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="text-[11px] text-base-content/55 hover:text-base-content/85"
+        >
+          {open ? "close" : "+ add"}
+        </button>
+      </header>
+      {active.length === 0 && !open && (
+        <p className="text-[11px] text-base-content/45 italic">
+          No Fabled active.
+        </p>
+      )}
+      {active.length > 0 && (
+        <ul className="flex flex-col gap-1.5">
+          {active.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-baseline gap-2 px-2 py-1 rounded text-xs bg-secondary/8"
+            >
+              <span className="font-display text-secondary">{c.name}</span>
+              <span className="flex-1 text-base-content/70 leading-snug">
+                {c.ability}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  void sendMove({ kind: "st.removeFabled", fabledId: c.id })
+                }
+                className="text-base-content/45 hover:text-base-content/80"
+                aria-label={`Remove ${c.name}`}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && available.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-1 border-t border-base-content/10 text-[11px]">
+          {available.map((id) => {
+            const c = ALL_CHARACTERS_BY_ID[id];
+            if (!c) return null;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  void sendMove({ kind: "st.addFabled", fabledId: id });
+                  setOpen(false);
+                }}
+                className="px-1.5 py-0.5 rounded-full border border-base-content/15 text-base-content/65 hover:bg-base-content/5"
+                title={c.ability}
+              >
+                + {c.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
