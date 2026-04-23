@@ -131,13 +131,16 @@
 @theme {
   --font-sans:
     var(--font-hanken), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", sans-serif;
+    "Helvetica Neue", "Apple Color Emoji", "Segoe UI Emoji",
+    "Noto Color Emoji", var(--font-emoji), sans-serif;
   --font-display:
     var(--font-young-serif), "Iowan Old Style", "Palatino Linotype", Georgia,
-    serif;
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+    var(--font-emoji), serif;
   --font-mono:
     var(--font-jetbrains-mono), ui-monospace, "SF Mono", "Cascadia Mono",
-    "Roboto Mono", monospace;
+    "Roboto Mono", "Apple Color Emoji", "Segoe UI Emoji",
+    "Noto Color Emoji", var(--font-emoji), monospace;
 
   /* Editorial display scale, fluid on heroes */
   --text-display-lg: clamp(2.75rem, 6.5vw + 1rem, 5.25rem);
