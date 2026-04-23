@@ -448,6 +448,63 @@ function handleRemoveReminder(
   };
 }
 
+/**
+ * Cursor into tonight's wake-order list. Pure ST scratch state — players
+ * never see it. Allowed during firstNight or night so the ST can scrub
+ * back and forth as they walk the order.
+ */
+function handleSetNightStep(
+  state: BotCState,
+  index: number,
+): MoveResult<BotCState> {
+  if (state.phase !== "firstNight" && state.phase !== "night") {
+    return {
+      ok: false,
+      reason: "Night step is only meaningful during night phase",
+    };
+  }
+  return { ok: true, state: { ...state, nightStep: index } };
+}
+
+/**
+ * Storyteller delivers private information to one player. The info is
+ * not stored in state (the ST is allowed to lie, and the player simply
+ * has to remember what they were told); we just emit a targeted event
+ * the player's client picks up to render a modal.
+ */
+function handleSendInfo(
+  state: BotCState,
+  targetPlayerId: PlayerId,
+  info: Extract<BotCMove, { kind: "st.sendInfo" }>["info"],
+): MoveResult<BotCState> {
+  if (state.phase === "finished") {
+    return { ok: false, reason: "Match has already finished" };
+  }
+  if (!state.grimoire[targetPlayerId]) {
+    return { ok: false, reason: `Unknown target seat: ${targetPlayerId}` };
+  }
+  return {
+    ok: true,
+    state,
+    events: [
+      {
+        kind: "botc.privateInfo",
+        payload: { info, sentAt: Date.now() },
+        to: targetPlayerId,
+      },
+    ],
+  };
+}
+
+/**
+ * Player dismissed the wake modal. No state changes — the ST drives the
+ * night order and doesn't wait on this. We may emit a follow-up "ack"
+ * back to the ST in a later commit so they can see who's caught up.
+ */
+function handleAcknowledgeWake(state: BotCState): MoveResult<BotCState> {
+  return { ok: true, state };
+}
+
 export const bloodClocktowerServerModule: GameModule<
   BotCState,
   BotCMove,
@@ -522,6 +579,12 @@ export const bloodClocktowerServerModule: GameModule<
         return handleAddReminder(state, m.seatId, m.label, m.characterId);
       case "st.removeReminder":
         return handleRemoveReminder(state, m.seatId, m.reminderId);
+      case "st.setNightStep":
+        return handleSetNightStep(state, m.index);
+      case "st.sendInfo":
+        return handleSendInfo(state, m.targetPlayerId, m.info);
+      case "p.acknowledgeWake":
+        return handleAcknowledgeWake(state);
       default:
         return {
           ok: false,

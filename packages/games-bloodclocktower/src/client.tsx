@@ -1,19 +1,31 @@
 "use client";
 
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import type { GameEvent } from "@bgo/sdk";
 import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
 import {
   BOTC_TYPE,
   TB_DISTRIBUTION,
   TROUBLE_BREWING_BY_ID,
+  tonightOrder,
   type BotCMove,
   type BotCPhase,
   type BotCView,
   type Character,
   type CharacterTeam,
+  type NightStep,
   type ReminderToken,
   type SeatGrimoire,
 } from "./shared";
+
+type SendInfoPayload = Extract<BotCMove, { kind: "st.sendInfo" }>["info"];
+type OnEvent = (listener: (e: GameEvent) => void) => () => void;
 
 type Send = (move: BotCMove) => Promise<void>;
 type SeatPlayer = { id: string; name: string };
@@ -36,14 +48,28 @@ const TEAM_TINT: Record<CharacterTeam, string> = {
   fabled: "text-secondary",
 };
 
-function BotCBoard({ view, players, sendMove }: BoardProps<BotCView, BotCMove>) {
+function BotCBoard({
+  view,
+  players,
+  sendMove,
+  onEvent,
+}: BoardProps<BotCView, BotCMove>) {
   if (view.viewer === "storyteller") {
-    return <StorytellerSurface view={view} players={players} sendMove={sendMove} />;
+    return (
+      <StorytellerSurface view={view} players={players} sendMove={sendMove} />
+    );
   }
   if (view.viewer === "spectator") {
     return <SpectatorPlaceholder view={view} />;
   }
-  return <PlayerSurface view={view} />;
+  return (
+    <PlayerSurface
+      view={view}
+      players={players}
+      sendMove={sendMove}
+      onEvent={onEvent}
+    />
+  );
 }
 
 // ============================================================================
@@ -288,6 +314,7 @@ function StorytellerGrimoire({
 
   const advance = () => sendMove({ kind: "st.advancePhase" });
   const advanceLabel = phaseAdvanceLabel(state.phase, state.dayNumber);
+  const isNight = state.phase === "firstNight" || state.phase === "night";
 
   return (
     <div className="max-w-5xl w-full flex flex-col gap-4">
@@ -310,6 +337,14 @@ function StorytellerGrimoire({
         )}
       </header>
 
+      {isNight && (
+        <NightOrderPanel
+          state={state}
+          playerById={playerById}
+          sendMove={sendMove}
+        />
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {state.seatOrder.map((seatId) => {
           const seat = state.grimoire[seatId];
@@ -324,6 +359,312 @@ function StorytellerGrimoire({
             />
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function NightOrderPanel({
+  state,
+  playerById,
+  sendMove,
+}: {
+  state: Extract<BotCView, { viewer: "storyteller" }>["state"];
+  playerById: Record<string, SeatPlayer>;
+  sendMove: Send;
+}) {
+  const isFirstNight = state.phase === "firstNight";
+  const order = useMemo(
+    () => tonightOrder(state.grimoire, isFirstNight),
+    [state.grimoire, isFirstNight],
+  );
+
+  if (order.length === 0) {
+    return (
+      <section className="surface-ivory p-4 text-sm text-base-content/60 italic">
+        No characters wake tonight.
+      </section>
+    );
+  }
+
+  const currentIndex = Math.min(state.nightStep, order.length - 1);
+
+  return (
+    <section className="surface-ivory p-4 flex flex-col gap-2">
+      <header className="flex items-baseline justify-between gap-3">
+        <h3 className="font-display text-lg">Night order</h3>
+        <span className="text-[11px] text-base-content/55 font-mono">
+          step {currentIndex + 1} / {order.length}
+        </span>
+      </header>
+      <ol className="flex flex-col gap-1">
+        {order.map((step, i) => (
+          <NightOrderItem
+            key={step.id}
+            step={step}
+            index={i}
+            isCurrent={i === currentIndex}
+            playerById={playerById}
+            scriptCharacterIds={state.scriptCharacterIds}
+            onSelect={() =>
+              void sendMove({ kind: "st.setNightStep", index: i })
+            }
+            onSendInfo={(target, info) =>
+              sendMove({
+                kind: "st.sendInfo",
+                targetPlayerId: target,
+                info,
+              })
+            }
+          />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function NightOrderItem({
+  step,
+  index,
+  isCurrent,
+  playerById,
+  scriptCharacterIds,
+  onSelect,
+  onSendInfo,
+}: {
+  step: NightStep;
+  index: number;
+  isCurrent: boolean;
+  playerById: Record<string, SeatPlayer>;
+  scriptCharacterIds: readonly string[];
+  onSelect: () => void;
+  onSendInfo: (target: string, info: SendInfoPayload) => Promise<void> | void;
+}) {
+  const [open, setOpen] = useState(false);
+  // Auto-open when this becomes the active step.
+  useEffect(() => {
+    if (isCurrent) setOpen(true);
+  }, [isCurrent]);
+
+  const seatNames = step.seatIds
+    .map((id) => playerById[id]?.name ?? id)
+    .join(", ");
+
+  return (
+    <li
+      className={`px-2 py-1.5 rounded ${
+        isCurrent ? "bg-primary/8" : "hover:bg-base-content/4"
+      }`}
+    >
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span className="font-mono text-[11px] text-base-content/55 w-6 text-right">
+          {index + 1}.
+        </span>
+        <span className="font-display text-sm">{step.label}</span>
+        <span className="text-[11px] text-base-content/55 truncate flex-1">
+          {seatNames}
+        </span>
+        <button
+          type="button"
+          className="text-[11px] px-2 py-0.5 rounded-full bg-base-content/10 hover:bg-base-content/15"
+          onClick={() => {
+            if (!isCurrent) onSelect();
+            setOpen((o) => !o);
+          }}
+        >
+          {open ? "close" : "wake"}
+        </button>
+      </div>
+      {open && (
+        <SendInfoForm
+          step={step}
+          playerById={playerById}
+          scriptCharacterIds={scriptCharacterIds}
+          onSend={(target, info) => {
+            void onSendInfo(target, info);
+          }}
+        />
+      )}
+    </li>
+  );
+}
+
+function SendInfoForm({
+  step,
+  playerById,
+  scriptCharacterIds,
+  onSend,
+}: {
+  step: NightStep;
+  playerById: Record<string, SeatPlayer>;
+  scriptCharacterIds: readonly string[];
+  onSend: (target: string, info: SendInfoPayload) => void;
+}) {
+  const [target, setTarget] = useState(step.seatIds[0] ?? "");
+  const [text, setText] = useState("");
+  const [pickedSeats, setPickedSeats] = useState<Set<string>>(new Set());
+  const [characterId, setCharacterId] = useState("");
+  const [yesNo, setYesNo] = useState<"" | "yes" | "no">("");
+  const [number, setNumber] = useState<string>("");
+
+  // When the step changes, reset the dropdown to the first seat.
+  useEffect(() => {
+    setTarget(step.seatIds[0] ?? "");
+  }, [step.id, step.seatIds]);
+
+  const reset = () => {
+    setText("");
+    setPickedSeats(new Set());
+    setCharacterId("");
+    setYesNo("");
+    setNumber("");
+  };
+
+  const buildInfo = (): SendInfoPayload | null => {
+    const info: SendInfoPayload = {};
+    if (text.trim()) info.text = text.trim().slice(0, 500);
+    if (pickedSeats.size > 0) info.seats = Array.from(pickedSeats);
+    if (characterId) info.character = characterId;
+    if (yesNo) info.yesNo = yesNo === "yes";
+    if (number !== "" && Number.isFinite(Number(number))) {
+      info.number = Math.max(0, Math.floor(Number(number)));
+    }
+    return Object.keys(info).length === 0 ? null : info;
+  };
+
+  const submit = (sendToAll: boolean) => {
+    const info = buildInfo();
+    if (!info) return;
+    const targets = sendToAll ? step.seatIds : [target];
+    for (const t of targets) {
+      if (t) onSend(t, info);
+    }
+    reset();
+  };
+
+  const togglePicked = (id: string) => {
+    setPickedSeats((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allSeats = Object.keys(playerById);
+
+  return (
+    <div className="ml-8 mt-1.5 p-2.5 border-l border-base-content/15 flex flex-col gap-2 text-xs">
+      {step.seatIds.length > 1 && (
+        <label className="flex items-center gap-2">
+          <span className="text-base-content/60">to:</span>
+          <select
+            className="bg-transparent border-b border-base-content/15 px-1"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+          >
+            {step.seatIds.map((id) => (
+              <option key={id} value={id}>
+                {playerById[id]?.name ?? id}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <textarea
+        className="bg-transparent border border-base-content/15 rounded px-2 py-1 min-h-[2.25rem] resize-y"
+        rows={2}
+        maxLength={500}
+        placeholder="Whisper to them — e.g. 'One of these is the Investigator.'"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <details className="text-[11px]">
+        <summary className="cursor-pointer text-base-content/60">
+          structured fields
+        </summary>
+        <div className="mt-1.5 flex flex-col gap-1.5 pl-2">
+          <div className="flex flex-wrap gap-1 items-baseline">
+            <span className="text-base-content/55 mr-1">point at:</span>
+            {allSeats.map((id) => {
+              const on = pickedSeats.has(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => togglePicked(id)}
+                  className={`px-1.5 py-0.5 rounded-full border ${
+                    on
+                      ? "bg-primary/15 border-primary/40 text-primary"
+                      : "border-base-content/15 text-base-content/55"
+                  }`}
+                >
+                  {playerById[id]?.name ?? id}
+                </button>
+              );
+            })}
+          </div>
+          <label className="flex items-center gap-2">
+            <span className="text-base-content/55">character:</span>
+            <select
+              className="bg-transparent border-b border-base-content/15 px-1 flex-1"
+              value={characterId}
+              onChange={(e) => setCharacterId(e.target.value)}
+            >
+              <option value="">—</option>
+              {scriptCharacterIds.map((id) => {
+                const c = TROUBLE_BREWING_BY_ID[id];
+                return (
+                  <option key={id} value={id}>
+                    {c?.name ?? id}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5">
+              <span className="text-base-content/55">yes/no:</span>
+              <select
+                className="bg-transparent border-b border-base-content/15 px-1"
+                value={yesNo}
+                onChange={(e) => setYesNo(e.target.value as "yes" | "no" | "")}
+              >
+                <option value="">—</option>
+                <option value="yes">yes</option>
+                <option value="no">no</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="text-base-content/55">number:</span>
+              <input
+                type="number"
+                min={0}
+                className="bg-transparent border-b border-base-content/15 w-12 px-1"
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+      </details>
+      <div className="flex items-center gap-2 self-end">
+        {step.seatIds.length > 1 && (
+          <button
+            type="button"
+            className="text-[11px] px-2.5 py-1 rounded-full bg-base-content/10 hover:bg-base-content/15"
+            onClick={() => submit(true)}
+          >
+            send to all ({step.seatIds.length})
+          </button>
+        )}
+        <button
+          type="button"
+          className="text-[11px] px-2.5 py-1 rounded-full bg-primary/15 text-primary hover:bg-primary/25"
+          onClick={() => submit(false)}
+        >
+          send →
+        </button>
       </div>
     </div>
   );
@@ -564,17 +905,46 @@ function phaseAdvanceLabel(phase: BotCPhase, dayNumber: number): string | null {
 
 function PlayerSurface({
   view,
+  players,
+  sendMove,
+  onEvent,
 }: {
   view: Extract<BotCView, { viewer: "player" }>;
+  players: SeatPlayer[];
+  sendMove: Send;
+  onEvent: OnEvent;
 }) {
   const character = view.me?.characterId
     ? TROUBLE_BREWING_BY_ID[view.me.characterId]
     : null;
+
+  const playerById = useMemo(
+    () => Object.fromEntries(players.map((p) => [p.id, p])),
+    [players],
+  );
+
+  const [pending, setPending] = useState<SendInfoPayload | null>(null);
+
+  useEffect(() => {
+    return onEvent((e) => {
+      if (e.kind !== "botc.privateInfo") return;
+      const payload = e.payload as { info?: SendInfoPayload } | undefined;
+      if (payload?.info) setPending(payload.info);
+    });
+  }, [onEvent]);
+
+  const dismissPending = () => {
+    setPending(null);
+    void sendMove({ kind: "p.acknowledgeWake" });
+  };
+
   return (
     <div className="surface-ivory p-6 max-w-md w-full flex flex-col gap-4">
       <header className="flex flex-col gap-1">
         <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
-          {view.phase === "setup" ? "Town square · setup" : `Town square · ${view.phase} ${view.dayNumber}`}
+          {view.phase === "setup"
+            ? "Town square · setup"
+            : `Town square · ${phaseLabel(view.phase, view.dayNumber)}`}
         </span>
         <h2 className="font-display text-2xl tracking-tight">
           {view.me ? "Your seat" : "Watching"}
@@ -588,7 +958,9 @@ function PlayerSurface({
       )}
       {character && (
         <div className="flex flex-col gap-2 border-l-2 border-primary/60 pl-4">
-          <span className={`text-xs uppercase tracking-[0.22em] ${TEAM_TINT[character.team]}`}>
+          <span
+            className={`text-xs uppercase tracking-[0.22em] ${TEAM_TINT[character.team]}`}
+          >
             {TEAM_LABEL[character.team].slice(0, -1)}
           </span>
           <div className="font-display text-3xl tracking-tight">
@@ -601,10 +973,105 @@ function PlayerSurface({
       )}
       {view.phase !== "setup" && (
         <p className="text-xs text-base-content/55">
-          Phase: <span className="font-mono">{view.phase}</span>
+          Phase:{" "}
+          <span className="font-mono">
+            {phaseLabel(view.phase, view.dayNumber)}
+          </span>
           {view.me && !view.me.isAlive ? " · you are a ghost" : ""}
         </p>
       )}
+      {pending && (
+        <PrivateInfoModal
+          info={pending}
+          playerById={playerById}
+          onDismiss={dismissPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function PrivateInfoModal({
+  info,
+  playerById,
+  onDismiss,
+}: {
+  info: SendInfoPayload;
+  playerById: Record<string, SeatPlayer>;
+  onDismiss: () => void;
+}) {
+  const character = info.character
+    ? TROUBLE_BREWING_BY_ID[info.character] ?? null
+    : null;
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/65 flex items-center justify-center p-4"
+      onClick={onDismiss}
+    >
+      <div
+        className="surface-ivory p-6 max-w-md w-full flex flex-col gap-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+            The Storyteller wakes you…
+          </span>
+          <h3 className="font-display text-xl">A whisper in the night</h3>
+        </header>
+        {info.text && (
+          <p className="text-sm text-base-content/85 leading-relaxed whitespace-pre-wrap">
+            {info.text}
+          </p>
+        )}
+        {info.seats && info.seats.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+              Players
+            </span>
+            <ul className="flex flex-wrap gap-1.5">
+              {info.seats.map((id) => (
+                <li
+                  key={id}
+                  className="px-2 py-0.5 rounded-full bg-base-content/8 text-sm font-display"
+                >
+                  {playerById[id]?.name ?? id}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {character && (
+          <div className="flex flex-col gap-1 border-l-2 border-primary/60 pl-3">
+            <span
+              className={`text-[10px] uppercase tracking-[0.18em] ${TEAM_TINT[character.team]}`}
+            >
+              {TEAM_LABEL[character.team].slice(0, -1)}
+            </span>
+            <span className="font-display text-lg">{character.name}</span>
+          </div>
+        )}
+        {info.yesNo !== undefined && (
+          <div className="text-sm">
+            Answer:{" "}
+            <strong className="font-display text-lg">
+              {info.yesNo ? "Yes" : "No"}
+            </strong>
+          </div>
+        )}
+        {info.number !== undefined && (
+          <div className="text-sm">
+            Number:{" "}
+            <strong className="font-display text-lg">{info.number}</strong>
+          </div>
+        )}
+        <button
+          type="button"
+          className="btn btn-primary self-end rounded-full px-5"
+          onClick={onDismiss}
+        >
+          Got it
+        </button>
+      </div>
     </div>
   );
 }
