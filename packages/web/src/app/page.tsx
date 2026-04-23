@@ -414,6 +414,9 @@ function GameCard({
                 {game.minPlayers === game.maxPlayers
                   ? `${game.minPlayers} pl`
                   : `${game.minPlayers}–${game.maxPlayers} pl`}
+                {!game.hostSeated && (
+                  <span className="ml-1 text-base-content/40">+ ST</span>
+                )}
               </span>
             </div>
             <p className="mt-1 text-sm text-base-content/65 leading-relaxed">
@@ -421,7 +424,11 @@ function GameCard({
             </p>
             <div className="mt-3 flex items-center justify-between">
               <span className="text-xs uppercase tracking-[0.18em] text-base-content/45">
-                {pending ? "Opening…" : "Open a table"}
+                {pending
+                  ? "Opening…"
+                  : game.hostSeated
+                    ? "Open a table"
+                    : "Storytell a game"}
               </span>
               <span
                 aria-hidden

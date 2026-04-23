@@ -28,6 +28,7 @@ import { noThanksServerModule } from '@bgo/games-nothanks/server';
 import { pentagoServerModule } from '@bgo/games-pentago/server';
 import { sushiGoServerModule } from '@bgo/games-sushigo/server';
 import { hanabiServerModule } from '@bgo/games-hanabi/server';
+import { bloodClocktowerServerModule } from '@bgo/games-bloodclocktower/server';
 import type { GamesRegistry } from './games-registry.service';
 
 /** Registers every installed game module with the registry at bootstrap. */
@@ -62,4 +63,5 @@ export function registerAllGames(registry: GamesRegistry): void {
   registry.register(pentagoServerModule);
   registry.register(sushiGoServerModule);
   registry.register(hanabiServerModule);
+  registry.register(bloodClocktowerServerModule);
 }
