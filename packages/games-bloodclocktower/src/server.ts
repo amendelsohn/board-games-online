@@ -140,6 +140,169 @@ function makeStorytellerView(state: BotCState): StorytellerView {
   return { viewer: "storyteller", state };
 }
 
+// ============================================================================
+// Move handlers
+// ============================================================================
+
+/**
+ * ST assigns one character per seat. Setup phase only — once we leave
+ * setup the assignments are locked. Validates that every seat is covered
+ * exactly once and every chosen character is in the active script.
+ *
+ * The Drunk is a deliberate exception elsewhere in BotC (the player
+ * thinks they're a Townsfolk), but at the framework level we still
+ * record their actual character as "drunk"; what they're TOLD they are
+ * is a separate ST decision (sent via st.sendInfo).
+ */
+function handleAssignCharacters(
+  state: BotCState,
+  assignments: Record<PlayerId, string>,
+): MoveResult<BotCState> {
+  if (state.phase !== "setup") {
+    return {
+      ok: false,
+      reason: "Characters can only be assigned during setup",
+    };
+  }
+  const seatSet = new Set(state.seatOrder);
+  const targetSet = new Set(Object.keys(assignments));
+  for (const seat of seatSet) {
+    if (!targetSet.has(seat)) {
+      return {
+        ok: false,
+        reason: `Seat ${seat} has no assigned character`,
+      };
+    }
+  }
+  for (const seat of targetSet) {
+    if (!seatSet.has(seat)) {
+      return {
+        ok: false,
+        reason: `Assigned character to non-seat: ${seat}`,
+      };
+    }
+  }
+  const scriptSet = new Set(state.scriptCharacterIds);
+  for (const characterId of Object.values(assignments)) {
+    if (!scriptSet.has(characterId)) {
+      return {
+        ok: false,
+        reason: `Character "${characterId}" is not in the active script`,
+      };
+    }
+  }
+  // BotC characters appear at most once per game (with rare exceptions
+  // not in TB). Reject duplicates so the ST notices.
+  const seenCharacters = new Set<string>();
+  for (const characterId of Object.values(assignments)) {
+    if (seenCharacters.has(characterId)) {
+      return {
+        ok: false,
+        reason: `Character "${characterId}" assigned to more than one seat`,
+      };
+    }
+    seenCharacters.add(characterId);
+  }
+
+  const grimoire: BotCState["grimoire"] = { ...state.grimoire };
+  for (const [seatId, characterId] of Object.entries(assignments)) {
+    grimoire[seatId] = {
+      ...grimoire[seatId]!,
+      characterId,
+    };
+  }
+  return { ok: true, state: { ...state, grimoire } };
+}
+
+/**
+ * ST may rearrange seats clockwise during setup. The order matters for
+ * Empath / Chef / Butler-style abilities, so the ST gets to set the
+ * physical seating before the game starts.
+ */
+function handleSetSeatOrder(
+  state: BotCState,
+  order: PlayerId[],
+): MoveResult<BotCState> {
+  if (state.phase !== "setup") {
+    return {
+      ok: false,
+      reason: "Seat order can only be changed during setup",
+    };
+  }
+  if (order.length !== state.seatOrder.length) {
+    return {
+      ok: false,
+      reason: `Expected ${state.seatOrder.length} seats in order, got ${order.length}`,
+    };
+  }
+  const have = new Set(state.seatOrder);
+  for (const id of order) {
+    if (!have.has(id)) {
+      return { ok: false, reason: `Unknown seat in order: ${id}` };
+    }
+  }
+  if (new Set(order).size !== order.length) {
+    return { ok: false, reason: "Seat order contains duplicates" };
+  }
+  return { ok: true, state: { ...state, seatOrder: [...order] } };
+}
+
+/**
+ * Phase progression:
+ *   setup → firstNight → day(1) → night(1) → day(2) → night(2) → …
+ * Only the ST advances the phase; players never can. Transitions clear
+ * any phase-bound state (open vote, current-day nominations).
+ *
+ * Going from setup → firstNight requires every seat to have a character
+ * (anything else and the ST would be entering night with empty roles).
+ */
+function handleAdvancePhase(state: BotCState): MoveResult<BotCState> {
+  switch (state.phase) {
+    case "setup": {
+      for (const seatId of state.seatOrder) {
+        if (!state.grimoire[seatId]?.characterId) {
+          return {
+            ok: false,
+            reason: "All seats must have a character before starting",
+          };
+        }
+      }
+      return {
+        ok: true,
+        state: { ...state, phase: "firstNight", nightStep: 0 },
+      };
+    }
+    case "firstNight":
+      return {
+        ok: true,
+        state: { ...state, phase: "day", dayNumber: 1, nightStep: 0 },
+      };
+    case "day":
+      return {
+        ok: true,
+        state: {
+          ...state,
+          phase: "night",
+          nightStep: 0,
+          openVote: null,
+          nominations: [],
+        },
+      };
+    case "night":
+      return {
+        ok: true,
+        state: {
+          ...state,
+          phase: "day",
+          dayNumber: state.dayNumber + 1,
+          nightStep: 0,
+        },
+      };
+    case "finished":
+      return { ok: false, reason: "Match has already finished" };
+  }
+}
+
 export const bloodClocktowerServerModule: GameModule<
   BotCState,
   BotCMove,
@@ -178,23 +341,38 @@ export const bloodClocktowerServerModule: GameModule<
   },
 
   handleMove(
-    _state: BotCState,
+    state: BotCState,
     move: unknown,
-    _actor: PlayerId,
+    actor: PlayerId,
     _ctx: GameContext,
   ): MoveResult<BotCState> {
     const parsed = moveSchema.safeParse(move);
     if (!parsed.success) {
       return { ok: false, reason: parsed.error.message };
     }
-    // All moves are stubbed in this skeleton commit. The next commits wire up
-    // setup → night → day → execution flows. Returning a clear rejection
-    // here keeps the framework happy and surfaces the "not yet" state in
-    // the UI without crashing.
-    return {
-      ok: false,
-      reason: `Move "${parsed.data.kind}" is not yet implemented`,
-    };
+    const m = parsed.data;
+    const isST = actor === state.storytellerId;
+
+    // Storyteller-only moves: gate first, then dispatch.
+    if (m.kind.startsWith("st.")) {
+      if (!isST) {
+        return { ok: false, reason: "Only the Storyteller can do that" };
+      }
+    }
+
+    switch (m.kind) {
+      case "st.assignCharacters":
+        return handleAssignCharacters(state, m.assignments);
+      case "st.setSeatOrder":
+        return handleSetSeatOrder(state, m.order);
+      case "st.advancePhase":
+        return handleAdvancePhase(state);
+      default:
+        return {
+          ok: false,
+          reason: `Move "${m.kind}" is not yet implemented`,
+        };
+    }
   },
 
   view(state: BotCState, viewer: Viewer): BotCView {
