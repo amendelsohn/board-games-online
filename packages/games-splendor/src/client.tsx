@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
 import {
   GEMS,
@@ -111,22 +111,19 @@ function CostPip({
   paid: number;
 }) {
   if (cost <= 0) return null;
+  const covered = paid >= cost;
   return (
     <div
       className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px]"
       style={{
-        background:
-          "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
+        background: covered
+          ? "color-mix(in oklch, var(--color-success) 20%, var(--color-base-100))"
+          : "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
         boxShadow: "inset 0 0 0 1px oklch(0% 0 0 / 0.1)",
       }}
     >
       <GemToken gem={gem} size={10} />
-      <span
-        className="font-display font-bold tabular"
-        style={{ opacity: paid >= cost ? 1 : 0.7 }}
-      >
-        {cost}
-      </span>
+      <span className="font-display font-bold tabular-nums">{cost}</span>
     </div>
   );
 }
@@ -139,6 +136,8 @@ function DevCard({
   highlight = false,
   label,
   bonuses,
+  onReserve,
+  canReserve,
 }: {
   card: Card;
   dim?: boolean;
@@ -147,6 +146,8 @@ function DevCard({
   highlight?: boolean;
   label?: string;
   bonuses?: Record<Gem, number>;
+  onReserve?: () => void;
+  canReserve?: boolean;
 }) {
   return (
     <button
@@ -162,19 +163,68 @@ function DevCard({
         width: 88,
         minHeight: 118,
         background: `linear-gradient(180deg, color-mix(in oklch, var(--color-base-100) 95%, ${colorMix(card.bonus)} ) 0%, color-mix(in oklch, var(--color-base-100) 70%, ${colorMix(card.bonus)}) 100%)`,
-        border: highlight
-          ? "2px solid var(--color-primary)"
-          : `1px solid color-mix(in oklch, ${colorMix(card.bonus)} 40%, transparent)`,
+        // Uniform calm border — affordability telegraphed via the corner dot
+        // instead of a full amber 2px border (which got noisy across a 12-card
+        // spread).
+        border: `1px solid color-mix(in oklch, ${colorMix(card.bonus)} 40%, transparent)`,
         boxShadow: highlight
-          ? "0 6px 18px color-mix(in oklch, var(--color-primary) 30%, transparent)"
+          ? "0 6px 18px color-mix(in oklch, var(--color-primary) 22%, transparent)"
           : "0 2px 4px oklch(0% 0 0 / 0.15)",
         opacity: dim ? 0.5 : 1,
       }}
     >
+      {/* Top-right affordability dot */}
+      {highlight && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 4,
+            right: 4,
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: "var(--color-primary)",
+            boxShadow:
+              "0 0 6px color-mix(in oklch, var(--color-primary) 55%, transparent)",
+          }}
+        />
+      )}
+      {/* Top-left in-card reserve button */}
+      {canReserve && onReserve && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onReserve();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              onReserve();
+            }
+          }}
+          className="absolute top-1 left-1 w-6 h-6 rounded-full bg-base-100/85 ring-1 ring-base-300 hover:ring-primary hover:bg-primary/10 flex items-center justify-center text-base-content/70 hover:text-primary cursor-pointer z-10 transition-colors"
+          title="Reserve this card"
+          aria-label="Reserve card"
+        >
+          <svg
+            width="10"
+            height="12"
+            viewBox="0 0 10 12"
+            fill="currentColor"
+            aria-hidden
+          >
+            <path d="M1 1 h8 v10 l-4-2 -4 2 z" />
+          </svg>
+        </span>
+      )}
       <div className="flex items-center justify-between">
         <GemToken gem={card.bonus} size={18} />
         <div
-          className="font-display tabular font-bold"
+          className="font-display tabular-nums font-bold"
           style={{ fontSize: 18, lineHeight: 1 }}
         >
           {card.points > 0 ? card.points : ""}
@@ -403,6 +453,45 @@ function SplendorBoard({
     });
   };
 
+  // Gem-selection hint: telegraph the next tap.
+  let gemHint = "";
+  if (isMyTurn && !isOver) {
+    if (selected.length === 0) {
+      gemHint = "Tap 3 different gems — or one twice";
+    } else if (isTakeTwoPending) {
+      gemHint = canTakeTwo
+        ? "Take-2 ready"
+        : "Need ≥4 in supply for take-2";
+    } else if (selected.length === 1) {
+      gemHint = "Tap two more different — or this same for take-2";
+    } else if (selected.length === 2) {
+      gemHint = "Tap one more different";
+    } else if (selected.length === 3) {
+      gemHint = canTakeThree ? "Take-3 ready" : "One of these is out of stock";
+    }
+  }
+
+  // Noble-claim reveal: fires when the nobles pool shrinks.
+  const [nobleReveal, setNobleReveal] = useState<
+    null | { byName: string }
+  >(null);
+  const prevNobleCountRef = useRef(view.nobles.length);
+  useEffect(() => {
+    const now = view.nobles.length;
+    if (now < prevNobleCountRef.current) {
+      const la = view.lastAction;
+      let byName = "A player";
+      if (la && la.kind === "buy" && la.nobleClaimed) {
+        byName = playersById[la.by]?.name ?? la.by;
+      }
+      prevNobleCountRef.current = now;
+      setNobleReveal({ byName });
+      const t = setTimeout(() => setNobleReveal(null), 1800);
+      return () => clearTimeout(t);
+    }
+    prevNobleCountRef.current = now;
+  }, [view.nobles.length, view.lastAction, playersById]);
+
   return (
     <div className="flex flex-col gap-4 w-full max-w-6xl">
       <StatusBar
@@ -411,6 +500,30 @@ function SplendorBoard({
         isMyTurn={isMyTurn}
         playersById={playersById}
       />
+
+      {nobleReveal && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-xl px-4 py-2 flex items-center gap-2 parlor-rise"
+          style={{
+            background:
+              "color-mix(in oklch, oklch(72% 0.12 75) 18%, var(--color-base-100))",
+            border:
+              "1px solid color-mix(in oklch, oklch(60% 0.12 75) 45%, transparent)",
+          }}
+        >
+          <span
+            className="text-[10px] uppercase tracking-[0.3em] font-semibold"
+            style={{ color: "oklch(45% 0.12 75)" }}
+          >
+            ◆ Noble claimed ◆
+          </span>
+          <span className="text-sm">
+            <span className="font-semibold">{nobleReveal.byName}</span> earned 3 prestige.
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 w-full">
         {/* Main play area */}
@@ -458,6 +571,7 @@ function SplendorBoard({
             tokens={view.tokens}
             selected={selected}
             onGemClick={(g) => isMyTurn && !isOver && onGemClick(g)}
+            hint={gemHint}
           />
 
           {isMyTurn && !isOver && selected.length > 0 && (
@@ -568,8 +682,8 @@ function TierRow({
   onReserveDeck: () => void;
 }) {
   return (
-    <div className="flex items-start gap-2">
-      <div className="flex flex-col items-center gap-1 min-w-[60px]">
+    <div className="flex items-start gap-2 min-w-0">
+      <div className="flex flex-col items-center gap-1 min-w-[60px] flex-shrink-0">
         <DeckBack
           tier={tier}
           count={deckCount}
@@ -577,31 +691,24 @@ function TierRow({
           onReserveDeck={onReserveDeck}
         />
       </div>
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-nowrap overflow-x-auto sm:flex-wrap sm:overflow-visible pb-1">
         {slots.map((c, slot) =>
           c ? (
-            <div key={slot} className="flex flex-col items-center gap-1">
+            <div key={slot} className="flex flex-col items-center gap-1 flex-shrink-0">
               <DevCard
                 card={c}
                 highlight={canAct && canAfford(c)}
                 onClick={() => canAct && canAfford(c) && onBuy(slot)}
                 disabled={!canAct}
                 bonuses={bonuses}
+                onReserve={() => onReserveSlot(slot)}
+                canReserve={canAct && canReserve}
               />
-              {canAct && canReserve && (
-                <button
-                  type="button"
-                  onClick={() => onReserveSlot(slot)}
-                  className="text-[9px] uppercase tracking-[0.18em] text-base-content/55 hover:text-base-content"
-                >
-                  Reserve
-                </button>
-              )}
             </div>
           ) : (
             <div
               key={slot}
-              className="rounded-md border border-dashed border-base-content/20"
+              className="rounded-md border border-dashed border-base-content/20 flex-shrink-0"
               style={{ width: 88, height: 118 }}
             />
           ),
@@ -664,10 +771,12 @@ function TokenBank({
   tokens,
   selected,
   onGemClick,
+  hint,
 }: {
   tokens: Record<GemWithGold, number>;
   selected: Gem[];
   onGemClick: (g: Gem) => void;
+  hint?: string;
 }) {
   return (
     <div
@@ -678,8 +787,18 @@ function TokenBank({
         boxShadow: "inset 0 1px 0 oklch(100% 0 0 / 0.1)",
       }}
     >
-      <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
-        Supply
+      <div className="flex flex-col items-start">
+        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+          Supply
+        </span>
+        {hint && (
+          <span
+            aria-live="polite"
+            className="text-[9px] text-base-content/50 mt-0.5 max-w-[180px]"
+          >
+            {hint}
+          </span>
+        )}
       </div>
       {GEMS.map((g) => {
         const sel = selected.filter((x) => x === g).length;
@@ -693,7 +812,7 @@ function TokenBank({
             aria-label={`${GEM_LABEL[g]} token`}
           >
             <GemToken gem={g} size={30} selected={sel > 0} dim={tokens[g] === 0} />
-            <span className="font-display tabular font-bold">
+            <span className="font-display tabular-nums font-bold">
               {tokens[g]}
               {sel > 0 && (
                 <span className="text-primary ml-0.5">
@@ -704,9 +823,21 @@ function TokenBank({
           </button>
         );
       })}
-      <div className="flex items-center gap-1 px-1.5 py-1 rounded-md">
+      <div
+        aria-hidden
+        className="h-8 w-px bg-base-content/15 mx-1"
+      />
+      <div
+        className="flex items-center gap-1 px-1.5 py-1 rounded-md flex-col"
+        title="Gold — gained when reserving"
+      >
         <GemToken gem="gold" size={30} dim={tokens.gold === 0} />
-        <span className="font-display tabular font-bold">{tokens.gold}</span>
+        <span className="font-display tabular-nums font-bold text-xs">
+          {tokens.gold}
+        </span>
+        <span className="text-[8px] uppercase tracking-wider text-base-content/45">
+          reserve
+        </span>
       </div>
     </div>
   );
@@ -882,9 +1013,31 @@ function SeatCard({
         <TokenBadge gem="gold" count={seat.tokens.gold ?? 0} />
       </div>
 
-      <div className="text-[10px] uppercase tracking-[0.18em] text-base-content/50">
-        {seat.cardCount} cards · {seat.reservedCount} reserved ·{" "}
-        {seat.nobles.length} nobles
+      {!isMe && seat.reservedCount > 0 && (
+        <div className="flex items-center gap-0.5">
+          <span className="text-[9px] uppercase tracking-wider text-base-content/45 mr-1">
+            Reserved
+          </span>
+          {Array.from({ length: seat.reservedCount }).map((_, i) => (
+            <div
+              key={i}
+              aria-hidden
+              style={{
+                width: 14,
+                height: 18,
+                borderRadius: 2,
+                background:
+                  "color-mix(in oklch, var(--color-neutral) 70%, var(--color-base-100))",
+                boxShadow:
+                  "0 1px 2px oklch(0% 0 0 / 0.2), inset 0 1px 0 oklch(100% 0 0 / 0.1)",
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="text-[10px] uppercase tracking-[0.18em] text-base-content/50 font-mono tabular-nums">
+        {seat.cardCount} cards · {seat.nobles.length} nobles
       </div>
 
       {isMe && seat.reserved && seat.reserved.length > 0 && (
@@ -931,7 +1084,13 @@ function LastActionLine({
     text = `${name} bought ${action.bonus}${action.points ? ` (+${action.points})` : ""}${action.fromReserve ? " from reserve" : ""}${action.nobleClaimed ? " · claimed a noble" : ""}`;
   }
   return (
-    <div className="text-xs text-base-content/60 italic px-1">{text}</div>
+    <div
+      role="log"
+      aria-live="polite"
+      className="text-xs text-base-content/60 italic px-1"
+    >
+      {text}
+    </div>
   );
 }
 
@@ -948,14 +1107,33 @@ function StatusBar({
 }) {
   if (view.phase === "gameOver") {
     return (
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+      <div
+        role="status"
+        aria-live="polite"
+        className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold"
+      >
         ◆ Final ◆
       </div>
     );
   }
   const currentName = playersById[view.current]?.name ?? view.current;
+  const finalActive = view.finalRoundTrigger !== null;
   return (
-    <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold flex items-center justify-center gap-2 flex-wrap">
+    <div
+      role="status"
+      aria-live="polite"
+      className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold flex items-center justify-center gap-2 flex-wrap rounded-lg px-3 py-1.5"
+      style={
+        finalActive
+          ? {
+              background:
+                "color-mix(in oklch, var(--color-warning) 12%, transparent)",
+              border:
+                "1px solid color-mix(in oklch, var(--color-warning) 35%, transparent)",
+            }
+          : undefined
+      }
+    >
       {isMyTurn ? (
         <span className="text-primary font-bold">Your turn</span>
       ) : (
@@ -1026,8 +1204,12 @@ function GameOver({
                 : "bg-base-100/60",
             ].join(" ")}
           >
-            <div className="text-xs uppercase tracking-[0.2em] text-base-content/45 w-6 text-right">
-              {i + 1}
+            <div className="text-xs uppercase tracking-[0.2em] text-base-content/45 w-6 text-right font-mono tabular-nums">
+              {winners.includes(r.id)
+                ? winners.length > 1
+                  ? "=1"
+                  : "1"
+                : i + 1}
             </div>
             <div className="font-semibold text-sm">
               {r.name}
