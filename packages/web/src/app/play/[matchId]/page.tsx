@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getClientModule } from "@bgo/sdk-client";
 import type { PlayerWire, TableWire } from "@bgo/contracts";
@@ -9,6 +9,16 @@ import { ensurePlayer } from "@/lib/playerSession";
 import { useMatchSocket, type ConnectionState } from "@/lib/useMatchSocket";
 import { registerAllClientGames } from "@/lib/registerClientGames";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
+
+// How long the socket must be continuously in an offline-ish state before
+// we pop the disconnect-recovery modal. Short outages (WiFi blip, tab
+// resume) are handled silently by the existing header indicator.
+const DISCONNECT_MODAL_DELAY_MS = 10_000;
+const OFFLINE_STATES: readonly ConnectionState[] = [
+  "reconnecting",
+  "disconnected",
+  "error",
+];
 
 registerAllClientGames();
 
@@ -77,6 +87,11 @@ export default function PlayPage() {
     if (!table) return null;
     return getClientModule(table.gameType) ?? null;
   }, [table]);
+
+  const showDisconnectModal = useOfflineElapsed(
+    connectionState,
+    DISCONNECT_MODAL_DELAY_MS,
+  );
 
   // After the match ends, poll the table so we notice the host kicking off
   // a rematch (which resets table.status back to "waiting"). When that
@@ -235,6 +250,119 @@ export default function PlayPage() {
           onClick={() => router.push("/")}
         >
           ← Back home
+        </button>
+      </div>
+
+      {showDisconnectModal && (
+        <DisconnectModal onLeave={() => router.push("/")} />
+      )}
+    </div>
+  );
+}
+
+/* =================================================================
+   Disconnect recovery: after ~10s continuously offline, show a modal.
+   Auto-dismisses when the socket reconnects. Backdrop is non-dismissible
+   on purpose — accidentally closing it when you've actually lost the
+   table is worse than a fussy extra click.
+   ================================================================= */
+
+function useOfflineElapsed(
+  state: ConnectionState,
+  delayMs: number,
+): boolean {
+  const [elapsed, setElapsed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const isOffline = OFFLINE_STATES.includes(state);
+    if (!isOffline) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      setElapsed(false);
+      return;
+    }
+    // Already in an offline state: start a debounce timer. If we leave
+    // the offline states before it fires, the cleanup clears it.
+    if (timerRef.current) return;
+    timerRef.current = setTimeout(() => {
+      setElapsed(true);
+      timerRef.current = null;
+    }, delayMs);
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [state, delayMs]);
+
+  return elapsed;
+}
+
+function DisconnectModal({ onLeave }: { onLeave: () => void }) {
+  // Trap focus to the Leave button on mount so keyboard users can still
+  // act. Restore focus to the previously-focused element on unmount when
+  // the socket recovers.
+  const leaveRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    leaveRef.current?.focus();
+    return () => {
+      prev?.focus?.();
+    };
+  }, []);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="disconnect-title"
+      aria-describedby="disconnect-body"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+    >
+      {/* Backdrop: intentionally not click-dismissible. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+      />
+      <div
+        className={[
+          "relative parlor-fade",
+          "surface-ivory",
+          "w-full max-w-sm px-6 py-7",
+          "flex flex-col items-center gap-3 text-center",
+        ].join(" ")}
+      >
+        <div className="text-[10px] uppercase tracking-[0.3em] font-semibold text-warning-content/70">
+          ◆ Connection lost ◆
+        </div>
+        <h2
+          id="disconnect-title"
+          className="font-display tracking-tight"
+          style={{ fontSize: "var(--text-display-sm)" }}
+        >
+          You&rsquo;ve been disconnected.
+        </h2>
+        <div
+          id="disconnect-body"
+          className="flex items-center gap-2 text-sm text-base-content/65"
+        >
+          <span
+            aria-hidden
+            className="inline-block h-1.5 w-1.5 rounded-full bg-warning motion-safe:animate-pulse"
+          />
+          <span>Retrying to reconnect&hellip;</span>
+        </div>
+        <button
+          ref={leaveRef}
+          type="button"
+          onClick={onLeave}
+          className="mt-4 btn btn-ghost btn-sm rounded-full px-5 text-xs uppercase tracking-[0.22em] text-base-content/70 hover:text-base-content"
+        >
+          Leave
         </button>
       </div>
     </div>
