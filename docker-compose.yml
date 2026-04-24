@@ -1,0 +1,57 @@
+# Full-stack local deployment.
+#
+#   docker compose up --build
+#   → web at http://localhost:3000, server at http://localhost:8080
+#
+# NEXT_PUBLIC_API_URL is baked into the browser bundle at web-build time.
+# It must be the URL the *user's browser* can reach (the browser, not the
+# web container, makes the API calls), which is why it's host-local.
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    image: bgo-server:local
+    environment:
+      PORT: "8080"
+      WEB_ORIGIN: "${WEB_ORIGIN:-http://localhost:3000}"
+      NODE_ENV: production
+    ports:
+      - "8080:8080"
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8080}"
+    image: bgo-web:local
+    environment:
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8080}"
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - server
+
+  # Provisioned for the future state-store migration; the app does not
+  # currently connect to it. Safe to drop for local tinkering.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  redis-data:
