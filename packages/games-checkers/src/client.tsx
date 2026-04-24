@@ -22,6 +22,35 @@ interface Highlight {
   isCapture: boolean;
 }
 
+const CHECKERS_KEYFRAMES = `
+@keyframes checkers-capture-pulse-ring {
+  0%, 100% {
+    opacity: 0.85;
+    transform: scale(1);
+    box-shadow:
+      0 0 0 2px color-mix(in oklch, var(--color-warning) 70%, transparent),
+      0 0 10px color-mix(in oklch, var(--color-warning) 50%, transparent);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.08);
+    box-shadow:
+      0 0 0 2px color-mix(in oklch, var(--color-warning) 35%, transparent),
+      0 0 14px color-mix(in oklch, var(--color-warning) 20%, transparent);
+  }
+}
+.checkers-capture-pulse-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: checkers-capture-pulse-ring 1600ms ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkers-capture-pulse-ring { animation: none; opacity: 0.7; }
+}
+`;
+
 function CheckersBoard({
   view,
   me,
@@ -59,6 +88,27 @@ function CheckersBoard({
       })),
     [legalFromSelected],
   );
+
+  // When the player must capture but hasn't picked the capturing piece yet,
+  // highlight each of their own pieces that has a legal jump. Once they've
+  // selected one, that highlight goes away (their destination ring takes over).
+  const captureCandidateIndices = useMemo(() => {
+    if (!mustCapture || !myColor || !isMyTurn || isOver) return new Set<number>();
+    if (effectiveSelected) return new Set<number>();
+    const set = new Set<number>();
+    for (let row = 0; row < BOARD_SIZE; row++) {
+      for (let col = 0; col < BOARD_SIZE; col++) {
+        if (!isPlayable(row, col)) continue;
+        const i = idx(row, col);
+        const cell = view.cells[i];
+        if (!cell || pieceColor(cell) !== myColor) continue;
+        if (jumpsFrom(view.cells, { row, col }).length > 0) {
+          set.add(i);
+        }
+      }
+    }
+    return set;
+  }, [mustCapture, myColor, isMyTurn, isOver, effectiveSelected, view.cells]);
 
   const selectedIndex = effectiveSelected
     ? idx(effectiveSelected.row, effectiveSelected.col)
@@ -113,6 +163,7 @@ function CheckersBoard({
 
   return (
     <div className="flex flex-col items-center gap-5">
+      <style>{CHECKERS_KEYFRAMES}</style>
       <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
         You are{" "}
         <span
@@ -194,7 +245,13 @@ function CheckersBoard({
                 {(isLastFrom || isLastTo) && !isSelected && !highlight && (
                   <span
                     aria-hidden
-                    className="absolute inset-1 rounded-md ring-1 ring-base-100/50"
+                    className="absolute inset-1 rounded-md"
+                    style={{
+                      boxShadow:
+                        "inset 0 0 0 2px color-mix(in oklch, var(--color-primary) 40%, transparent)",
+                      background:
+                        "color-mix(in oklch, var(--color-primary) 8%, transparent)",
+                    }}
                   />
                 )}
 
@@ -225,7 +282,12 @@ function CheckersBoard({
                   />
                 )}
 
-                {cell && <PieceGlyph piece={cell} />}
+                {cell && (
+                  <PieceGlyph
+                    piece={cell}
+                    mustPlay={captureCandidateIndices.has(i)}
+                  />
+                )}
               </button>
             );
           })}
@@ -239,7 +301,13 @@ function CheckersBoard({
   );
 }
 
-function PieceGlyph({ piece }: { piece: Piece }) {
+function PieceGlyph({
+  piece,
+  mustPlay,
+}: {
+  piece: Piece;
+  mustPlay?: boolean;
+}) {
   const color = pieceColor(piece);
   const isRed = color === "r";
   const isCrown = isKing(piece);
@@ -248,9 +316,16 @@ function PieceGlyph({ piece }: { piece: Piece }) {
     ? "var(--color-error)"
     : "var(--color-neutral)";
 
+  // Tighten contrast: red pieces keep a warm dark ring, black pieces get a
+  // near-ink ring so they separate cleanly from the graphite dark square in
+  // both light and dark mode. Also darken the gradient tail for blacks.
   const ring = isRed
-    ? "color-mix(in oklch, var(--color-error) 60%, black)"
-    : "color-mix(in oklch, var(--color-neutral) 60%, black)";
+    ? "color-mix(in oklch, var(--color-error) 55%, black)"
+    : "oklch(20% 0 0 / 0.85)";
+
+  const gradientTail = isRed
+    ? `color-mix(in oklch, ${bg} 70%, black)`
+    : `color-mix(in oklch, ${bg} 40%, black)`;
 
   return (
     <span
@@ -259,22 +334,27 @@ function PieceGlyph({ piece }: { piece: Piece }) {
         width: "78%",
         height: "78%",
         borderRadius: "9999px",
-        background: `radial-gradient(circle at 35% 30%, color-mix(in oklch, ${bg} 85%, white) 0%, ${bg} 55%, color-mix(in oklch, ${bg} 70%, black) 100%)`,
-        boxShadow: `inset 0 -2px 0 oklch(0% 0 0 / 0.25), inset 0 1px 0 oklch(100% 0 0 / 0.25), 0 2px 4px oklch(0% 0 0 / 0.25), 0 0 0 2px ${ring}`,
+        background: `radial-gradient(circle at 35% 30%, color-mix(in oklch, ${bg} 85%, white) 0%, ${bg} 55%, ${gradientTail} 100%)`,
+        boxShadow: `inset 0 -2px 0 oklch(0% 0 0 / 0.28), inset 0 1px 0 oklch(100% 0 0 / 0.25), 0 2px 4px oklch(0% 0 0 / 0.25), 0 0 0 2px ${ring}`,
       }}
     >
+      {mustPlay && <span aria-hidden className="checkers-capture-pulse-ring" />}
       {isCrown && (
         <span
           aria-hidden
-          className="font-display leading-none"
+          className="font-display font-bold leading-none"
           style={{
-            fontSize: "70%",
-            color: isRed ? "var(--color-warning)" : "var(--color-warning)",
-            textShadow: "0 1px 2px oklch(0% 0 0 / 0.4)",
-            fontVariationSettings: "'wght' 800",
+            fontSize: "82%",
+            // Cream on red reads like a coin stamp; warm amber on the near-
+            // black disc glows like filament. Both are legible.
+            color: isRed
+              ? "color-mix(in oklch, var(--color-warning) 50%, white)"
+              : "var(--color-warning)",
+            textShadow:
+              "0 1px 2px oklch(0% 0 0 / 0.55), 0 0 6px color-mix(in oklch, var(--color-warning) 40%, transparent)",
           }}
         >
-          ♛
+          ★
         </span>
       )}
     </span>
