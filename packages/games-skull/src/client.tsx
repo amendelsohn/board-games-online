@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
 import {
   POINTS_TO_WIN,
@@ -19,12 +19,18 @@ function Disc({
   size = 44,
   highlight = false,
   dim = false,
+  isPrivate = false,
+  justRevealed = false,
 }: {
   kind?: DiscKind;
   facedown: boolean;
   size?: number;
   highlight?: boolean;
   dim?: boolean;
+  /** Face-up but only the owner can see it — adds a subtle dashed inner ring. */
+  isPrivate?: boolean;
+  /** Apply a one-shot flip keyframe when this disc was just revealed. */
+  justRevealed?: boolean;
 }) {
   const baseStyle: React.CSSProperties = {
     width: size,
@@ -37,7 +43,40 @@ function Disc({
       ? "0 0 0 2px var(--color-success), 0 6px 18px color-mix(in oklch, var(--color-success) 30%, transparent)"
       : "inset 0 1px 0 oklch(100% 0 0 / 0.3), inset 0 -2px 4px oklch(0% 0 0 / 0.3), 0 2px 4px oklch(0% 0 0 / 0.25)",
     transition: "transform 240ms ease, box-shadow 240ms ease",
+    animation: justRevealed
+      ? "skull-flip 400ms cubic-bezier(0.22, 1, 0.36, 1)"
+      : undefined,
   };
+
+  const privateOverlay = isPrivate && !facedown ? (
+    <>
+      <div
+        style={{
+          position: "absolute",
+          inset: "12%",
+          borderRadius: "50%",
+          border:
+            "1px dashed color-mix(in oklch, oklch(0 0 0) 28%, transparent)",
+          pointerEvents: "none",
+        }}
+        aria-hidden
+      />
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 2,
+          right: 5,
+          fontSize: Math.max(8, Math.round(size * 0.22)),
+          color: "oklch(0 0 0 / 0.55)",
+          lineHeight: 1,
+          pointerEvents: "none",
+        }}
+      >
+        ◐
+      </span>
+    </>
+  ) : null;
 
   if (facedown) {
     return (
@@ -66,7 +105,7 @@ function Disc({
   if (kind === "flower") {
     return (
       <div
-        aria-label="flower"
+        aria-label={isPrivate ? "flower (private)" : "flower"}
         style={{
           ...baseStyle,
           background:
@@ -91,6 +130,7 @@ function Disc({
             />
           </g>
         </svg>
+        {privateOverlay}
       </div>
     );
   }
@@ -98,7 +138,7 @@ function Disc({
   // skull
   return (
     <div
-      aria-label="skull"
+      aria-label={isPrivate ? "skull (private)" : "skull"}
       style={{
         ...baseStyle,
         background:
@@ -127,6 +167,7 @@ function Disc({
           <line x1="14" y1="17.2" x2="14" y2="19" />
         </g>
       </svg>
+      {privateOverlay}
     </div>
   );
 }
@@ -165,19 +206,20 @@ function Stack({
   // Positions 0..stackLen-1 where 0 = bottom, stackLen-1 = top.
   // The top `flippedFromTop` positions are face-up from `reveal` (reveal[0] was
   // the *first* flip = the top-most disc).
-  const items: Array<{ facedown: boolean; kind?: DiscKind }> = [];
+  const items: Array<{
+    facedown: boolean;
+    kind?: DiscKind;
+    isPrivate?: boolean;
+  }> = [];
   for (let pos = 0; pos < stackLen; pos++) {
     const fromTop = stackLen - 1 - pos;
     if (fromTop < flippedFromTop) {
-      // reveal[fromTop] would be wrong — reveal[0] is the first flip.
-      // reveal[i] corresponds to the disc at top-1-i? No, let's think again:
-      // First flip exposes the top disc (fromTop=0). reveal[0] = that top disc.
-      // Second flip exposes fromTop=1 — reveal[1].
-      // So reveal[fromTop] for this stack.
       const disc = reveal[fromTop];
       items.push({ facedown: false, kind: disc });
     } else if (ownFacedown) {
-      items.push({ facedown: false, kind: ownFacedown[pos] });
+      // Viewer's own stack: the disc is visible to me but secret to the
+      // table. Marked private for the dashed-ring + eye glyph treatment.
+      items.push({ facedown: false, kind: ownFacedown[pos], isPrivate: true });
     } else {
       items.push({ facedown: true });
     }
@@ -199,6 +241,7 @@ function Stack({
             size={44}
             highlight={highlight && i === items.length - 1}
             dim={dim}
+            isPrivate={it.isPrivate}
           />
         </div>
       ))}
@@ -305,9 +348,111 @@ function SkullBoard({
       ? (view.stackCount[me] ?? 0) - (view.flippedFromStack[me] ?? 0)
       : 0;
 
+  // Per-flip reveal: watches view.flipped growth; holds a 1.5s card with the
+  // disc + "Flower — clean" / "Skull — bust" copy so the table can see every
+  // flip resolve before the stack redraws.
+  const [flipReveal, setFlipReveal] = useState<
+    null | { owner: string; disc: DiscKind }
+  >(null);
+  const prevFlipLenRef = useRef<number>(view.flipped?.length ?? 0);
+  useEffect(() => {
+    const len = view.flipped?.length ?? 0;
+    if (len > prevFlipLenRef.current) {
+      const latest = view.flipped?.[len - 1];
+      prevFlipLenRef.current = len;
+      if (latest) {
+        setFlipReveal({ owner: latest.owner, disc: latest.disc });
+        const t = setTimeout(() => setFlipReveal(null), 1500);
+        return () => clearTimeout(t);
+      }
+    } else {
+      prevFlipLenRef.current = len;
+    }
+  }, [view.flipped?.length, view.flipped]);
+
   return (
     <div className="flex flex-col items-center gap-5 w-full max-w-5xl">
+      <style>{`
+        @keyframes skull-flip {
+          0%   { transform: scale(1) rotateY(0deg); }
+          50%  { transform: scale(1.12) rotateY(90deg); filter: brightness(0.85); }
+          100% { transform: scale(1) rotateY(0deg); }
+        }
+        @keyframes skull-reveal-in {
+          0%   { transform: translateY(8px) scale(0.97); opacity: 0; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .skull-reveal-in { animation: skull-reveal-in 260ms cubic-bezier(0.22, 1, 0.36, 1); }
+      `}</style>
       <Scoreboard view={view} playersById={playersById} me={me} />
+
+      {(view.phase === "bidding" || view.phase === "flipping") &&
+        view.currentBid && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-center gap-3 rounded-2xl px-4 py-2"
+            style={{
+              background:
+                "color-mix(in oklch, var(--color-warning) 15%, transparent)",
+              border:
+                "1px solid color-mix(in oklch, var(--color-warning) 45%, transparent)",
+            }}
+          >
+            <span className="text-[10px] uppercase tracking-[0.3em] font-semibold text-warning">
+              Current bid
+            </span>
+            <span
+              className="font-display font-bold text-2xl md:text-3xl tabular-nums text-warning leading-none"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              {view.currentBid.count}
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+              by {nameOf(view.currentBid.by)}
+              {view.currentBid.by === me && " (you)"}
+            </span>
+          </div>
+        )}
+
+      {flipReveal && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-2xl px-5 py-3 flex items-center gap-3 skull-reveal-in"
+          style={{
+            background:
+              flipReveal.disc === "flower"
+                ? "color-mix(in oklch, var(--color-success) 18%, var(--color-base-100))"
+                : "color-mix(in oklch, var(--color-error) 18%, var(--color-base-100))",
+            border:
+              flipReveal.disc === "flower"
+                ? "1px solid color-mix(in oklch, var(--color-success) 45%, transparent)"
+                : "1px solid color-mix(in oklch, var(--color-error) 45%, transparent)",
+          }}
+        >
+          <Disc kind={flipReveal.disc} facedown={false} size={40} />
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/60">
+              {nameOf(flipReveal.owner)}
+              {flipReveal.owner === me ? " (you)" : ""}
+            </span>
+            <span
+              className="font-semibold text-lg tracking-tight"
+              style={{
+                color:
+                  flipReveal.disc === "flower"
+                    ? "var(--color-success)"
+                    : "var(--color-error)",
+              }}
+            >
+              {flipReveal.disc === "flower"
+                ? "Flower — clean"
+                : "Skull — bust"}
+            </span>
+          </div>
+        </div>
+      )}
 
       <StatusBanner
         view={view}
@@ -563,6 +708,7 @@ function Scoreboard({
                 className={[
                   "text-xs font-semibold truncate max-w-[110px]",
                   active ? "text-primary" : "",
+                  out ? "line-through opacity-60" : "",
                 ].join(" ")}
               >
                 {p.name}
@@ -591,9 +737,14 @@ function Scoreboard({
                 );
               })}
             </div>
-            <div className="text-[10px] uppercase tracking-[0.16em] text-base-content/50 tabular">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-base-content/50 font-mono tabular-nums">
               {out ? "out" : `${pts}/${POINTS_TO_WIN} points`}
             </div>
+            {view.phase === "bidding" && view.passed.includes(id) && !out && (
+              <span className="text-[8px] uppercase tracking-[0.2em] text-warning font-semibold">
+                passed
+              </span>
+            )}
           </div>
         );
       })}
@@ -622,7 +773,11 @@ function StatusBanner({
     const winnerName =
       playersById[view.winner]?.name ?? view.winner ?? "Someone";
     return (
-      <div className="text-sm text-base-content/80">
+      <div
+        role="status"
+        aria-live="polite"
+        className="text-sm text-base-content/80"
+      >
         <span className="font-semibold text-success">{winnerName}</span> has
         called enough bluffs.
       </div>
@@ -632,7 +787,7 @@ function StatusBanner({
     const starter = view.nextStarter;
     const name = starter ? playersById[starter]?.name ?? starter : "";
     return (
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+      <div role="status" aria-live="polite" className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
         {view.nextStarter === me
           ? "You lead the next round"
           : `Waiting on ${name} to start the next round`}
@@ -644,7 +799,7 @@ function StatusBanner({
       ? playersById[view.challenger]?.name ?? view.challenger
       : "";
     return (
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+      <div role="status" aria-live="polite" className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
         <span className="text-warning">◆ Challenge ◆</span> {challenger} is
         flipping — {view.currentBid?.count ?? 0} to go clean
       </div>
@@ -652,7 +807,7 @@ function StatusBanner({
   }
   if (view.phase === "bidding") {
     return (
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+      <div role="status" aria-live="polite" className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
         Bidding —{" "}
         {isMyTurn ? (
           <span className="text-primary font-bold">your call</span>
@@ -667,7 +822,7 @@ function StatusBanner({
   }
   if (iAmOut) {
     return (
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+      <div role="status" aria-live="polite" className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
         Spectating
       </div>
     );
@@ -822,7 +977,7 @@ function BidStepper({
         −
       </button>
       <span
-        className="font-display tracking-tight tabular text-center"
+        className="font-display tracking-tight tabular-nums text-center"
         style={{ fontSize: "var(--text-display-sm)", minWidth: "2ch" }}
       >
         {v}
@@ -926,27 +1081,47 @@ function RoundOverPanel({
       </div>
 
       <div className="flex flex-col gap-2">
-        {Object.entries(result.revealed).map(([id, discs]) => (
-          <div
-            key={id}
-            className="flex items-center gap-3 flex-wrap rounded-lg bg-base-100/60 px-3 py-2"
-          >
-            <div className="min-w-[110px] text-sm font-semibold truncate">
-              {playersById[id]?.name ?? id}
+        {[
+          result.challenger,
+          ...Object.keys(result.revealed).filter(
+            (id) => id !== result.challenger,
+          ),
+        ].map((id) => {
+          const discs = result.revealed[id];
+          if (!discs) return null;
+          const isChallenger = id === result.challenger;
+          return (
+            <div
+              key={id}
+              className={[
+                "flex items-center gap-3 flex-wrap rounded-lg px-3 py-2",
+                isChallenger
+                  ? "bg-base-100 ring-1 ring-primary/40"
+                  : "bg-base-100/60",
+              ].join(" ")}
+            >
+              <div className="min-w-[110px] text-sm font-semibold truncate">
+                {playersById[id]?.name ?? id}
+                {isChallenger && (
+                  <span className="ml-1 text-[9px] uppercase tracking-[0.18em] text-primary/80 font-semibold">
+                    challenger
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {discs.length === 0 ? (
+                  <span className="text-xs italic text-base-content/50">
+                    (none)
+                  </span>
+                ) : (
+                  discs.map((d, i) => (
+                    <Disc key={i} kind={d} facedown={false} size={28} />
+                  ))
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {discs.length === 0 ? (
-                <span className="text-xs italic text-base-content/50">
-                  (none)
-                </span>
-              ) : (
-                discs.map((d, i) => (
-                  <Disc key={i} kind={d} facedown={false} size={28} />
-                ))
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {isOver ? (
