@@ -20,7 +20,7 @@ import {
   type SubscribeMatchPayload,
   type SubmitMovePayload,
 } from '@bgo/contracts';
-import type { PlayerId } from '@bgo/sdk';
+import type { PlayerId, RuntimeViewer } from '@bgo/sdk';
 import { MatchService } from './match.service';
 import { LobbyStore, StoredPlayer } from '../state/lobby-store.service';
 
@@ -103,6 +103,11 @@ export class MatchGateway
     const payload = this.parse(subscribeMatchPayload, raw);
     const sessionPlayer = this.resolvePlayer(payload);
     const viewerId = this.resolveViewer(sessionPlayer.id, payload);
+    // viewerId is always a real PlayerId (used for room joining + targeted
+    // events). runtimeViewer is what the framework hands to the game module:
+    // either the same PlayerId, or `"storyteller"` if the viewer is the
+    // non-playing host of a Storyteller-style table.
+    const runtimeViewer = this.toRuntimeViewer(payload.matchId, viewerId);
 
     const matchId = payload.matchId;
     const existingSubs = this.subscriptions.get(client.id)!;
@@ -111,7 +116,7 @@ export class MatchGateway
     await client.join(`match:${matchId}`);
     await client.join(`player:${matchId}:${viewerId}`);
 
-    const off = this.match.subscribeViews(matchId, viewerId, (snapshot) => {
+    const off = this.match.subscribeViews(matchId, runtimeViewer, (snapshot) => {
       client.emit(WS.VIEW_UPDATED, {
         matchId,
         version: snapshot.version,
@@ -130,7 +135,7 @@ export class MatchGateway
     existingSubs.set(matchId, off);
 
     // Emit current view immediately.
-    const current = await this.match.getView(matchId, viewerId);
+    const current = await this.match.getView(matchId, runtimeViewer);
     if (current) {
       client.emit(WS.VIEW_UPDATED, {
         matchId,
@@ -262,8 +267,9 @@ export class MatchGateway
   }
 
   /**
-   * Dev-only: subscribe as any seated player so a single browser can switch
-   * between seats. In prod the override is silently ignored and the viewer
+   * Dev-only: subscribe as any seated player (or the Storyteller of a
+   * Storyteller-style table) so a single browser can switch between
+   * perspectives. In prod the override is silently ignored and the viewer
    * is pinned to the session player.
    */
   private resolveViewer(
@@ -274,18 +280,19 @@ export class MatchGateway
     if (!this.isDevMode()) return sessionPlayerId;
     if (payload.viewerId === sessionPlayerId) return sessionPlayerId;
     const table = this.match.getMatchTable(payload.matchId);
-    if (!table || !table.playerIds.includes(payload.viewerId)) {
+    if (!table || !this.isParticipant(table, payload.viewerId)) {
       throw new WsException({
         code: 'UNAUTHORIZED',
-        message: 'viewerId is not seated at this match',
+        message: 'viewerId is not in this match',
       });
     }
     return payload.viewerId;
   }
 
   /**
-   * Dev-only: submit moves as any seated player. In prod the override is
-   * silently ignored and the actor is pinned to the session player.
+   * Dev-only: submit moves as any seated player (or the Storyteller). In
+   * prod the override is silently ignored and the actor is pinned to the
+   * session player.
    */
   private resolveActor(
     sessionPlayerId: PlayerId,
@@ -295,12 +302,38 @@ export class MatchGateway
     if (!this.isDevMode()) return sessionPlayerId;
     if (payload.actor === sessionPlayerId) return sessionPlayerId;
     const table = this.match.getMatchTable(payload.matchId);
-    if (!table || !table.playerIds.includes(payload.actor)) {
+    if (!table || !this.isParticipant(table, payload.actor)) {
       throw new WsException({
         code: 'UNAUTHORIZED',
-        message: 'actor is not seated at this match',
+        message: 'actor is not in this match',
       });
     }
     return payload.actor;
+  }
+
+  /**
+   * A participant is either a seated player or, for Storyteller-style
+   * tables, the non-playing host.
+   */
+  private isParticipant(
+    table: { playerIds: PlayerId[]; hostPlayerId: PlayerId; hostIsPlayer: boolean },
+    id: PlayerId,
+  ): boolean {
+    if (table.playerIds.includes(id)) return true;
+    if (!table.hostIsPlayer && id === table.hostPlayerId) return true;
+    return false;
+  }
+
+  /**
+   * Map an authenticated PlayerId to the framework-level RuntimeViewer.
+   * The non-playing host of a Storyteller-style table becomes
+   * `"storyteller"`; everyone else stays as their PlayerId.
+   */
+  private toRuntimeViewer(matchId: string, viewerId: PlayerId): RuntimeViewer {
+    const table = this.match.getMatchTable(matchId);
+    if (table && !table.hostIsPlayer && viewerId === table.hostPlayerId) {
+      return 'storyteller';
+    }
+    return viewerId;
   }
 }

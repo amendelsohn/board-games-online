@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Scan every game package so Tailwind sees classes used in each Board. */
+/* Scan all game packages so Tailwind sees the classes used in their Boards. */
 @source "../../../games-*/src/**/*.{ts,tsx}";
 /* Shared client components (e.g. card primitives) live in sdk-client. */
 @source "../../../sdk-client/src/**/*.{ts,tsx}";

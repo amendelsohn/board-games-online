@@ -13,6 +13,13 @@ export interface StoredTable {
   joinCode: JoinCode;
   gameType: string;
   hostPlayerId: PlayerId;
+  /**
+   * Whether the host occupies a seat in this table. Mirrors the game
+   * module's `hostSeated` flag at table-creation time so the host's role
+   * is fixed for the table's lifetime even if a future server change
+   * flips the module flag.
+   */
+  hostIsPlayer: boolean;
   playerIds: PlayerId[];
   status: 'waiting' | 'playing' | 'finished';
   matchId: string | null;
