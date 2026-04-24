@@ -471,11 +471,11 @@ function DebugSeatBar({
 }) {
   return (
     <div
-      className="mt-3 flex items-center gap-2 flex-wrap rounded-md border border-dashed border-warning/50 bg-warning/5 px-3 py-2 text-xs"
+      className="mt-3 mx-auto max-w-3xl flex items-center gap-2 flex-wrap rounded-md border border-dashed border-warning/50 bg-warning/5 px-3 py-2 text-xs overflow-x-auto"
       role="group"
       aria-label="Debug seat switcher"
     >
-      <span className="font-mono uppercase tracking-[0.22em] text-warning-content/70 shrink-0">
+      <span className="font-mono uppercase tracking-[0.22em] text-warning font-semibold shrink-0">
         🐞 seat
       </span>
       {players.map((p) => {
