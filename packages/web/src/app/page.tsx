@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { GameCategoryWire, GameMetaWire } from "@bgo/contracts";
 import { api } from "@/lib/apiClient";
 import { ensurePlayer, getStoredName, storeName } from "@/lib/playerSession";
+import {
+  getRecentTables,
+  removeRecentTable,
+  type RecentTable,
+} from "@/lib/recentTables";
 import { GameIcon } from "@/components/GameIcon";
 
 // Dev-only: exposes the one-click "fully-seated debug table" flow. Next.js
@@ -14,11 +19,15 @@ const DEBUG_MODE = process.env.NODE_ENV !== "production";
 
 export default function Home() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [games, setGames] = useState<GameMetaWire[] | null>(null);
   const [name, setName] = useState<string>("");
   const [joinCode, setJoinCode] = useState<string>("");
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [recent, setRecent] = useState<RecentTable[]>([]);
+
+  const invalidJoin = searchParams?.get("invalidJoin");
 
   useEffect(() => {
     api
@@ -26,6 +35,33 @@ export default function Home() {
       .then((r) => setGames(r.games))
       .catch((err) => setError((err as Error).message));
     setName(getStoredName() ?? "");
+    setRecent(getRecentTables());
+  }, []);
+
+  // Probe each recent entry — drop any whose table has been evicted server-side.
+  useEffect(() => {
+    const initial = getRecentTables();
+    if (initial.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const results = await Promise.all(
+        initial.map(async (entry) => {
+          try {
+            await api.getTable(entry.tableId);
+            return { entry, alive: true };
+          } catch {
+            return { entry, alive: false };
+          }
+        }),
+      );
+      if (cancelled) return;
+      const dead = results.filter((r) => !r.alive).map((r) => r.entry.joinCode);
+      for (const code of dead) removeRecentTable(code);
+      setRecent(getRecentTables());
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const saveName = async (n: string) => {
@@ -178,6 +214,27 @@ export default function Home() {
         >
           {error}
         </div>
+      )}
+
+      {invalidJoin && (
+        <div
+          role="alert"
+          className="-mt-8 border border-warning/40 bg-warning/10 text-warning-content px-4 py-3 rounded-lg text-sm"
+        >
+          We couldn't find a table for{" "}
+          <span className="font-mono uppercase tracking-[0.18em]">
+            {invalidJoin.toUpperCase() || "that link"}
+          </span>
+          . Double-check the code and try again.
+        </div>
+      )}
+
+      {recent.length > 0 && (
+        <RecentTablesSection
+          recent={recent}
+          games={games}
+          onOpen={(code) => router.push(`/lobby/${code}`)}
+        />
       )}
 
       {/* ============ Catalog ============ */}
@@ -485,6 +542,104 @@ function CatalogSkeleton() {
       ))}
     </ul>
   );
+}
+
+function RecentTablesSection({
+  recent,
+  games,
+  onOpen,
+}: {
+  recent: RecentTable[];
+  games: GameMetaWire[] | null;
+  onOpen: (joinCode: string) => void;
+}) {
+  const byType = useMemo(() => {
+    const map = new Map<string, GameMetaWire>();
+    for (const g of games ?? []) map.set(g.type, g);
+    return map;
+  }, [games]);
+
+  return (
+    <section className="flex flex-col gap-5 parlor-rise">
+      <div className="flex items-baseline justify-between gap-4 flex-wrap">
+        <div className="rule-ornament" style={{ justifyContent: "flex-start" }}>
+          <span>◆ Pick up where you left off</span>
+          <span className="rule-ornament-line" />
+        </div>
+        <span className="font-mono text-[11px] tabular uppercase tracking-[0.22em] text-base-content/45 whitespace-nowrap">
+          {recent.length} recent
+        </span>
+      </div>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {recent.map((entry, i) => {
+          const meta = byType.get(entry.gameType);
+          const label = meta?.displayName ?? prettyGameType(entry.gameType);
+          return (
+            <li
+              key={entry.joinCode}
+              className="parlor-rise rise-stagger"
+              style={{ ["--i" as string]: i }}
+            >
+              <button
+                type="button"
+                onClick={() => onOpen(entry.joinCode)}
+                className={[
+                  "group w-full text-left",
+                  "surface-ivory",
+                  "px-4 py-3.5",
+                  "transition-all duration-200",
+                  "hover:-translate-y-0.5 hover:shadow-[var(--shadow-float)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  "flex items-center gap-3",
+                ].join(" ")}
+              >
+                <GameIcon type={entry.gameType} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono tracking-[0.22em] text-base text-primary">
+                      {entry.joinCode}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="text-primary font-semibold text-sm transition-transform group-hover:translate-x-1 ml-auto"
+                    >
+                      →
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 mt-0.5">
+                    <span className="font-display text-base truncate">
+                      {label}
+                    </span>
+                    <span className="text-[11px] tabular uppercase tracking-[0.18em] text-base-content/45 shrink-0">
+                      {relativeTime(entry.visitedAt)}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function prettyGameType(type: string): string {
+  return type
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function relativeTime(timestamp: number, now: number = Date.now()): string {
+  const diff = Math.max(0, now - timestamp);
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 function Step({
