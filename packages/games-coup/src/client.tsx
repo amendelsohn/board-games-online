@@ -226,11 +226,28 @@ function PlayerRow({
             }}
           >
             <div className="flex items-center justify-between gap-1">
-              <span className="font-semibold text-sm truncate">
-                {isMe ? `${playersById[id]?.name ?? id} (you)` : playersById[id]?.name ?? id}
+              <span className="flex items-center gap-1.5 min-w-0 flex-1">
+                <span className="font-semibold text-sm truncate">
+                  {playersById[id]?.name ?? id}
+                </span>
+                {isMe && (
+                  <span
+                    className="text-[9px] uppercase tracking-[0.22em] font-bold rounded-full px-1.5 py-[1px] shrink-0"
+                    style={{
+                      background:
+                        "color-mix(in oklch, var(--color-primary) 22%, transparent)",
+                      color: "var(--color-primary)",
+                      boxShadow:
+                        "inset 0 0 0 1px color-mix(in oklch, var(--color-primary) 45%, transparent)",
+                    }}
+                    aria-label="this is you"
+                  >
+                    You
+                  </span>
+                )}
               </span>
               <span
-                className="text-[10px] uppercase tracking-[0.18em] font-semibold rounded-full px-1.5 py-0.5 tabular-nums"
+                className="text-[10px] uppercase tracking-[0.18em] font-semibold rounded-full px-1.5 py-0.5 tabular-nums shrink-0"
                 style={{
                   background: "color-mix(in oklch, var(--color-warning) 22%, transparent)",
                   color: "var(--color-warning-content)",
@@ -599,20 +616,30 @@ function ActionPanel({
     await onSubmit(action, target);
   };
 
+  // When the mustCoup rule is active, collapse the 7-card grid down to the
+  // Coup card presented centered and heavy — the other six actions are
+  // literally not allowed, so showing six disabled cells is wall-of-dead-UI.
+  const visibleActions = mustCoup ? (["coup"] as ActionType[]) : actions;
+  const gridClass = mustCoup
+    ? "grid grid-cols-1 max-w-[20rem] mx-auto"
+    : "grid grid-cols-2 sm:grid-cols-3 gap-2";
+
   return (
     <div className="surface-ivory w-full p-5 flex flex-col gap-3">
       <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
-        {mustCoup ? "You have 10+ coins — you must coup" : "Your turn — choose an action"}
+        {mustCoup
+          ? "You must coup — 10+ coins"
+          : "Your turn — choose an action"}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {actions.map((a) => {
+      <div className={gridClass}>
+        {visibleActions.map((a) => {
           const disabled =
-            (mustCoup && a !== "coup") ||
             !canAfford(a) ||
             (actionNeedsTarget(a) && liveTargets.length === 0);
           const claim = claimFor(a);
           const cost = ACTION_COST[a];
+          const highlighted = mustCoup && a === "coup";
           return (
             <button
               key={a}
@@ -620,15 +647,34 @@ function ActionPanel({
               disabled={disabled}
               onClick={() => chooseAction(a)}
               className={[
-                "rounded-xl px-3 py-2.5 text-left transition-all border",
+                "rounded-xl text-left transition-all border",
                 "flex flex-col gap-0.5",
+                highlighted ? "px-4 py-4" : "px-3 py-2.5",
                 disabled
                   ? "bg-base-200/60 border-base-300 opacity-50 cursor-not-allowed"
-                  : "bg-base-100 border-base-300 hover:border-primary/70 cursor-pointer",
+                  : highlighted
+                    ? "bg-base-100 border-error hover:border-error cursor-pointer"
+                    : "bg-base-100 border-base-300 hover:border-primary/70 cursor-pointer",
               ].join(" ")}
+              style={
+                highlighted
+                  ? {
+                      boxShadow:
+                        "0 0 0 2px color-mix(in oklch, var(--color-error) 35%, transparent), 0 8px 24px color-mix(in oklch, var(--color-error) 18%, transparent)",
+                    }
+                  : undefined
+              }
             >
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-sm">{ACTION_LABEL[a]}</span>
+                <span
+                  className={
+                    highlighted
+                      ? "font-display text-lg tracking-tight"
+                      : "font-semibold text-sm"
+                  }
+                >
+                  {ACTION_LABEL[a]}
+                </span>
                 {cost != null && (
                   <span
                     className="text-[10px] uppercase tracking-[0.12em] font-semibold px-1.5 rounded-full"
@@ -670,16 +716,41 @@ function ActionPanel({
             <span className="font-semibold">{ACTION_LABEL[pendingAction]}</span>:
           </div>
           <div className="flex flex-wrap gap-2">
-            {liveTargets.map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => confirmTarget(id)}
-                className="btn btn-sm btn-primary rounded-full font-semibold"
-              >
-                {playersById[id]?.name ?? id}
-              </button>
-            ))}
+            {liveTargets.map((id) => {
+              // Match each target pill to the border state of that player's
+              // card so the picker reads as a continuation of the row above.
+              // The tint uses the primary (same as "current/actor/responder"
+              // default on the player card) but signals which player visually.
+              const name = playersById[id]?.name ?? id;
+              const initial = name.slice(0, 1).toUpperCase();
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => confirmTarget(id)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold transition-colors border"
+                  style={{
+                    background:
+                      "color-mix(in oklch, var(--color-primary) 10%, var(--color-base-100))",
+                    borderColor:
+                      "color-mix(in oklch, var(--color-primary) 55%, transparent)",
+                    color: "var(--color-primary)",
+                  }}
+                >
+                  <span
+                    className="inline-flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold"
+                    style={{
+                      background: "var(--color-primary)",
+                      color: "var(--color-primary-content)",
+                    }}
+                    aria-hidden
+                  >
+                    {initial}
+                  </span>
+                  {name}
+                </button>
+              );
+            })}
             <button
               type="button"
               onClick={() => setPendingAction(null)}
@@ -822,10 +893,16 @@ function RespondPanel({
               key={c}
               type="button"
               onClick={() => onRespond("block", c)}
-              className="btn btn-sm rounded-full font-semibold"
+              // Outline-tinted: ivory body, role color as a left 4px accent
+              // bar + border + text. Matches Avalon vote buttons (btn-info
+              // stays outline+text, not flood) — four full-color slabs in a
+              // row was visually aggressive.
+              className="relative rounded-full pl-4 pr-3.5 py-1 text-sm font-semibold transition-colors border"
               style={{
-                background: CARD_COLOR[c],
-                color: "var(--color-base-100)",
+                background: "var(--color-base-100)",
+                borderColor: `color-mix(in oklch, ${CARD_COLOR[c]} 55%, transparent)`,
+                color: CARD_COLOR[c],
+                boxShadow: `inset 4px 0 0 0 ${CARD_COLOR[c]}`,
               }}
             >
               Block as {CARD_LABEL[c]}
@@ -1029,6 +1106,37 @@ function WaitingBanner({
 
 // ------------------------- Log -------------------------
 
+// Role labels that should be color-tinted inline in the history. Each entry
+// is the display label as emitted by the server log (matches CARD_LABEL).
+const LOG_ROLE_PATTERN = new RegExp(
+  `\\b(${Object.values(CARD_LABEL).join("|")})\\b`,
+  "g",
+);
+
+function renderLogLine(text: string): React.ReactNode {
+  // Split into alternating non-role / role segments. We preserve the original
+  // casing so "Captain" in the log becomes colored, but "captain" (lowercased,
+  // unlikely) wouldn't — log lines are capitalized by the server.
+  const parts = text.split(LOG_ROLE_PATTERN);
+  return parts.map((part, i) => {
+    const roleKey = (Object.entries(CARD_LABEL).find(
+      ([, label]) => label === part,
+    )?.[0] ?? null) as Card | null;
+    if (roleKey) {
+      return (
+        <span
+          key={i}
+          style={{ color: CARD_COLOR[roleKey] }}
+          className="font-semibold"
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 function LogPanel({
   view,
   playersById,
@@ -1052,11 +1160,23 @@ function LogPanel({
       <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 mb-0.5">
         History
       </div>
-      {recent.map((e) => (
-        <div key={e.id} className="text-base-content/75 leading-snug">
-          {resolveNames(e.text)}
-        </div>
-      ))}
+      {recent.map((e) => {
+        const resolved = resolveNames(e.text);
+        const isPhase = resolved.trim().startsWith("—");
+        return (
+          <div
+            key={e.id}
+            className={[
+              "leading-snug",
+              isPhase
+                ? "text-base-content/45 italic border-t border-base-300/70 pt-1 mt-0.5 first:border-t-0 first:pt-0 first:mt-0"
+                : "text-base-content/75",
+            ].join(" ")}
+          >
+            {renderLogLine(resolved)}
+          </div>
+        );
+      })}
     </div>
   );
 }
