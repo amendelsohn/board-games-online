@@ -15,6 +15,10 @@ function discoverGamePackages() {
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  // Ensure the standalone bundle traces across the whole pnpm workspace,
+  // not just packages/web/. Required for the docker runner to find the
+  // @bgo/sdk / @bgo/sdk-client / @bgo/games-* siblings.
+  outputFileTracingRoot: path.join(__dirname, "..", ".."),
   experimental: {
     forceSwcTransforms: true,
   },
