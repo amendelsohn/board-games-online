@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { BoardProps, ClientGameModule, SummaryProps } from "@bgo/sdk-client";
 import {
   CODE_LENGTH,
@@ -12,17 +12,18 @@ import {
 } from "./shared";
 
 /**
- * Color → CSS variable. We use semantic daisyUI vars so theme swaps carry
- * through. The six slots are deliberately picked from opposite ends of the
- * palette so they remain distinct in both day and night themes.
+ * Explicit OKLCH palette — six hues from opposite sides of the color wheel
+ * so they stay distinct in both parlor-day and parlor-night themes. Semantic
+ * vars (error/warning/accent/…) collide in Parlor where multiple slots land
+ * in the red/orange/amber range.
  */
-const COLOR_VAR: Record<Color, string> = {
-  R: "var(--color-error)",
-  O: "var(--color-warning)",
-  Y: "var(--color-accent)",
-  G: "var(--color-success)",
-  B: "var(--color-info)",
-  V: "var(--color-primary)",
+const COLOR_HEX: Record<Color, { fill: string; ink: string }> = {
+  R: { fill: "oklch(62% 0.22 28)",  ink: "oklch(98% 0.02 28)"  },
+  O: { fill: "oklch(72% 0.16 58)",  ink: "oklch(20% 0.06 58)"  },
+  Y: { fill: "oklch(82% 0.17 96)",  ink: "oklch(20% 0.08 96)"  },
+  G: { fill: "oklch(60% 0.15 150)", ink: "oklch(98% 0.02 150)" },
+  B: { fill: "oklch(58% 0.14 245)", ink: "oklch(98% 0.02 245)" },
+  V: { fill: "oklch(50% 0.22 300)", ink: "oklch(98% 0.02 300)" },
 };
 
 const COLOR_NAME: Record<Color, string> = {
@@ -40,6 +41,7 @@ function Peg({
   empty = false,
   onClick,
   selected = false,
+  highlighted = false,
   ariaLabel,
 }: {
   color?: Color;
@@ -47,26 +49,46 @@ function Peg({
   empty?: boolean;
   onClick?: () => void;
   selected?: boolean;
+  highlighted?: boolean;
   ariaLabel?: string;
 }) {
   const dim =
     size === "lg" ? "h-8 w-8" : size === "sm" ? "h-3.5 w-3.5" : "h-6 w-6";
-  const bg = empty || !color
-    ? "color-mix(in oklch, var(--color-base-content) 12%, transparent)"
-    : COLOR_VAR[color];
+  const hasColor = !!color && !empty;
+  const bg = hasColor
+    ? COLOR_HEX[color!].fill
+    : "color-mix(in oklch, var(--color-base-content) 12%, transparent)";
+  const letterSize = size === "sm" ? 7 : size === "lg" ? 12 : 9;
   const className = [
-    "rounded-full inline-block",
+    "relative rounded-full inline-flex items-center justify-center",
     dim,
     onClick ? "cursor-pointer transition-transform hover:scale-110" : "",
     selected ? "ring-2 ring-offset-2 ring-offset-base-100 ring-base-content" : "",
+    highlighted && !selected ? "ring-2 ring-base-content/30 scale-[1.04]" : "",
   ].join(" ");
   const style: React.CSSProperties = {
     background: bg,
-    boxShadow:
-      empty || !color
-        ? "inset 0 1px 1px oklch(0% 0 0 / 0.18)"
-        : "inset 0 2px 3px oklch(100% 0 0 / 0.35), inset 0 -2px 3px oklch(0% 0 0 / 0.3), 0 1px 2px oklch(0% 0 0 / 0.25)",
+    boxShadow: !hasColor
+      ? "inset 0 1px 1px oklch(0% 0 0 / 0.18)"
+      : "inset 0 2px 3px oklch(100% 0 0 / 0.35), inset 0 -2px 3px oklch(0% 0 0 / 0.3), 0 1px 2px oklch(0% 0 0 / 0.25)",
   };
+  const body = (
+    <>
+      {hasColor && size !== "sm" && (
+        <span
+          className="font-mono font-bold select-none pointer-events-none"
+          style={{
+            color: COLOR_HEX[color!].ink,
+            fontSize: letterSize,
+            lineHeight: 1,
+          }}
+          aria-hidden
+        >
+          {color}
+        </span>
+      )}
+    </>
+  );
   if (onClick) {
     return (
       <button
@@ -75,7 +97,9 @@ function Peg({
         className={className}
         style={style}
         aria-label={ariaLabel}
-      />
+      >
+        {body}
+      </button>
     );
   }
   return (
@@ -83,23 +107,29 @@ function Peg({
       className={className}
       style={style}
       aria-label={ariaLabel}
-    />
+    >
+      {body}
+    </span>
   );
 }
 
 function FeedbackPegs({ black, white }: { black: number; white: number }) {
-  // Render 4 small pegs: black first, then white, then empty.
   const pegs: ("B" | "W" | null)[] = [];
   for (let i = 0; i < black; i++) pegs.push("B");
   for (let i = 0; i < white; i++) pegs.push("W");
   while (pegs.length < CODE_LENGTH) pegs.push(null);
 
+  const miss = CODE_LENGTH - black - white;
   return (
-    <div className="grid grid-cols-2 gap-[3px]">
+    <div
+      role="group"
+      aria-label={`${black} exact match${black === 1 ? "" : "es"}, ${white} color-only, ${miss} miss${miss === 1 ? "" : "es"}`}
+      className="grid grid-cols-2 gap-[3px]"
+    >
       {pegs.map((p, i) => (
         <span
           key={i}
-          className="h-2.5 w-2.5 rounded-full inline-block"
+          className="h-3 w-3 rounded-full inline-block"
           style={{
             background:
               p === "B"
@@ -136,6 +166,7 @@ function SettingPanel({
   locked: boolean;
 }) {
   const full = draft.every((c) => c !== null);
+  const currentColor = draft[selecting] ?? null;
   return (
     <div className="surface-ivory p-6 flex flex-col gap-4 items-center">
       <div className="text-[10px] uppercase tracking-[0.3em] font-semibold text-base-content/55">
@@ -154,21 +185,37 @@ function SettingPanel({
             onClick={() => !locked && setSelecting(i)}
             disabled={locked}
             className={[
-              "h-12 w-12 rounded-full flex items-center justify-center",
+              "relative h-12 w-12 rounded-full flex items-center justify-center",
               "transition-all",
-              selecting === i && !locked ? "ring-2 ring-primary ring-offset-2 ring-offset-base-100" : "",
+              selecting === i && !locked
+                ? "ring-2 ring-primary ring-offset-2 ring-offset-base-100"
+                : "",
               locked ? "cursor-default" : "cursor-pointer hover:scale-105",
             ].join(" ")}
             style={{
               background: c
-                ? COLOR_VAR[c]
+                ? COLOR_HEX[c].fill
                 : "color-mix(in oklch, var(--color-base-content) 10%, transparent)",
               boxShadow: c
                 ? "inset 0 3px 5px oklch(100% 0 0 / 0.4), inset 0 -3px 5px oklch(0% 0 0 / 0.3), 0 2px 4px oklch(0% 0 0 / 0.25)"
-                : "inset 0 2px 3px oklch(0% 0 0 / 0.2)",
+                : "inset 0 1px 1px oklch(0% 0 0 / 0.18)",
             }}
             aria-label={`slot ${i + 1}${c ? ` (${COLOR_NAME[c]})` : ""}`}
-          />
+          >
+            {c && (
+              <span
+                className="font-mono font-bold select-none pointer-events-none"
+                style={{
+                  color: COLOR_HEX[c].ink,
+                  fontSize: 16,
+                  lineHeight: 1,
+                }}
+                aria-hidden
+              >
+                {c}
+              </span>
+            )}
+          </button>
         ))}
       </div>
 
@@ -180,11 +227,11 @@ function SettingPanel({
               color={col}
               size="lg"
               ariaLabel={COLOR_NAME[col]}
+              highlighted={currentColor === col}
               onClick={() => {
                 const next = draft.slice();
                 next[selecting] = col;
                 setDraft(next);
-                // Auto-advance to the next empty slot for flow.
                 const nextEmpty = next.findIndex((x, i) => x === null && i !== selecting);
                 if (nextEmpty >= 0) setSelecting(nextEmpty);
                 else if (selecting < CODE_LENGTH - 1) setSelecting(selecting + 1);
@@ -208,6 +255,9 @@ function SettingPanel({
           Waiting for opponent to lock their code…
         </div>
       )}
+      <div className="text-[10px] text-base-content/40 uppercase tracking-[0.2em]">
+        1–6 to pick · ← → to move · Enter to lock
+      </div>
     </div>
   );
 }
@@ -234,7 +284,7 @@ function GuessRow({
             {Array.from({ length: CODE_LENGTH }).map((_, i) => (
               <span
                 key={i}
-                className="h-2.5 w-2.5 rounded-full inline-block"
+                className="h-3 w-3 rounded-full inline-block"
                 style={{
                   background:
                     "color-mix(in oklch, var(--color-base-content) 8%, transparent)",
@@ -270,10 +320,11 @@ function MyBoard({
   exhausted: boolean;
 }) {
   const locked = cracked || exhausted;
+  const currentColor = draft[selecting] ?? null;
 
   return (
     <div className="surface-ivory p-5 flex flex-col gap-2">
-      <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 mb-1">
+      <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 mb-1 font-mono tabular-nums">
         Your attempts ({guesses.length}/{MAX_GUESSES})
       </div>
 
@@ -294,7 +345,7 @@ function MyBoard({
             return (
               <div
                 key={i}
-                className="flex items-center gap-3 py-1.5 px-2 rounded-lg"
+                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 py-1.5 px-2 rounded-lg"
                 style={{
                   background:
                     "color-mix(in oklch, var(--color-primary) 8%, transparent)",
@@ -302,14 +353,14 @@ function MyBoard({
                     "1px dashed color-mix(in oklch, var(--color-primary) 45%, transparent)",
                 }}
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 justify-center sm:justify-start">
                   {draft.map((c, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setSelecting(idx)}
                       className={[
-                        "h-6 w-6 rounded-full",
+                        "relative h-6 w-6 rounded-full flex items-center justify-center",
                         "transition-transform",
                         selecting === idx
                           ? "ring-2 ring-primary ring-offset-2 ring-offset-base-100"
@@ -317,19 +368,33 @@ function MyBoard({
                       ].join(" ")}
                       style={{
                         background: c
-                          ? COLOR_VAR[c]
+                          ? COLOR_HEX[c].fill
                           : "color-mix(in oklch, var(--color-base-content) 10%, transparent)",
                         boxShadow: c
                           ? "inset 0 2px 3px oklch(100% 0 0 / 0.35), inset 0 -2px 3px oklch(0% 0 0 / 0.3), 0 1px 2px oklch(0% 0 0 / 0.25)"
-                          : "inset 0 1px 1px oklch(0% 0 0 / 0.2)",
+                          : "inset 0 1px 1px oklch(0% 0 0 / 0.18)",
                       }}
-                      aria-label={`guess slot ${idx + 1}`}
-                    />
+                      aria-label={`guess slot ${idx + 1}${c ? ` (${COLOR_NAME[c]})` : ""}`}
+                    >
+                      {c && (
+                        <span
+                          className="font-mono font-bold select-none pointer-events-none"
+                          style={{
+                            color: COLOR_HEX[c].ink,
+                            fontSize: 9,
+                            lineHeight: 1,
+                          }}
+                          aria-hidden
+                        >
+                          {c}
+                        </span>
+                      )}
+                    </button>
                   ))}
                 </div>
                 <button
                   type="button"
-                  className="ml-auto btn btn-primary btn-sm rounded-full px-4 font-semibold"
+                  className="sm:ml-auto btn btn-primary btn-sm rounded-full px-4 font-semibold w-full sm:w-auto"
                   disabled={!canSubmit}
                   onClick={onSubmit}
                 >
@@ -361,6 +426,7 @@ function MyBoard({
               color={col}
               size="md"
               ariaLabel={COLOR_NAME[col]}
+              highlighted={currentColor === col}
               onClick={() => {
                 const next = draft.slice();
                 next[selecting] = col;
@@ -403,7 +469,7 @@ function OpponentBoard({
 }) {
   return (
     <div className="surface-ivory p-5 flex flex-col gap-2">
-      <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 mb-1 flex items-center justify-between">
+      <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 mb-1 flex items-center justify-between font-mono tabular-nums">
         <span>{name} — attempts ({guesses.length}/{MAX_GUESSES})</span>
         {!codeSet && (
           <span className="text-[10px] text-base-content/40 italic normal-case tracking-normal">
@@ -467,6 +533,100 @@ function OpponentBoard({
   );
 }
 
+function ProgressBarMini({ filled, max }: { filled: number; max: number }) {
+  return (
+    <div
+      className="flex items-center gap-0.5"
+      role="img"
+      aria-label={`${filled} of ${max} guesses used`}
+    >
+      {Array.from({ length: max }).map((_, i) => (
+        <span
+          key={i}
+          className="h-2 w-1.5 rounded-[1px]"
+          style={{
+            background:
+              i < filled
+                ? "var(--color-primary)"
+                : "color-mix(in oklch, var(--color-base-content) 12%, transparent)",
+            boxShadow:
+              i < filled ? "inset 0 -1px 0 oklch(0% 0 0 / 0.2)" : undefined,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Deduction helper — tallies how many times each color has been tried, and
+ * at which of the four positions, based purely on the viewer's own past
+ * guesses. Pure information scent; no server data required.
+ */
+function ClueTracker({ guesses }: { guesses: GuessRecord[] }) {
+  const stats = useMemo(() => {
+    const perColor: Record<Color, { total: number; positions: boolean[] }> = {
+      R: { total: 0, positions: Array(CODE_LENGTH).fill(false) },
+      O: { total: 0, positions: Array(CODE_LENGTH).fill(false) },
+      Y: { total: 0, positions: Array(CODE_LENGTH).fill(false) },
+      G: { total: 0, positions: Array(CODE_LENGTH).fill(false) },
+      B: { total: 0, positions: Array(CODE_LENGTH).fill(false) },
+      V: { total: 0, positions: Array(CODE_LENGTH).fill(false) },
+    };
+    for (const g of guesses) {
+      for (let i = 0; i < g.code.length; i++) {
+        const c = g.code[i]!;
+        perColor[c].total += 1;
+        perColor[c].positions[i] = true;
+      }
+    }
+    return perColor;
+  }, [guesses]);
+
+  return (
+    <div className="surface-ivory p-4 flex flex-col gap-2">
+      <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+        Clue tracker
+      </div>
+      <div className="text-[10px] text-base-content/45 normal-case tracking-normal italic">
+        Where you've placed each color
+      </div>
+      <div className="flex flex-col gap-1.5 pt-1">
+        {COLORS.map((c) => {
+          const s = stats[c];
+          return (
+            <div key={c} className="flex items-center gap-2">
+              <Peg color={c} size="sm" ariaLabel={COLOR_NAME[c]} />
+              <span className="text-[11px] font-mono tabular-nums font-semibold w-14 text-base-content/80">
+                {s.total}×
+              </span>
+              <div className="flex items-center gap-0.5" aria-hidden>
+                {s.positions.map((tried, i) => (
+                  <span
+                    key={i}
+                    className="h-2.5 w-2.5 rounded-full inline-block"
+                    style={{
+                      background: tried
+                        ? COLOR_HEX[c].fill
+                        : "transparent",
+                      border: tried
+                        ? "none"
+                        : `1px solid color-mix(in oklch, ${COLOR_HEX[c].fill} 50%, transparent)`,
+                      boxShadow: tried
+                        ? "inset 0 -1px 0 oklch(0% 0 0 / 0.2)"
+                        : undefined,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MastermindBoard({
   view,
   me,
@@ -520,9 +680,96 @@ function MastermindBoard({
     !iExhausted &&
     guessDraft.every((c) => c !== null);
 
+  // Keyboard shortcuts: 1-6 pick color, arrows move slot, Enter submits,
+  // Backspace clears. Only active when the board has focus context
+  // (document-level listener; bail if target is an input).
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      const target = ev.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (isOver) return;
+
+      const isSetting = view.phase === "setting" && !iHaveSet;
+      const isGuessing = view.phase === "guessing" && !view.iCracked && !iExhausted;
+      if (!isSetting && !isGuessing) return;
+
+      const draft = isSetting ? settingDraft : guessDraft;
+      const setDraft = isSetting ? setSettingDraft : setGuessDraft;
+      const selecting = isSetting ? settingSelecting : guessSelecting;
+      const setSelecting = isSetting ? setSettingSelecting : setGuessSelecting;
+
+      if (ev.key >= "1" && ev.key <= "6") {
+        const idx = Number(ev.key) - 1;
+        const col = COLORS[idx]!;
+        const next = draft.slice();
+        next[selecting] = col;
+        setDraft(next);
+        const nextEmpty = next.findIndex((x, i) => x === null && i !== selecting);
+        if (nextEmpty >= 0) setSelecting(nextEmpty);
+        else if (selecting < CODE_LENGTH - 1) setSelecting(selecting + 1);
+        ev.preventDefault();
+        return;
+      }
+      if (ev.key === "ArrowLeft") {
+        setSelecting(Math.max(0, selecting - 1));
+        ev.preventDefault();
+        return;
+      }
+      if (ev.key === "ArrowRight") {
+        setSelecting(Math.min(CODE_LENGTH - 1, selecting + 1));
+        ev.preventDefault();
+        return;
+      }
+      if (ev.key === "Backspace") {
+        const next = draft.slice();
+        next[selecting] = null;
+        setDraft(next);
+        ev.preventDefault();
+        return;
+      }
+      if (ev.key === "Enter") {
+        if (isSetting && draft.every((c) => c !== null)) {
+          lockCode();
+          ev.preventDefault();
+        } else if (isGuessing && canSubmitGuess) {
+          submitGuess();
+          ev.preventDefault();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [
+    view.phase,
+    iHaveSet,
+    view.iCracked,
+    iExhausted,
+    settingDraft,
+    guessDraft,
+    settingSelecting,
+    guessSelecting,
+    isOver,
+    canSubmitGuess,
+  ]);
+
   return (
     <div className="flex flex-col items-center gap-5 w-full">
       <PhaseBanner view={view} me={me} opponentName={opponentName} />
+
+      {view.phase !== "setting" && (
+        <TempoIndicator
+          myCount={view.myGuesses.length}
+          oppCount={opp?.guesses.length ?? 0}
+          opponentName={opponentName}
+        />
+      )}
 
       {view.phase === "setting" && !isOver && (
         <SettingPanel
@@ -537,17 +784,22 @@ function MastermindBoard({
 
       {view.phase !== "setting" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
-          <MyBoard
-            guesses={view.myGuesses}
-            draft={guessDraft}
-            setDraft={setGuessDraft}
-            selecting={guessSelecting}
-            setSelecting={setGuessSelecting}
-            canSubmit={canSubmitGuess}
-            onSubmit={submitGuess}
-            cracked={view.iCracked}
-            exhausted={iExhausted}
-          />
+          <div className="flex flex-col gap-3">
+            <MyBoard
+              guesses={view.myGuesses}
+              draft={guessDraft}
+              setDraft={setGuessDraft}
+              selecting={guessSelecting}
+              setSelecting={setGuessSelecting}
+              canSubmit={canSubmitGuess}
+              onSubmit={submitGuess}
+              cracked={view.iCracked}
+              exhausted={iExhausted}
+            />
+            {!isOver && view.myGuesses.length > 0 && (
+              <ClueTracker guesses={view.myGuesses} />
+            )}
+          </div>
           {opp && opponentId && (
             <OpponentBoard
               guesses={opp.guesses}
@@ -565,6 +817,35 @@ function MastermindBoard({
           {oppHasSet ? "Opponent is ready." : "Both players are choosing codes."}
         </div>
       )}
+    </div>
+  );
+}
+
+function TempoIndicator({
+  myCount,
+  oppCount,
+  opponentName,
+}: {
+  myCount: number;
+  oppCount: number;
+  opponentName: string;
+}) {
+  const iLeadBy = oppCount - myCount;
+  const oppLeadBy = myCount - oppCount;
+  return (
+    <div
+      className="flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-base-content/60 font-mono tabular-nums flex-wrap justify-center"
+    >
+      <span className={iLeadBy >= 2 ? "text-warning" : undefined}>
+        You <span className="font-bold text-base-content">{myCount}</span>/{MAX_GUESSES}
+      </span>
+      <ProgressBarMini filled={myCount} max={MAX_GUESSES} />
+      <span className="text-base-content/30">vs</span>
+      <ProgressBarMini filled={oppCount} max={MAX_GUESSES} />
+      <span className={oppLeadBy >= 2 ? "text-warning" : undefined}>
+        {opponentName}{" "}
+        <span className="font-bold text-base-content">{oppCount}</span>/{MAX_GUESSES}
+      </span>
     </div>
   );
 }
@@ -604,26 +885,33 @@ function PhaseBanner({
     }
   }
 
-  const bg =
+  // Restrained banner — soft tinted background + colored text, not the
+  // shouty solid-fill.
+  const { bg, border, fg } =
     tone === "success"
-      ? "var(--color-success)"
+      ? {
+          bg: "color-mix(in oklch, var(--color-success) 18%, var(--color-base-100))",
+          border: "1px solid color-mix(in oklch, var(--color-success) 45%, transparent)",
+          fg: "var(--color-success)",
+        }
       : tone === "error"
-        ? "var(--color-error)"
-        : tone === "neutral"
-          ? "var(--color-base-200)"
-          : "var(--color-base-200)";
-  const fg =
-    tone === "success"
-      ? "var(--color-success-content)"
-      : tone === "error"
-        ? "var(--color-error-content)"
-        : "var(--color-base-content)";
+        ? {
+            bg: "color-mix(in oklch, var(--color-error) 18%, var(--color-base-100))",
+            border: "1px solid color-mix(in oklch, var(--color-error) 45%, transparent)",
+            fg: "var(--color-error)",
+          }
+        : {
+            bg: "var(--color-base-200)",
+            border: "1px solid color-mix(in oklch, var(--color-base-content) 10%, transparent)",
+            fg: "var(--color-base-content)",
+          };
 
   return (
     <div
       className="px-5 py-2 rounded-full font-display tracking-tight text-base md:text-lg"
       style={{
         background: bg,
+        border,
         color: fg,
         boxShadow:
           "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.12)",
@@ -636,24 +924,21 @@ function PhaseBanner({
 
 function MastermindSummary({ view }: SummaryProps<MastermindView>) {
   if (view.phase !== "gameOver") return null;
-  const [a, b] = view.players;
-  const aSecret = view.opponent[a]?.secret ?? (view.mySecret && a !== b ? null : null);
-  const bSecret = view.opponent[b]?.secret ?? null;
 
-  // The viewer's own secret is in mySecret; opponent's is under opponent map.
-  // Unified render: just walk through both players.
+  // Unified render across both seats. We don't receive `players` in summary
+  // props, but view.mySecret lets us identify the viewer when present.
   const secrets: Record<string, Color[] | null> = {};
-  secrets[a] = view.opponent[a]?.secret ?? null;
-  secrets[b] = view.opponent[b]?.secret ?? null;
-  if (view.mySecret) {
-    // find which seat is mine; fall back to whichever slot isn't filled.
-    if (!secrets[a]) secrets[a] = view.mySecret;
-    else if (!secrets[b]) secrets[b] = view.mySecret;
+  for (const pid of view.players) {
+    secrets[pid] = view.opponent[pid]?.secret ?? null;
   }
-
-  // Suppress unused warning while keeping explicit reads for clarity.
-  void aSecret;
-  void bSecret;
+  if (view.mySecret) {
+    for (const pid of view.players) {
+      if (!secrets[pid] && view.opponent[pid] === undefined) {
+        secrets[pid] = view.mySecret;
+        break;
+      }
+    }
+  }
 
   return (
     <div className="surface-ivory max-w-xl mx-auto px-6 py-5 text-center flex flex-col gap-3">
@@ -663,10 +948,11 @@ function MastermindSummary({ view }: SummaryProps<MastermindView>) {
       <div className="flex flex-col gap-2 items-center">
         {view.players.map((pid) => {
           const code = secrets[pid];
+          const isViewer = view.mySecret !== null && secrets[pid] === view.mySecret;
           return (
             <div key={pid} className="flex items-center gap-3">
-              <span className="text-xs uppercase tracking-[0.2em] text-base-content/55 w-24 text-right">
-                Player {pid.slice(0, 4)}
+              <span className="text-xs uppercase tracking-[0.2em] text-base-content/55 w-24 text-right font-mono">
+                {isViewer ? "You" : `Player ${pid.slice(0, 4)}`}
               </span>
               <div className="flex items-center gap-1.5">
                 {code
