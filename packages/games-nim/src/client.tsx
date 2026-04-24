@@ -24,7 +24,6 @@ function NimBoard({
     return m;
   }, [players]);
 
-  // Track the most recently affected pile so we can flash it briefly.
   const [flashPile, setFlashPile] = useState<PileIndex | null>(null);
   const lastMoveRef = useRef<NimView["lastMove"]>(view.lastMove);
   useEffect(() => {
@@ -46,11 +45,9 @@ function NimBoard({
     lastMoveRef.current = now;
   }, [view.lastMove]);
 
-  // Selected pile + count for the submit stepper path.
   const [activePile, setActivePile] = useState<PileIndex | null>(null);
   const [selectedCount, setSelectedCount] = useState<number>(0);
 
-  // If the selected pile empties (opponent drained it, or game resets), clear.
   useEffect(() => {
     if (activePile === null) return;
     const size = view.piles[activePile] ?? 0;
@@ -62,7 +59,6 @@ function NimBoard({
     }
   }, [view.piles, activePile, selectedCount]);
 
-  // After our move lands, clear the selection.
   useEffect(() => {
     if (!isMyTurn) {
       setActivePile(null);
@@ -77,9 +73,6 @@ function NimBoard({
     setSelectedCount(1);
   };
 
-  // Click on stone k within pile i => preview taking (size - k) stones.
-  // Stones are rendered bottom-up; clicking stone at position `fromTop`
-  // selects that many from the top.
   const hoverStone = (i: PileIndex, fromTop: number, size: number) => {
     if (!isMyTurn || isOver || size <= 0) return;
     if (activePile !== i) {
@@ -97,63 +90,73 @@ function NimBoard({
     void sendMove({ kind: "take", pile: activePile, count });
   };
 
-  const currentName =
-    playersById[view.current]?.name ?? "Opponent";
+  const currentName = playersById[view.current]?.name ?? "Opponent";
   const winnerName = view.winner
-    ? (playersById[view.winner]?.name ?? "Someone")
+    ? playersById[view.winner]?.name ?? "Someone"
     : null;
-  const iAmCurrent = view.current === me;
 
   return (
-    <div className="flex flex-col items-center gap-5">
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+    <div className="flex flex-col items-center gap-5 w-full">
+      <div
+        role="status"
+        aria-live="polite"
+        className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold"
+      >
         {isOver ? (
-          <span>
-            {view.winner === me ? (
-              <span className="text-success font-bold">You took the last stone</span>
-            ) : (
-              <span>
-                <span className="text-base-content font-bold">{winnerName}</span>{" "}
-                took the last stone
+          view.winner === me ? (
+            <span>
+              <span className="text-success font-bold">You win!</span>{" "}
+              <span className="text-base-content/60 normal-case tracking-normal">
+                (took the last stone)
               </span>
-            )}
-          </span>
+            </span>
+          ) : (
+            <span>
+              <span className="text-base-content font-bold">{winnerName}</span>{" "}
+              wins.{" "}
+              <span className="text-base-content/60 normal-case tracking-normal">
+                (took the last stone)
+              </span>
+            </span>
+          )
         ) : isMyTurn ? (
           <span className="text-primary font-bold">Your turn</span>
         ) : (
-          <span>
+          <span className="inline-flex items-center gap-1">
             Waiting on{" "}
             <span className="text-base-content font-bold">{currentName}</span>
+            <span
+              aria-hidden
+              className="inline-block h-1.5 w-1.5 rounded-full bg-base-content/40 animate-pulse ml-1"
+            />
           </span>
         )}
       </div>
 
       <div
-        className="relative rounded-2xl p-5 md:p-7"
+        className="relative rounded-2xl p-4 md:p-6 w-full max-w-2xl"
         style={{
           background:
-            "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
+            "color-mix(in oklch, var(--color-base-300) 75%, color-mix(in oklch, var(--color-warning) 8%, transparent))",
           boxShadow:
             "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
         }}
       >
-        <div className="flex items-end justify-center gap-6 md:gap-10">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-center gap-3 sm:gap-6 md:gap-8">
           {view.piles.map((size, i) => {
             const pileIdx = i as PileIndex;
             const isActive = activePile === pileIdx;
             const isFlashing = flashPile === pileIdx;
             const canPick = isMyTurn && !isOver && size > 0;
-            const stonesToShow = Math.max(size, 1); // reserve one slot for empty base
+            const stonesToShow = Math.max(size, 1);
 
-            // When active, show which stones are "about to be taken"
-            // (the top `selectedCount` of the pile).
             return (
               <div
                 key={i}
                 className={[
-                  "flex flex-col items-center gap-3",
+                  "flex flex-col items-stretch sm:items-center",
                   "transition-transform duration-200",
-                  isActive ? "scale-[1.03]" : "",
+                  isActive ? "sm:scale-[1.03]" : "",
                 ].join(" ")}
               >
                 <button
@@ -161,18 +164,19 @@ function NimBoard({
                   disabled={!canPick && !isActive}
                   onClick={() => pickPile(pileIdx, size)}
                   onMouseLeave={() => {
-                    // Reset preview back to a single stone when leaving the pile.
                     if (isActive && isMyTurn && !isOver) {
                       setSelectedCount((c) => (c === 0 ? 1 : c));
                     }
                   }}
+                  aria-pressed={isActive}
                   className={[
-                    "relative flex flex-col-reverse items-center gap-1.5",
-                    "px-3 pt-3 pb-2 rounded-xl min-w-[4.5rem]",
+                    "relative flex items-center gap-3 sm:flex-col-reverse sm:gap-1.5",
+                    "px-3 py-2 sm:pt-3 sm:pb-2 rounded-xl",
+                    "min-h-[44px] w-full sm:w-auto sm:min-w-[5rem]",
                     "transition-all duration-200",
                     canPick ? "cursor-pointer" : "cursor-default",
                     isActive
-                      ? "bg-primary/10 ring-2 ring-primary"
+                      ? "bg-primary/10 ring-[3px] ring-primary"
                       : canPick
                         ? "hover:bg-base-100/70"
                         : "",
@@ -183,93 +187,118 @@ function NimBoard({
                       ? "0 8px 24px color-mix(in oklch, var(--color-primary) 25%, transparent)"
                       : undefined,
                   }}
-                  aria-label={`Pile ${PILE_LABELS[i]}, ${size} stones`}
+                  aria-label={`Pile ${PILE_LABELS[i]}, ${size} stones${isActive ? `, taking ${selectedCount}` : ""}`}
                 >
-                  {/* Stack of stones, rendered from the bottom up thanks to flex-col-reverse. */}
-                  {size === 0 ? (
-                    <span className="h-6 w-10 rounded-full border border-dashed border-base-content/25 flex items-center justify-center text-[10px] uppercase tracking-wider text-base-content/40">
-                      empty
+                  {isActive && (
+                    <span
+                      aria-hidden
+                      className="absolute -top-2 left-3 sm:left-1/2 sm:-translate-x-1/2 px-2 py-0.5 rounded-full bg-primary text-primary-content text-[9px] uppercase tracking-[0.2em] font-semibold"
+                    >
+                      Picked
                     </span>
-                  ) : (
-                    Array.from({ length: stonesToShow }).map((_, idxFromBottom) => {
-                      // position from top: 1 = topmost stone, size = bottom stone
-                      const fromTop = size - idxFromBottom;
-                      const willBeTaken =
-                        isActive && fromTop <= selectedCount;
-                      return (
-                        <span
-                          key={idxFromBottom}
-                          onMouseEnter={(e) => {
-                            e.stopPropagation();
-                            hoverStone(pileIdx, fromTop, size);
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!canPick) return;
-                            if (activePile !== pileIdx) {
-                              setActivePile(pileIdx);
-                            }
-                            setSelectedCount(Math.max(1, Math.min(size, fromTop)));
-                          }}
-                          className={[
-                            "block h-6 w-10 rounded-full",
-                            "transition-all duration-200",
-                            willBeTaken ? "parlor-fade" : "",
-                          ].join(" ")}
-                          style={{
-                            background: willBeTaken
-                              ? "color-mix(in oklch, var(--color-primary) 55%, var(--color-base-100))"
-                              : "color-mix(in oklch, var(--color-base-content) 18%, var(--color-base-100))",
-                            boxShadow: willBeTaken
-                              ? "0 2px 6px color-mix(in oklch, var(--color-primary) 40%, transparent), inset 0 1px 0 oklch(100% 0 0 / 0.4), inset 0 -1px 0 oklch(0% 0 0 / 0.2)"
-                              : "inset 0 1px 0 oklch(100% 0 0 / 0.3), inset 0 -1px 0 oklch(0% 0 0 / 0.2), 0 1px 2px oklch(0% 0 0 / 0.15)",
-                            transform: willBeTaken
-                              ? "translateY(-2px)"
-                              : undefined,
-                          }}
-                        />
-                      );
-                    })
                   )}
+
+                  {/* Label block — left of stones on mobile, below on desktop */}
+                  <div className="flex flex-col items-center gap-0.5 min-w-[3rem] sm:order-2 sm:min-w-0">
+                    <span className="text-xs font-display tracking-[0.25em] text-base-content/60">
+                      {PILE_LABELS[i]}
+                    </span>
+                    <span className="text-[10px] text-base-content/45 font-mono tabular-nums">
+                      {size} left
+                    </span>
+                  </div>
+
+                  {/* Stones — row on mobile, stack on desktop */}
+                  <div
+                    className={[
+                      "flex items-center gap-1 flex-1 sm:flex-initial sm:gap-1.5",
+                      "sm:flex-col-reverse flex-wrap sm:flex-nowrap justify-start sm:justify-start",
+                    ].join(" ")}
+                  >
+                    {size === 0 ? (
+                      <span
+                        className="h-5 w-5 sm:h-6 sm:w-8 rounded-full border border-dashed flex items-center justify-center text-[10px] uppercase tracking-wider"
+                        style={{
+                          borderColor: "color-mix(in oklch, var(--color-base-content) 15%, transparent)",
+                          color: "color-mix(in oklch, var(--color-base-content) 30%, transparent)",
+                        }}
+                      >
+                        —
+                      </span>
+                    ) : (
+                      Array.from({ length: stonesToShow }).map((_, idxFromBottom) => {
+                        const fromTop = size - idxFromBottom;
+                        const willBeTaken = isActive && fromTop <= selectedCount;
+                        return (
+                          <span
+                            key={idxFromBottom}
+                            onMouseEnter={(e) => {
+                              e.stopPropagation();
+                              hoverStone(pileIdx, fromTop, size);
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!canPick) return;
+                              if (activePile !== pileIdx) {
+                                setActivePile(pileIdx);
+                              }
+                              setSelectedCount(Math.max(1, Math.min(size, fromTop)));
+                            }}
+                            className={[
+                              "block h-5 w-5 sm:h-6 sm:w-8 rounded-full",
+                              "transition-all duration-200",
+                              willBeTaken ? "parlor-fade" : "",
+                              // Let mobile taps fall through to the pile button;
+                              // hover-capable pointers get the stone-level handlers.
+                              "pointer-events-none sm:pointer-events-auto",
+                            ].join(" ")}
+                            style={{
+                              background: willBeTaken
+                                ? "radial-gradient(ellipse at 35% 30%, color-mix(in oklch, var(--color-primary) 40%, white 20%) 0%, color-mix(in oklch, var(--color-primary) 65%, var(--color-base-100)) 80%)"
+                                : "radial-gradient(ellipse at 35% 30%, color-mix(in oklch, var(--color-base-100) 92%, white 8%) 0%, color-mix(in oklch, var(--color-base-content) 22%, var(--color-base-100)) 78%)",
+                              boxShadow: willBeTaken
+                                ? "0 2px 6px color-mix(in oklch, var(--color-primary) 40%, transparent), inset 0 1px 0 oklch(100% 0 0 / 0.4), inset 0 -1px 0 oklch(0% 0 0 / 0.2)"
+                                : "inset 0 1px 0 oklch(100% 0 0 / 0.3), inset 0 -1px 0 oklch(0% 0 0 / 0.2), 0 1px 2px oklch(0% 0 0 / 0.15)",
+                              transform: willBeTaken ? "translateY(-2px)" : undefined,
+                            }}
+                          />
+                        );
+                      })
+                    )}
+                  </div>
                 </button>
-                <div className="flex flex-col items-center gap-0.5">
-                  <span className="text-xs font-display tracking-[0.25em] text-base-content/60">
-                    {PILE_LABELS[i]}
-                  </span>
-                  <span className="text-xs text-base-content/45 tabular-nums">
-                    {size} left
-                  </span>
-                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Stepper + submit */}
+      {/* Unified stepper + submit pill */}
       {!isOver && (
         <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-1.5 rounded-full p-1"
+            style={{
+              background: "var(--color-base-100)",
+              boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--color-base-content) 12%, transparent), 0 1px 2px oklch(0% 0 0 / 0.08)",
+            }}
+          >
             <button
               type="button"
-              disabled={
-                !isMyTurn || activePile === null || selectedCount <= 1
-              }
-              onClick={() =>
-                setSelectedCount((c) => Math.max(1, c - 1))
-              }
-              className="h-9 w-9 rounded-full bg-base-100 text-lg font-bold text-base-content/80 ring-1 ring-base-300 hover:bg-base-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              disabled={!isMyTurn || activePile === null || selectedCount <= 1}
+              onClick={() => setSelectedCount((c) => Math.max(1, c - 1))}
+              className="h-9 w-9 rounded-full text-lg font-bold text-base-content/80 hover:bg-base-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               aria-label="decrease"
             >
               −
             </button>
-            <div className="min-w-[9rem] text-center">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-base-content/50">
+            <div className="px-3 min-w-[7rem] text-center">
+              <div className="text-[9px] uppercase tracking-[0.22em] text-base-content/50">
                 Take
               </div>
-              <div className="font-display text-2xl leading-tight text-base-content">
+              <div className="font-mono tabular-nums text-sm text-base-content leading-tight">
                 {activePile === null
-                  ? "—"
+                  ? "pick a pile"
                   : `${selectedCount} from ${PILE_LABELS[activePile]}`}
               </div>
             </div>
@@ -285,40 +314,39 @@ function NimBoard({
                 const size = view.piles[activePile] ?? 0;
                 setSelectedCount((c) => Math.min(size, c + 1));
               }}
-              className="h-9 w-9 rounded-full bg-base-100 text-lg font-bold text-base-content/80 ring-1 ring-base-300 hover:bg-base-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              className="h-9 w-9 rounded-full text-lg font-bold text-base-content/80 hover:bg-base-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               aria-label="increase"
             >
               +
             </button>
+            <button
+              type="button"
+              disabled={!isMyTurn || activePile === null || selectedCount < 1}
+              onClick={submit}
+              className={[
+                "h-9 px-4 rounded-full font-display tracking-wide tabular-nums ml-1",
+                "transition-all duration-200",
+                isMyTurn && activePile !== null
+                  ? "bg-primary text-primary-content hover:brightness-110 cursor-pointer shadow-[0_4px_12px_color-mix(in_oklch,var(--color-primary)_35%,transparent)]"
+                  : "bg-base-200 text-base-content/40 cursor-not-allowed",
+              ].join(" ")}
+            >
+              {!isMyTurn
+                ? "Wait"
+                : activePile === null
+                  ? "Pick"
+                  : `Take ${selectedCount}`}
+            </button>
           </div>
-          <button
-            type="button"
-            disabled={!isMyTurn || activePile === null || selectedCount < 1}
-            onClick={submit}
-            className={[
-              "mt-1 px-5 h-10 rounded-full font-display tracking-wide",
-              "transition-all duration-200",
-              isMyTurn && activePile !== null
-                ? "bg-primary text-primary-content hover:brightness-110 cursor-pointer shadow-[0_6px_16px_color-mix(in_oklch,var(--color-primary)_35%,transparent)]"
-                : "bg-base-100 text-base-content/40 cursor-not-allowed",
-            ].join(" ")}
-          >
-            {isMyTurn
-              ? activePile === null
-                ? "Pick a pile"
-                : `Take ${selectedCount}`
-              : iAmCurrent
-                ? "Submit"
-                : "Not your turn"}
-          </button>
-          <div className="text-xs text-base-content/45 tracking-wide">
-            Click a pile, then click a stone to set how many you take.
+          <div className="text-xs text-base-content/50 tracking-wide text-center max-w-sm px-4">
+            Take ≥1 stone from one pile. The player who takes the last stone
+            wins.
           </div>
         </div>
       )}
 
-      {isOver && view.lastMove && (
-        <div className="text-xs text-base-content/55 tracking-wide">
+      {view.lastMove && (
+        <div className="text-[11px] text-base-content/50 tracking-wide font-mono tabular-nums">
           Last: {playersById[view.lastMove.by]?.name ?? "Someone"} took{" "}
           {view.lastMove.count} from {PILE_LABELS[view.lastMove.pile]}
         </div>
