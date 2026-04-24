@@ -21,10 +21,26 @@ interface PendingPromotion {
   to: Square;
 }
 
+// Both sides render with the FILLED codepoints (U+265A-265F). We discriminate
+// by CSS fill + stroke, not by Unicode, so white pieces don't collapse into
+// their outlined cousins against cream squares. Filled silhouettes are also
+// what chess.com / lichess ship.
 const PIECE_GLYPH: Record<Piece, string> = {
-  K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙",
+  K: "♚", Q: "♛", R: "♜", B: "♝", N: "♞", P: "♟",
   k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟",
 };
+
+// Standard starting piece counts, for deriving captured material from the
+// current board. Mapped by piece-kind (lowercase), one entry per color.
+const STARTING_COUNTS: Record<string, number> = {
+  p: 8, n: 2, b: 2, r: 2, q: 1, k: 1,
+};
+// Roughly-standard point values (kings excluded).
+const PIECE_VALUE: Record<string, number> = {
+  p: 1, n: 3, b: 3, r: 5, q: 9, k: 0,
+};
+// Render order inside the captured strip: pawns → knights → bishops → rooks → queens.
+const CAPTURED_ORDER: ReadonlyArray<string> = ["p", "n", "b", "r", "q"];
 
 function ChessBoard({
   view,
@@ -139,6 +155,49 @@ function ChessBoard({
   const displayRow = (row: number) => (flipped ? BOARD_SIZE - 1 - row : row);
   const displayCol = (col: number) => (flipped ? BOARD_SIZE - 1 - col : col);
 
+  // Derive captured material from the current board. "captured[color]" is the
+  // set of pieces of `color` that have been captured (i.e. are missing from
+  // the board relative to the starting count). We render each side's captured
+  // pieces ABOVE that side's back rank — so the white player sees all the
+  // black pieces they've captured just below the enemy half (or above, if
+  // flipped).
+  const captured = useMemo(() => {
+    const tally = { w: {} as Record<string, number>, b: {} as Record<string, number> };
+    for (const c of view.cells) {
+      if (!c) continue;
+      const col = pieceColor(c);
+      const kind = pieceKind(c);
+      tally[col][kind] = (tally[col][kind] ?? 0) + 1;
+    }
+    const missing = (col: "w" | "b") => {
+      const out: Record<string, number> = {};
+      for (const kind of Object.keys(STARTING_COUNTS)) {
+        const seen = tally[col][kind] ?? 0;
+        const delta = STARTING_COUNTS[kind]! - seen;
+        if (delta > 0) out[kind] = delta;
+      }
+      return out;
+    };
+    return { w: missing("w"), b: missing("b") };
+  }, [view.cells]);
+
+  // Signed material diff (positive → white is ahead).
+  const materialDiff = useMemo(() => {
+    const valueOf = (tally: Record<string, number>) =>
+      Object.entries(tally).reduce(
+        (s, [k, n]) => s + (PIECE_VALUE[k] ?? 0) * n,
+        0,
+      );
+    // White's advantage = value of black pieces captured - value of white pieces captured.
+    return valueOf(captured.b) - valueOf(captured.w);
+  }, [captured]);
+
+  // "Top" and "bottom" refer to the on-screen orientation (after flipping).
+  // Top strip shows the pieces captured from the player sitting at the top;
+  // bottom mirrors. The player (`myColor`) is always at the bottom.
+  const topSide: "w" | "b" = flipped ? "w" : "b";
+  const bottomSide: "w" | "b" = flipped ? "b" : "w";
+
   return (
     <div className="flex flex-col items-center gap-5">
       <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
@@ -159,7 +218,7 @@ function ChessBoard({
       </div>
 
       <div
-        className="relative rounded-2xl p-3 md:p-4"
+        className="relative rounded-2xl p-3 md:p-4 flex flex-col gap-2"
         style={{
           background:
             "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
@@ -167,6 +226,23 @@ function ChessBoard({
             "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.12), 0 14px 36px color-mix(in oklch, var(--color-neutral) 18%, transparent)",
         }}
       >
+        <CapturedStrip
+          side={topSide}
+          tally={captured[topSide]}
+          // Material diff shown on the side whose opponent is ahead — i.e.
+          // if materialDiff > 0 white is up, which means the BLACK strip shows
+          // "+N" from white's perspective, and vice versa.
+          materialDelta={
+            topSide === "b"
+              ? materialDiff > 0
+                ? materialDiff
+                : 0
+              : materialDiff < 0
+                ? -materialDiff
+                : 0
+          }
+        />
+
         <div
           className="grid gap-0 rounded-lg overflow-hidden"
           style={{
@@ -229,12 +305,44 @@ function ChessBoard({
                 {(isLastFrom || isLastTo) && !isSelected && !dest && (
                   <span
                     aria-hidden
-                    className="absolute inset-1 rounded-md ring-1 ring-base-100/50"
+                    className="absolute inset-1 rounded-md"
                     style={{
                       background:
-                        "color-mix(in oklch, var(--color-warning) 18%, transparent)",
+                        "color-mix(in oklch, var(--color-warning) 35%, transparent)",
+                      boxShadow:
+                        "inset 0 0 0 2px color-mix(in oklch, var(--color-warning) 55%, transparent)",
                     }}
                   />
+                )}
+
+                {/* Rank/file labels: file in the bottom row, rank in the
+                    leftmost column. Tinted to the opposite square color so
+                    they never clash. */}
+                {dispRow === BOARD_SIZE - 1 && (
+                  <span
+                    aria-hidden
+                    className="absolute bottom-0.5 right-1 font-mono text-[9px] leading-none uppercase tracking-wider"
+                    style={{
+                      color: isLightSquare
+                        ? "color-mix(in oklch, var(--color-neutral) 60%, transparent)"
+                        : "color-mix(in oklch, var(--color-base-100) 70%, transparent)",
+                    }}
+                  >
+                    {"abcdefgh"[col]}
+                  </span>
+                )}
+                {dispCol === 0 && (
+                  <span
+                    aria-hidden
+                    className="absolute top-0.5 left-1 font-mono text-[9px] leading-none tabular-nums"
+                    style={{
+                      color: isLightSquare
+                        ? "color-mix(in oklch, var(--color-neutral) 60%, transparent)"
+                        : "color-mix(in oklch, var(--color-base-100) 70%, transparent)",
+                    }}
+                  >
+                    {8 - row}
+                  </span>
                 )}
 
                 {isKingInCheck && (
@@ -294,6 +402,20 @@ function ChessBoard({
             );
           })}
         </div>
+
+        <CapturedStrip
+          side={bottomSide}
+          tally={captured[bottomSide]}
+          materialDelta={
+            bottomSide === "b"
+              ? materialDiff > 0
+                ? materialDiff
+                : 0
+              : materialDiff < 0
+                ? -materialDiff
+                : 0
+          }
+        />
       </div>
 
       <div className="text-xs text-base-content/55 tracking-wide">
@@ -311,46 +433,111 @@ function ChessBoard({
   );
 }
 
-function PieceGlyph({ piece }: { piece: Piece }) {
+function CapturedStrip({
+  side,
+  tally,
+  materialDelta,
+}: {
+  side: "w" | "b";
+  tally: Record<string, number>;
+  materialDelta: number;
+}) {
+  const total = Object.values(tally).reduce((s, n) => s + n, 0);
+  if (total === 0 && materialDelta === 0) {
+    // Reserve the vertical space so the board doesn't jump when the first
+    // capture lands. A single thin line keeps the layout stable.
+    return <div className="h-5" aria-hidden />;
+  }
+
+  // Build a flat, length-ordered list of captured pieces.
+  const items: { key: string; piece: Piece }[] = [];
+  for (const kind of CAPTURED_ORDER) {
+    const n = tally[kind] ?? 0;
+    for (let i = 0; i < n; i++) {
+      const piece: Piece = (side === "w" ? kind.toUpperCase() : kind) as Piece;
+      items.push({ key: `${kind}-${i}`, piece });
+    }
+  }
+
+  return (
+    <div className="h-5 flex items-center gap-2 px-1">
+      <div className="flex items-center gap-[1px] min-w-0 overflow-hidden">
+        {items.map(({ key, piece }) => (
+          <span
+            key={key}
+            className="inline-flex items-center justify-center"
+            style={{ width: "1.1rem", height: "1.1rem" }}
+          >
+            <PieceGlyph piece={piece} size="captured" />
+          </span>
+        ))}
+      </div>
+      {materialDelta > 0 && (
+        <span
+          className="font-mono text-[11px] tabular-nums font-semibold"
+          style={{
+            color: "color-mix(in oklch, var(--color-base-content) 80%, transparent)",
+          }}
+          aria-label={`material advantage +${materialDelta}`}
+        >
+          +{materialDelta}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PieceGlyph({
+  piece,
+  size = "board",
+}: {
+  piece: Piece;
+  size?: "board" | "captured";
+}) {
   const color = pieceColor(piece);
   const glyph = PIECE_GLYPH[piece];
   const isWhite = color === "w";
 
-  // Two-layer render: a black stroke silhouette behind a white/black fill,
-  // so pieces read clearly on both light and dark squares.
+  // Both colors use the FILLED codepoint; we differentiate purely with CSS
+  // `color` and `-webkit-text-stroke`. White = ivory with a dark stroke,
+  // black = near-ink with a thin warm-ivory stroke (so the silhouette still
+  // reads on the dark square without looking outlined).
   const fillColor = isWhite
-    ? "var(--color-base-100)"
-    : "color-mix(in oklch, var(--color-neutral) 95%, black)";
+    ? "color-mix(in oklch, var(--color-base-100) 92%, white)"
+    : "oklch(18% 0.012 60)";
   const strokeColor = isWhite
-    ? "color-mix(in oklch, var(--color-neutral) 75%, black)"
+    ? "oklch(15% 0.012 60)"
     : "color-mix(in oklch, var(--color-base-100) 55%, transparent)";
+
+  const dimensions =
+    size === "captured"
+      ? { width: "100%", height: "100%", fontSize: "1.15rem" }
+      : {
+          width: "90%",
+          height: "90%",
+          fontSize: "clamp(1.6rem, 3.8vw, 2.4rem)",
+        };
 
   return (
     <span
-      className="relative flex items-center justify-center parlor-rise select-none"
+      className={`relative flex items-center justify-center select-none${
+        size === "captured" ? "" : " parlor-rise"
+      }`}
       style={{
-        width: "90%",
-        height: "90%",
-        fontSize: "clamp(1.6rem, 3.8vw, 2.4rem)",
+        ...dimensions,
         lineHeight: 1,
-        filter: "drop-shadow(0 1px 1px oklch(0% 0 0 / 0.35))",
+        filter:
+          size === "captured"
+            ? undefined
+            : "drop-shadow(0 1px 1px oklch(0% 0 0 / 0.35))",
       }}
     >
-      <span
-        aria-hidden
-        className="absolute inset-0 flex items-center justify-center"
-        style={{
-          color: strokeColor,
-          transform: "translate(0.6px, 0.6px)",
-        }}
-      >
-        {glyph}
-      </span>
       <span
         className="relative"
         style={{
           color: fillColor,
-          WebkitTextStroke: `0.7px ${strokeColor}`,
+          WebkitTextStroke: `${isWhite ? 1.1 : 0.7}px ${strokeColor}`,
+          paintOrder: "stroke fill",
         }}
       >
         {glyph}
