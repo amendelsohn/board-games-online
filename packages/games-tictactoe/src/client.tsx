@@ -49,6 +49,7 @@ function TicTacToeBoard({
               <button
                 key={i}
                 type="button"
+                data-testid={`ttt-cell-${i}`}
                 disabled={disabled}
                 onClick={() => handleClick(i)}
                 className={[
