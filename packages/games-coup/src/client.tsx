@@ -816,7 +816,7 @@ function RespondPanel({
       }}
     >
       <div className="text-[10px] uppercase tracking-[0.3em] font-semibold text-warning-content">
-        ◆ Respond ◆
+        ◆ {isBlockRespond ? "Respond to block" : "Respond"} ◆
       </div>
 
       <div className="text-sm text-base-content/85">
