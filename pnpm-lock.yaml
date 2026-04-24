@@ -311,6 +311,34 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  packages/games-gofish:
+    dependencies:
+      '@bgo/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@bgo/sdk-client':
+        specifier: workspace:*
+        version: link:../sdk-client
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.0.10
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+
   packages/games-gomoku:
     dependencies:
       '@bgo/sdk':
@@ -969,6 +997,9 @@ importers:
       '@bgo/games-forsale':
         specifier: workspace:*
         version: link:../games-forsale
+      '@bgo/games-gofish':
+        specifier: workspace:*
+        version: link:../games-gofish
       '@bgo/games-gomoku':
         specifier: workspace:*
         version: link:../games-gomoku
@@ -1189,6 +1220,9 @@ importers:
       '@bgo/games-forsale':
         specifier: workspace:*
         version: link:../games-forsale
+      '@bgo/games-gofish':
+        specifier: workspace:*
+        version: link:../games-gofish
       '@bgo/games-gomoku':
         specifier: workspace:*
         version: link:../games-gomoku

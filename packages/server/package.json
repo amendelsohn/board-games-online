@@ -32,6 +32,7 @@
     "@bgo/games-coup": "workspace:*",
     "@bgo/games-dotsandboxes": "workspace:*",
     "@bgo/games-forsale": "workspace:*",
+    "@bgo/games-gofish": "workspace:*",
     "@bgo/games-gomoku": "workspace:*",
     "@bgo/games-hanabi": "workspace:*",
     "@bgo/games-hearts": "workspace:*",
