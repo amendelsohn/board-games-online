@@ -268,7 +268,7 @@ describe("ticTacToeServerModule", () => {
     it("rejects a move from someone who isn't in the match", () => {
       // Craft a state whose `current` points at an unknown id — the
       // `symbols[actor]` lookup then fails.
-      const { state, x } = stateWhereAliceIsX();
+      const { state } = stateWhereAliceIsX();
       const rigged: TicTacToeState = { ...state, current: "p-ghost" };
       const { ctx } = makeCtx();
       const result = ticTacToeServerModule.handleMove(
