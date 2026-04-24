@@ -85,6 +85,26 @@ const KIND_TINT: Record<CardKind, { fill: string; ink: string }> = {
   },
 };
 
+function PuddingGlyph({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      aria-label="pudding"
+      style={{ display: "inline-block", verticalAlign: "middle" }}
+    >
+      <path
+        d="M3 11 L5 5 L11 5 L13 11 Z"
+        fill="oklch(80% 0.1 60)"
+        stroke="color-mix(in oklch, var(--color-base-content) 50%, transparent)"
+        strokeWidth="0.6"
+      />
+      <ellipse cx="8" cy="5" rx="3" ry="0.9" fill="oklch(60% 0.16 30)" />
+    </svg>
+  );
+}
+
 function CardGlyph({ kind }: { kind: CardKind }) {
   // Tiny pictogram per card. SVGs kept compact; meaning > literal art.
   const stroke = "color-mix(in oklch, var(--color-base-content) 65%, transparent)";
@@ -344,6 +364,20 @@ function SushiBoard({
 
   const useChopsticks = view.iCanUseChopsticks && !iPicked;
 
+  // Current leader — shown as a ◆ lead chip on their tableau when score > 0.
+  const leaderId = useMemo(() => {
+    let best: string | null = null;
+    let bestScore = -1;
+    for (const id of view.players) {
+      const s = view.seats[id]?.score ?? 0;
+      if (s > bestScore) {
+        bestScore = s;
+        best = id;
+      }
+    }
+    return best;
+  }, [view.players, view.seats]);
+
   const submit = () => {
     if (iPicked || !primary) return;
     if (useChopsticks && secondary) {
@@ -370,6 +404,7 @@ function SushiBoard({
             view={view}
             playersById={playersById}
             isMe={id === me}
+            isLeader={leaderId === id}
           />
         ))}
       </div>
@@ -384,9 +419,14 @@ function SushiBoard({
               "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.15)",
           }}
         >
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/60">
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/60"
+          >
             <span className="inline-block h-2 w-2 rounded-full bg-primary/70" />
-            Your hand — round {view.round}, {myHand.length} card{myHand.length === 1 ? "" : "s"}
+            Your hand — round {view.round}, {myHand.length} card
+            {myHand.length === 1 ? "" : "s"}
             {iPicked && (
               <span className="ml-2 text-success">✓ locked in</span>
             )}
@@ -396,7 +436,12 @@ function SushiBoard({
               empty — waiting on next deal
             </div>
           ) : (
-            <div className="flex gap-2 flex-wrap justify-center">
+            <div
+              className={[
+                "flex gap-2 flex-wrap justify-center transition-all",
+                iPicked ? "opacity-55 pointer-events-none grayscale-[20%]" : "",
+              ].join(" ")}
+            >
               {myHand.map((c) => {
                 const isPrim = primary === c.id;
                 const isSec = secondary === c.id;
@@ -481,13 +526,32 @@ function Header({
   playersById: Record<string, { id: string; name: string }>;
 }) {
   void playersById;
+  const pickedCount = view.players.filter(
+    (id) => view.seats[id]?.hasPicked,
+  ).length;
+  const totalPlayers = view.players.length;
   return (
-    <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-base-content/60 font-semibold">
-      <span>Round {Math.min(view.round, 3)}/3</span>
-      <span>·</span>
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-base-content/60 font-semibold flex-wrap justify-center"
+    >
+      <span className="font-mono tabular-nums">
+        Round {Math.min(view.round, 3)}/3
+      </span>
+      <span className="text-base-content/35">·</span>
       <span>
         Phase: {view.phase === "pick" ? "pick & pass" : view.phase}
       </span>
+      {view.phase === "pick" && (
+        <>
+          <span className="text-base-content/35">·</span>
+          <span className="font-mono tabular-nums">
+            <span className="text-primary">{pickedCount}</span>/{totalPlayers}{" "}
+            locked
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -497,11 +561,13 @@ function Tableau({
   view,
   playersById,
   isMe,
+  isLeader,
 }: {
   id: string;
   view: SushiView;
   playersById: Record<string, { id: string; name: string }>;
   isMe: boolean;
+  isLeader: boolean;
 }) {
   const p = playersById[id] ?? { id, name: id };
   const seat = view.seats[id];
@@ -510,6 +576,36 @@ function Tableau({
   const puddings = seat?.puddings ?? 0;
   const handSize = seat?.handSize ?? 0;
   const hasPicked = seat?.hasPicked ?? false;
+
+  // Group played cards by canonical kind (all makis together, all nigiris
+  // together, etc.) so the tableau reads as a visual bar graph.
+  const grouped = useMemo(() => {
+    const groups: Record<string, Card[]> = {};
+    const keyFor = (k: CardKind) =>
+      k.startsWith("maki") ? "maki" : k.startsWith("nigiri") ? "nigiri" : k;
+    for (const c of played) {
+      const k = keyFor(c.kind);
+      (groups[k] ??= []).push(c);
+    }
+    const order: string[] = [
+      "tempura",
+      "sashimi",
+      "dumpling",
+      "maki",
+      "nigiri",
+      "wasabi",
+      "chopsticks",
+      "pudding",
+    ];
+    return order
+      .filter((k) => groups[k])
+      .map((k) => [k, groups[k]!] as const);
+  }, [played]);
+
+  const chopsticksReady =
+    isMe &&
+    view.iCanUseChopsticks &&
+    grouped.some(([k]) => k === "chopsticks");
 
   return (
     <div
@@ -532,8 +628,20 @@ function Tableau({
             ✓ picked
           </span>
         )}
-        <span className="ml-auto text-xs tabular text-base-content/65">
-          {handSize} in hand · 🍮 {puddings}
+        {isLeader && (seat?.score ?? 0) > 0 && (
+          <span
+            className="text-[9px] uppercase tracking-[0.18em] text-warning font-semibold"
+            title="Current leader"
+          >
+            ◆ lead
+          </span>
+        )}
+        <span className="ml-auto text-xs font-mono tabular-nums text-base-content/65 inline-flex items-center gap-1.5">
+          <span>{handSize} in hand</span>
+          <span className="text-base-content/35">·</span>
+          <span className="inline-flex items-center gap-1">
+            <PuddingGlyph size={12} /> {puddings}
+          </span>
         </span>
         <span className="font-display text-base-content/85" style={{ fontSize: "var(--text-display-sm)" }}>
           {score}
@@ -545,14 +653,35 @@ function Tableau({
         </div>
       ) : (
         <div className="flex flex-wrap gap-1.5">
-          {played.map((c, i) => (
-            <CardFace
-              key={c.id + i}
-              card={c}
-              size="md"
-              bonus={undefined}
-            />
+          {grouped.map(([k, cards]) => (
+            <div
+              key={k}
+              className="flex items-center gap-0.5 px-1 py-0.5 rounded"
+              style={{
+                background:
+                  "color-mix(in oklch, var(--color-base-300) 18%, transparent)",
+              }}
+            >
+              {cards.map((c, i) => (
+                <CardFace
+                  key={c.id + i}
+                  card={c}
+                  size="md"
+                  bonus={undefined}
+                />
+              ))}
+              {cards.length >= 2 && (
+                <span className="text-[9px] uppercase tracking-wider text-base-content/55 ml-0.5 font-mono tabular-nums">
+                  ×{cards.length}
+                </span>
+              )}
+            </div>
           ))}
+        </div>
+      )}
+      {chopsticksReady && (
+        <div className="text-[9px] uppercase tracking-wider text-warning font-semibold">
+          Chopsticks ready — pair with a 2nd card
         </div>
       )}
     </div>
@@ -608,7 +737,11 @@ function RoundResultPanel({
               <th className="text-right">Maki</th>
               <th className="text-right">Nigiri</th>
               <th className="text-right">Round</th>
-              {isOver && <th className="text-right">🍮</th>}
+              {isOver && (
+                <th className="text-right">
+                  <PuddingGlyph size={12} />
+                </th>
+              )}
               <th className="text-right">Total</th>
             </tr>
           </thead>
@@ -624,18 +757,18 @@ function RoundResultPanel({
                   <td className="py-1 font-semibold">
                     {playersById[id]?.name ?? id}
                   </td>
-                  <td className="text-right tabular">{b?.tempura ?? 0}</td>
-                  <td className="text-right tabular">{b?.sashimi ?? 0}</td>
-                  <td className="text-right tabular">{b?.dumpling ?? 0}</td>
-                  <td className="text-right tabular">{b?.maki ?? 0}</td>
-                  <td className="text-right tabular">{b?.nigiri ?? 0}</td>
-                  <td className="text-right tabular">{b?.total ?? 0}</td>
+                  <td className="text-right tabular-nums font-mono">{b?.tempura ?? 0}</td>
+                  <td className="text-right tabular-nums font-mono">{b?.sashimi ?? 0}</td>
+                  <td className="text-right tabular-nums font-mono">{b?.dumpling ?? 0}</td>
+                  <td className="text-right tabular-nums font-mono">{b?.maki ?? 0}</td>
+                  <td className="text-right tabular-nums font-mono">{b?.nigiri ?? 0}</td>
+                  <td className="text-right tabular-nums font-mono">{b?.total ?? 0}</td>
                   {isOver && (
-                    <td className="text-right tabular">{pud}</td>
+                    <td className="text-right tabular-nums font-mono">{pud}</td>
                   )}
                   <td
                     className={[
-                      "text-right tabular font-display",
+                      "text-right tabular-nums font-display",
                       winners.includes(id) ? "text-success" : "",
                     ].join(" ")}
                     style={{ fontSize: "var(--text-display-xs)" }}
@@ -648,6 +781,12 @@ function RoundResultPanel({
           </tbody>
         </table>
       </div>
+      {isOver && (
+        <div className="text-[10px] text-base-content/50 italic mt-1 flex items-center gap-1">
+          <PuddingGlyph size={10} /> Pudding +6 (most) / −6 (least) applied at
+          game end.
+        </div>
+      )}
     </div>
   );
 }
