@@ -2081,6 +2081,117 @@ export function GameIcon({
     );
   }
 
+  if (type === "go-fish") {
+    // A fanned pair of cards above a ripple with a small fish silhouette —
+    // reads as "cards + pond" at every size.
+    return (
+      <div className={wrap}>
+        <svg
+          viewBox="0 0 56 56"
+          className="absolute inset-0 w-full h-full"
+          aria-hidden
+        >
+          {/* Soft pond backdrop */}
+          <rect
+            x="2"
+            y="2"
+            width="52"
+            height="52"
+            rx="5"
+            fill="color-mix(in oklch, var(--color-info) 16%, var(--color-base-100))"
+          />
+          {/* Water ripples */}
+          <g
+            stroke="color-mix(in oklch, var(--color-info) 55%, transparent)"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            fill="none"
+          >
+            <path d="M 8 42 Q 14 39, 20 42 T 32 42 T 44 42 T 50 42" />
+            <path
+              d="M 10 47 Q 16 44, 22 47 T 34 47 T 46 47"
+              opacity="0.55"
+            />
+          </g>
+          {/* Fish silhouette */}
+          <g
+            fill="color-mix(in oklch, var(--color-primary) 75%, var(--color-base-content))"
+          >
+            <path d="M 14 37 C 17 34, 23 34, 26 37 C 23 40, 17 40, 14 37 Z" />
+            <path d="M 11 37 L 14.5 34.5 L 14.5 39.5 Z" />
+            <circle cx="23" cy="36.4" r="0.8" fill="var(--color-base-100)" />
+          </g>
+          {/* Back card (tilted left) */}
+          <g transform="translate(20, 10) rotate(-14)">
+            <rect
+              x="0"
+              y="0"
+              width="18"
+              height="26"
+              rx="2.5"
+              fill="var(--color-base-100)"
+              stroke="color-mix(in oklch, var(--color-base-content) 22%, transparent)"
+              strokeWidth="1"
+            />
+            <text
+              x="3"
+              y="9"
+              fontSize="7"
+              fontWeight={700}
+              fontFamily="var(--font-display, serif)"
+              fill="var(--color-error)"
+              letterSpacing="-0.04em"
+            >
+              7
+            </text>
+            {/* Heart pip */}
+            <path
+              d="M 9 14 C 7 12, 4 10, 4 8 C 4 6.6, 5 5.6, 6.2 5.6 C 7.2 5.6, 8.2 6.2, 8.8 7 C 9.4 6.2, 10.4 5.6, 11.4 5.6 C 12.6 5.6, 13.6 6.6, 13.6 8 C 13.6 10, 10.6 12, 9 14 Z"
+              fill="var(--color-error)"
+              transform="translate(0, 4) scale(0.85)"
+            />
+          </g>
+          {/* Front card (tilted right) */}
+          <g transform="translate(26, 12) rotate(16)">
+            <rect
+              x="0"
+              y="0"
+              width="18"
+              height="26"
+              rx="2.5"
+              fill="var(--color-base-100)"
+              stroke="color-mix(in oklch, var(--color-base-content) 28%, transparent)"
+              strokeWidth="1"
+            />
+            <text
+              x="3"
+              y="9"
+              fontSize="7"
+              fontWeight={700}
+              fontFamily="var(--font-display, serif)"
+              fill="var(--color-base-content)"
+              letterSpacing="-0.04em"
+            >
+              A
+            </text>
+            {/* Spade pip */}
+            <path
+              d="M 9 16 C 9 16, 3.5 11, 3.5 7.6 C 3.5 6, 4.8 4.7, 6.4 4.7 C 7.4 4.7, 8.3 5.2, 8.7 5.9 L 8.1 10 L 9.9 10 L 9.3 5.9 C 9.7 5.2, 10.6 4.7, 11.6 4.7 C 13.2 4.7, 14.5 6, 14.5 7.6 C 14.5 11, 9 16, 9 16 Z"
+              fill="var(--color-base-content)"
+              transform="translate(0, 3) scale(0.85)"
+            />
+          </g>
+          {/* Bubble trail */}
+          <g fill="color-mix(in oklch, var(--color-info) 60%, var(--color-base-100))">
+            <circle cx="44" cy="36" r="1.4" />
+            <circle cx="47" cy="32" r="0.9" />
+            <circle cx="49" cy="28" r="0.7" />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
   // Fallback — a single tinted die
   return (
     <div className={wrap}>

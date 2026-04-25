@@ -32,6 +32,7 @@ import { pentagoClientModule } from "@bgo/games-pentago/client";
 import { sushiGoClientModule } from "@bgo/games-sushigo/client";
 import { hanabiClientModule } from "@bgo/games-hanabi/client";
 import { bloodClocktowerClientModule } from "@bgo/games-bloodclocktower/client";
+import { goFishClientModule } from "@bgo/games-gofish/client";
 
 let registered = false;
 
@@ -69,5 +70,6 @@ export function registerAllClientGames(): void {
   registerClientModule(sushiGoClientModule);
   registerClientModule(hanabiClientModule);
   registerClientModule(bloodClocktowerClientModule);
+  registerClientModule(goFishClientModule);
   registered = true;
 }
