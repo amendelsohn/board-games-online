@@ -10,7 +10,7 @@ Board Games Online is a full-stack web application that allows users to play var
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
+- Node.js (v20 or higher)
 - pnpm (v8 or higher)
 
 ### Installation
@@ -29,64 +29,58 @@ Board Games Online is a full-stack web application that allows users to play var
 
 ### Development
 
-Run both frontend and backend concurrently:
+Run shared packages, server, and web concurrently:
 
 ```bash
 pnpm dev
 ```
 
-Or run them separately:
-
-Frontend only:
+Or run them individually:
 
 ```bash
-pnpm dev:frontend
-```
-
-Backend only:
-
-```bash
-pnpm dev:backend
+pnpm dev:shared    # @bgo/sdk + @bgo/contracts + @bgo/sdk-client (watch mode)
+pnpm dev:server    # @bgo/server (NestJS, port 8080)
+pnpm dev:web       # @bgo/web (Next.js, port 3000)
 ```
 
 ### Building for Production
 
-Build both frontend and backend:
-
 ```bash
-pnpm build
+pnpm build         # build:shared + server + web
 ```
 
 ### Testing
 
-Run tests for both frontend and backend:
-
 ```bash
-pnpm test
+pnpm test          # all package unit tests
+pnpm test:e2e      # Playwright end-to-end suite
 ```
 
 ## Project Structure
 
-- `board-games-next/` - Next.js frontend application
-- `bg-server/` - NestJS backend server
-- `design/` - Design assets and mockups
-- `game-app/` - Game logic and shared components
+```
+packages/
+├── web/                # Next.js 15 frontend (@bgo/web)
+├── server/             # NestJS backend with WebSocket gateway (@bgo/server)
+├── sdk/                # Server-side game-module SDK (@bgo/sdk)
+├── sdk-client/         # Client-side game-module SDK (@bgo/sdk-client)
+├── contracts/          # Shared zod schemas / API contracts (@bgo/contracts)
+└── games-*/            # One package per game (tic-tac-toe, hearts, hanabi, ...)
+design/                 # Design assets and mockups
+```
+
+Each game lives in its own `packages/games-<name>/` package and registers itself with the server and the web client. See `AGENT_BRIEF.md` and `architecture-analysis.md` for the module contract.
 
 ## Tech Stack
 
-### Frontend
+### Frontend (`packages/web`)
 
-- **Next.js 15** - React framework for building the user interface
-- **React 19** - JavaScript library for building user interfaces
-- **TypeScript** - Typed JavaScript for better developer experience
-- **TailwindCSS** - Utility-first CSS framework
-- **DaisyUI** - Component library for Tailwind CSS
-- **React Query** - Data fetching and state management library
+- **Next.js 15** + **React 19** + **TypeScript**
+- **TailwindCSS** + **DaisyUI**
+- **socket.io-client** for real-time match updates
 
-### Backend
+### Backend (`packages/server`)
 
-- **NestJS** - Progressive Node.js framework for building server-side applications
-- **TypeORM** - ORM for TypeScript and JavaScript
-- **SQLite** - Lightweight disk-based database
-- **Express** - Web framework for Node.js
-- **WebSockets** - For real-time game updates
+- **NestJS** with **socket.io** gateway for real-time games
+- In-memory match/state store (Redis-ready for the next phase)
+- **Express** + **WebSockets**
