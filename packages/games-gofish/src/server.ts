@@ -91,12 +91,50 @@ function checkTerminal(state: GoFishState): boolean {
     0,
   );
   if (totalBooks >= RANKS.length) return true;
+  // Game also ends when no one can act: deck empty AND every hand empty.
   if (state.deck.length === 0) {
-    for (const id of state.players) {
-      if ((state.hands[id] ?? []).length === 0) return true;
-    }
+    return state.players.every(
+      (id) => (state.hands[id] ?? []).length === 0,
+    );
   }
   return false;
+}
+
+/**
+ * Settle the turn-start so the seat-of-play can actually play:
+ *  - If the seat's hand is empty and the deck has cards, auto-draw one
+ *    card so the player has something to ask with.
+ *  - If the seat's hand is empty and the deck is also empty, skip to the
+ *    next player who can act.
+ *
+ * Bounded by `players.length` to guarantee termination in the (already
+ * terminal) "nobody can act" case — checkTerminal handles game-over.
+ */
+function settleTurnStart(
+  start: PlayerId,
+  players: readonly PlayerId[],
+  hands: Record<PlayerId, Card[]>,
+  deck: Card[],
+): { current: PlayerId; deck: Card[] } {
+  let current = start;
+  let workingDeck = deck;
+  for (let steps = 0; steps < players.length; steps++) {
+    const hand = hands[current] ?? [];
+    if (hand.length > 0) {
+      return { current, deck: workingDeck };
+    }
+    if (workingDeck.length > 0) {
+      const drawn = workingDeck[workingDeck.length - 1]!;
+      workingDeck = workingDeck.slice(0, -1);
+      hands[current] = [...hand, drawn];
+      // Drawing a single card into an empty hand cannot complete a book,
+      // so no harvest needed — they now hold exactly one card and can ask.
+      return { current, deck: workingDeck };
+    }
+    // Hand empty AND deck empty — skip this player.
+    current = nextPlayerFrom(players, current);
+  }
+  return { current, deck: workingDeck };
 }
 
 function winnersOf(state: GoFishState): PlayerId[] {
@@ -177,12 +215,17 @@ export const goFishServerModule: GameModule<
       if (claimed.length > 0) books[id] = [...books[id]!, ...claimed];
     }
 
+    // If the opening hand-out happened to leave the first seat empty
+    // (e.g. they were dealt a single complete book), make sure they can
+    // still act on turn one.
+    const settled = settleTurnStart(order[0]!, order, hands, deck);
+
     return {
       players: order,
       hands,
       books,
-      deck,
-      current: order[0]!,
+      deck: settled.deck,
+      current: settled.current,
       phase: "play",
       lastAction: null,
     };
@@ -261,6 +304,17 @@ export const goFishServerModule: GameModule<
       ? actor
       : nextPlayerFrom(state.players, actor);
 
+    // Settle turn-start: if the next-up seat is empty-handed but the deck
+    // has cards, they auto-draw; if both are empty, skip to a seat that
+    // can still act. Avoids the soft-lock where every ask is rejected
+    // because the active player holds nothing.
+    const settled = settleTurnStart(
+      nextCurrent,
+      state.players,
+      hands,
+      deck,
+    );
+
     const lastAction: AskLogEntry = {
       kind: "ask",
       asker: actor,
@@ -275,8 +329,8 @@ export const goFishServerModule: GameModule<
       ...state,
       hands,
       books,
-      deck,
-      current: nextCurrent,
+      deck: settled.deck,
+      current: settled.current,
       lastAction,
     };
 
