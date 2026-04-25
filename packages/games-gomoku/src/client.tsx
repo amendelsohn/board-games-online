@@ -1,5 +1,10 @@
 import type { CSSProperties } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import { useMemo } from "react";
+import {
+  BoardLayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   BOARD_SIZE,
   GOMOKU_TYPE,
@@ -46,9 +51,13 @@ function GomokuBoard({
   players,
   sendMove,
 }: BoardProps<GomokuView, GomokuMove>) {
+  const playersById = useMemo(() => {
+    const m: Record<string, { id: string; name: string }> = {};
+    for (const p of players) m[p.id] = p;
+    return m;
+  }, [players]);
+
   const myStone = view.colors[me];
-  const oppStone: "B" | "W" | null =
-    myStone === "B" ? "W" : myStone === "W" ? "B" : null;
   const isOver = view.winner !== null || view.isDraw;
   const winningSet = new Set(view.winningLine ?? []);
   const lastIdx =
@@ -58,6 +67,12 @@ function GomokuBoard({
 
   const nameFor = (id: string) =>
     players.find((p) => p.id === id)?.name ?? "Player";
+
+  const opponentId =
+    Object.keys(view.colors).find((id) => id !== me) ?? null;
+  const opponentStone = opponentId ? view.colors[opponentId] : null;
+  const opponentName = opponentId ? nameFor(opponentId) : "Opponent";
+  const myName = playersById[me]?.name ?? "You";
 
   const handleClick = (row: number, col: number) => {
     if (!isMyTurn || isOver) return;
@@ -81,34 +96,79 @@ function GomokuBoard({
     };
   })();
 
-  // Whose-move status. Show a tiny inline stone in the other side's color
-  // when waiting, or "Your move" / "{name} wins" / "Draw" otherwise.
-  const statusBlock = (() => {
+  const statusText = (() => {
     if (isOver) {
-      if (view.isDraw) {
-        return <StatusLabel tint="base-content" text="Draw." />;
-      }
-      if (view.winner === me) {
-        return <StatusLabel tint="success" text="You connected five." />;
-      }
-      if (view.winner) {
-        return (
-          <StatusLabel tint="success" text={`${nameFor(view.winner)} connected five.`} />
-        );
-      }
-      return <StatusLabel tint="base-content" text="Game over." />;
+      if (view.isDraw) return "Draw";
+      if (view.winner === me) return "You connected five";
+      if (view.winner) return `${nameFor(view.winner)} connected five`;
+      return "Game over";
     }
-    if (isMyTurn) {
-      return <StatusLabel tint="primary" text="Your move." />;
-    }
-    return (
-      <StatusLabel
-        tint="base-content"
-        text={`Waiting for ${nameFor(view.current)}`}
-        trailingStone={oppStone ?? undefined}
-      />
-    );
+    if (isMyTurn) return "Your move";
+    return `${nameFor(view.current)} thinking…`;
   })();
+  const statusTone =
+    isOver && view.winner === me
+      ? "success"
+      : isOver
+        ? "base-content"
+        : isMyTurn
+          ? "primary"
+          : "base-content";
+
+  const seatChip = (
+    name: string,
+    stone: "B" | "W" | null | undefined,
+    isYou: boolean,
+    isTheirTurn: boolean,
+    align: "start" | "end",
+  ) => (
+    <div
+      className={[
+        "rounded-2xl px-3 py-2 flex items-center gap-3 min-w-0 max-w-full",
+        align === "end" ? "flex-row-reverse text-right" : "flex-row",
+      ].join(" ")}
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
+        boxShadow: isTheirTurn
+          ? "inset 0 0 0 2px var(--color-primary), 0 6px 16px color-mix(in oklch, var(--color-primary) 18%, transparent)"
+          : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
+      }}
+    >
+      <span
+        className="rounded-full shrink-0"
+        style={{
+          width: 22,
+          height: 22,
+          background:
+            stone === "B"
+              ? STONE_BLACK_SOLID
+              : stone === "W"
+                ? STONE_WHITE_SOLID
+                : "var(--color-base-300)",
+          boxShadow:
+            "inset 0 -2px 0 oklch(0% 0 0 / 0.25), inset 0 1px 0 oklch(100% 0 0 / 0.22)",
+        }}
+      />
+      <div className="flex flex-col min-w-0">
+        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 leading-tight">
+          {stone === "B" ? "Black" : stone === "W" ? "White" : "—"}
+          {isTheirTurn ? " · to play" : ""}
+        </span>
+        <span
+          className="font-display tracking-tight truncate leading-tight"
+          style={{ fontSize: "1rem" }}
+        >
+          {name}
+          {isYou && (
+            <span className="text-base-content/55 font-sans text-xs ml-1">
+              (you)
+            </span>
+          )}
+        </span>
+      </div>
+    </div>
+  );
 
   // Responsive cell size, capped at 28px on desktop. `clamp` computes the
   // largest value that keeps the full board + gutter labels inside the
@@ -121,19 +181,8 @@ function GomokuBoard({
   (gomokuCellStyle as Record<string, string>)["--gomoku-cell"] =
     "clamp(20px, calc((100vw - 72px) / 15), 28px)";
 
-  return (
-    <div className="flex flex-col items-center gap-4" style={gomokuCellStyle}>
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold flex items-center gap-2">
-        <span>
-          You play{" "}
-          <span className="font-bold text-base-content">
-            {myStone === "B" ? "Black" : myStone === "W" ? "White" : "?"}
-          </span>
-        </span>
-        <span className="text-base-content/35" aria-hidden>·</span>
-        {statusBlock}
-      </div>
-
+  const board = (
+    <div className="flex flex-col items-center" style={gomokuCellStyle}>
       <div
         // Gutter layout: an 18px rank column on the left, the board in the
         // middle, and an 18px file row below. Matches Go/Gomoku editorial
@@ -334,11 +383,50 @@ function GomokuBoard({
           ))}
         </div>
       </div>
-
-      <div className="text-xs text-base-content/55 tracking-wide">
-        Five or more in a row — any direction.
-      </div>
     </div>
+  );
+
+  return (
+    <BoardLayout
+      statusBar={
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_1fr] items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+          {seatChip(
+            opponentName,
+            opponentStone ?? null,
+            false,
+            !isOver && !isMyTurn,
+            "start",
+          )}
+          <div
+            className="text-[10px] sm:text-xs uppercase tracking-[0.22em] font-semibold text-center px-2"
+            style={{
+              color:
+                statusTone === "primary"
+                  ? "var(--color-primary)"
+                  : statusTone === "success"
+                    ? "var(--color-success)"
+                    : "var(--color-base-content)",
+            }}
+          >
+            {statusText}
+          </div>
+          {seatChip(
+            myName,
+            myStone ?? null,
+            true,
+            isMyTurn && !isOver,
+            "end",
+          )}
+        </div>
+      }
+      board={board}
+      toolbar={
+        <div className="text-xs text-base-content/55 tracking-wide text-center">
+          Five or more in a row — any direction.
+        </div>
+      }
+      boardMaxSize="min(80vh, 100%)"
+    />
   );
 }
 
@@ -382,49 +470,6 @@ function Stone({
             width: "28%",
             height: "28%",
             background: lastPipColor,
-          }}
-        />
-      )}
-    </span>
-  );
-}
-
-function StatusLabel({
-  text,
-  tint,
-  trailingStone,
-}: {
-  text: string;
-  tint: "primary" | "success" | "base-content";
-  trailingStone?: "B" | "W";
-}) {
-  const tintColor =
-    tint === "primary"
-      ? "var(--color-primary)"
-      : tint === "success"
-        ? "var(--color-success)"
-        : "var(--color-base-content)";
-  return (
-    <span
-      className="inline-flex items-center gap-1.5"
-      style={{
-        color: tintColor,
-        opacity: tint === "base-content" ? 0.8 : 1,
-      }}
-    >
-      {text}
-      {trailingStone && (
-        <span
-          aria-hidden
-          className="inline-block rounded-full"
-          style={{
-            width: "10px",
-            height: "10px",
-            background:
-              trailingStone === "B"
-                ? STONE_BLACK_SOLID
-                : STONE_WHITE_SOLID,
-            boxShadow: "inset 0 -1px 0 oklch(0% 0 0 / 0.25)",
           }}
         />
       )}
