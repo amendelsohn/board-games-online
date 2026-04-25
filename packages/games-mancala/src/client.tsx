@@ -1,4 +1,10 @@
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  BoardLayout,
+  SeatChip,
+  SeatStrip,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   MANCALA_TYPE,
   PITS_PER_SIDE,
@@ -181,87 +187,130 @@ function MancalaBoard({
     </div>
   );
 
-  return (
-    <div className="flex flex-col items-center gap-5">
-      <div className="flex items-center gap-6 text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-        <span>
-          {playerName(topPlayerId)}: <span className="text-base-content">{topStore}</span>
-        </span>
-        <span className="text-base-content/40">vs</span>
-        <span>
-          {iAmBottomPlayer ? "You" : playerName(bottomPlayerId)}:{" "}
-          <span className="text-base-content">{bottomStore}</span>
-        </span>
-      </div>
+  const seatSwatch = (count: number) => (
+    <span
+      className="rounded-md flex items-center justify-center font-mono tabular-nums text-sm font-semibold"
+      style={{
+        width: 32,
+        height: 32,
+        background: "color-mix(in oklch, var(--color-primary) 35%, var(--color-base-100))",
+        color: "var(--color-base-content)",
+        boxShadow:
+          "inset 0 -2px 0 oklch(0% 0 0 / 0.18), inset 0 1px 0 oklch(100% 0 0 / 0.2)",
+      }}
+    >
+      {count}
+    </span>
+  );
 
-      <div
-        className="text-xs uppercase tracking-[0.22em] font-semibold"
-        style={{
-          color: isOver
-            ? "var(--color-success)"
-            : view.current === me
-              ? "var(--color-primary)"
-              : "color-mix(in oklch, var(--color-base-content) 55%, transparent)",
-        }}
-      >
-        {turnLabel}
-      </div>
-
-      <div
-        className="rounded-[2rem] p-4 md:p-5"
-        style={{
-          background:
-            "linear-gradient(180deg, color-mix(in oklch, var(--color-primary) 45%, var(--color-base-300)) 0%, color-mix(in oklch, var(--color-primary) 30%, var(--color-base-300)) 100%)",
-          boxShadow:
-            "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -3px 0 oklch(0% 0 0 / 0.2), 0 16px 32px color-mix(in oklch, var(--color-primary) 25%, transparent)",
-        }}
-      >
-        <div className="flex items-center gap-3 md:gap-4">
-          {/* Opponent store — on the left of the board from viewer's POV */}
-          {renderStore(topSide, topStore, false)}
-
-          <div className="flex flex-col gap-3">
-            {/* Top row — opponent's pits, drawn left-to-right as viewer sees them */}
-            <div className="flex gap-2 md:gap-3">
-              {topPitsVisual.map((slot) =>
-                renderPit(slot, {
-                  clickable: false,
-                  relIndex: null,
-                  isLast: slot === lastSlot,
-                  isCapture: slot === capturePit,
-                  isPickup: slot === pickupPit,
-                }),
-              )}
-            </div>
-            {/* Bottom row — viewer's own pits, drawn left-to-right (rel 0 leftmost) */}
-            <div className="flex gap-2 md:gap-3">
-              {bottomPits.map((slot, rel) =>
-                renderPit(slot, {
-                  clickable: myTurnHere,
-                  relIndex: rel,
-                  isLast: slot === lastSlot,
-                  isCapture: slot === capturePit,
-                  isPickup: slot === pickupPit,
-                }),
-              )}
-            </div>
+  const board = (
+    <div
+      className="rounded-[2rem] p-4 md:p-5"
+      style={{
+        background:
+          "linear-gradient(180deg, color-mix(in oklch, var(--color-primary) 45%, var(--color-base-300)) 0%, color-mix(in oklch, var(--color-primary) 30%, var(--color-base-300)) 100%)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -3px 0 oklch(0% 0 0 / 0.2), 0 16px 32px color-mix(in oklch, var(--color-primary) 25%, transparent)",
+      }}
+    >
+      <div className="flex items-center gap-3 md:gap-4">
+        {renderStore(topSide, topStore, false)}
+        <div className="flex flex-col gap-3 flex-1 min-w-0">
+          <div className="flex gap-2 md:gap-3">
+            {topPitsVisual.map((slot) =>
+              renderPit(slot, {
+                clickable: false,
+                relIndex: null,
+                isLast: slot === lastSlot,
+                isCapture: slot === capturePit,
+                isPickup: slot === pickupPit,
+              }),
+            )}
           </div>
-
-          {/* Viewer's store — on the right */}
-          {renderStore(bottomSide, bottomStore, true)}
+          <div className="flex gap-2 md:gap-3">
+            {bottomPits.map((slot, rel) =>
+              renderPit(slot, {
+                clickable: myTurnHere,
+                relIndex: rel,
+                isLast: slot === lastSlot,
+                isCapture: slot === capturePit,
+                isPickup: slot === pickupPit,
+              }),
+            )}
+          </div>
         </div>
-      </div>
-
-      <div className="text-xs text-base-content/50 tracking-wide">
-        {isOver
-          ? view.isDraw
-            ? "Tied score — honorable draw."
-            : "Game over."
-          : iAmBottomPlayer
-            ? "Tap one of your pits to sow stones counter-clockwise."
-            : "Waiting for the other player."}
+        {renderStore(bottomSide, bottomStore, true)}
       </div>
     </div>
+  );
+
+  return (
+    <BoardLayout
+      statusBar={
+        <SeatStrip
+          left={
+            <SeatChip
+              swatch={seatSwatch(topStore)}
+              label={
+                <>
+                  Side {topSide}
+                  {!isOver && view.current === topPlayerId
+                    ? " · to sow"
+                    : ""}
+                </>
+              }
+              name={playerName(topPlayerId)}
+              isYou={false}
+              active={!isOver && view.current === topPlayerId}
+              align="start"
+            />
+          }
+          center={
+            <span
+              style={{
+                color: isOver
+                  ? "var(--color-success)"
+                  : view.current === me
+                    ? "var(--color-primary)"
+                    : "color-mix(in oklch, var(--color-base-content) 55%, transparent)",
+              }}
+            >
+              {turnLabel}
+            </span>
+          }
+          right={
+            <SeatChip
+              swatch={seatSwatch(bottomStore)}
+              label={
+                <>
+                  Side {bottomSide}
+                  {!isOver && view.current === bottomPlayerId
+                    ? " · to sow"
+                    : ""}
+                </>
+              }
+              name={playerName(bottomPlayerId)}
+              isYou={iAmBottomPlayer}
+              active={!isOver && view.current === bottomPlayerId}
+              align="end"
+            />
+          }
+        />
+      }
+      board={board}
+      toolbar={
+        <div className="text-xs text-base-content/50 tracking-wide text-center">
+          {isOver
+            ? view.isDraw
+              ? "Tied score — honorable draw."
+              : "Game over."
+            : iAmBottomPlayer
+              ? "Tap one of your pits to sow stones counter-clockwise."
+              : "Waiting for the other player."}
+        </div>
+      }
+      boardMaxSize="min(70vh, 100%)"
+    />
   );
 }
 
