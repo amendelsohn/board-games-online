@@ -1,9 +1,10 @@
 import { useState } from "react";
-import type {
-  BoardProps,
-  ClientGameModule,
-  LobbyPanelProps,
-  SummaryProps,
+import {
+  HiddenRoleLayout,
+  type BoardProps,
+  type ClientGameModule,
+  type LobbyPanelProps,
+  type SummaryProps,
 } from "@bgo/sdk-client";
 import {
   CODENAMES_TYPE,
@@ -35,10 +36,8 @@ function cardText(role: CardRole | null | undefined, revealed: boolean): string 
 
 function CodenamesBoard({
   view,
-  me,
   isMyTurn,
   sendMove,
-  players,
 }: BoardProps<CodenamesView, CodenamesMove>) {
   const [clueWord, setClueWord] = useState("");
   const [clueCount, setClueCount] = useState<number>(1);
@@ -68,164 +67,213 @@ function CodenamesBoard({
     await sendMove({ kind: "endGuessing" });
   };
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full">
-      <TurnIndicator view={view} />
-
-      <div className="flex items-center gap-4 md:gap-6 text-sm">
-        <div
-          className={[
-            "text-xs uppercase tracking-[0.18em] font-semibold",
-            myTeam === "red"
-              ? "text-error"
-              : myTeam === "blue"
-                ? "text-info"
-                : "text-base-content/50",
-          ].join(" ")}
-        >
-          {myTeam ? `${myTeam} team` : "observer"}
-          {myRole === "spymaster" ? " · spymaster" : " · operative"}
-        </div>
-        <div className="h-4 w-px bg-base-300" aria-hidden />
-        <ScoreDot color="var(--color-error)" label="Red" value={view.remaining.red} />
-        <ScoreDot color="var(--color-info)" label="Blue" value={view.remaining.blue} />
-      </div>
-
-      <div
-        className="grid gap-1.5 md:gap-2 w-full max-w-3xl"
-        style={{ gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))` }}
-      >
-        {view.grid.map((card, i) => {
-          const clickable =
-            !isOver && isMyTurn && !amSpymaster && isGuessing && !card.revealed;
-          const showColor = card.revealed || (amSpymaster && card.role != null);
-          const bg = cardFill(
-            showColor ? card.role : null,
-            card.revealed,
-          );
-          const fg = cardText(showColor ? card.role : null, card.revealed);
-          return (
-            <button
-              key={i}
-              type="button"
-              disabled={!clickable}
-              onClick={() => guess(i)}
+  const grid = (
+    <div
+      className="grid gap-1.5 md:gap-2 w-full"
+      style={{ gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))` }}
+    >
+      {view.grid.map((card, i) => {
+        const clickable =
+          !isOver && isMyTurn && !amSpymaster && isGuessing && !card.revealed;
+        const showColor = card.revealed || (amSpymaster && card.role != null);
+        const bg = cardFill(showColor ? card.role : null, card.revealed);
+        const fg = cardText(showColor ? card.role : null, card.revealed);
+        return (
+          <button
+            key={i}
+            type="button"
+            disabled={!clickable}
+            onClick={() => guess(i)}
+            className={[
+              "relative min-h-[62px] md:min-h-[82px] px-2 py-3 rounded-lg",
+              "text-center transition-all duration-200",
+              "border border-base-300/70",
+              "font-display tracking-tight",
+              clickable ? "hover:-translate-y-0.5 cursor-pointer" : "",
+              card.revealed ? "parlor-fade" : "",
+            ].join(" ")}
+            style={{
+              background: bg,
+              color: fg,
+              boxShadow: card.revealed
+                ? "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -2px 0 oklch(0% 0 0 / 0.15)"
+                : "inset 0 1px 0 oklch(100% 0 0 / 0.15), 0 1px 2px oklch(0% 0 0 / 0.06)",
+              opacity: amSpymaster && showColor && !card.revealed ? 0.9 : 1,
+            }}
+            aria-label={card.word}
+          >
+            <span
               className={[
-                "relative min-h-[62px] md:min-h-[82px] px-2 py-3 rounded-lg",
-                "text-center transition-all duration-200",
-                "border border-base-300/70",
-                "font-display tracking-tight",
-                clickable ? "hover:-translate-y-0.5 cursor-pointer" : "",
-                card.revealed ? "parlor-fade" : "",
+                "block text-xs sm:text-sm md:text-base leading-tight break-words hyphens-auto",
+                card.revealed ? "line-through opacity-80" : "",
               ].join(" ")}
-              style={{
-                background: bg,
-                color: fg,
-                boxShadow: card.revealed
-                  ? "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -2px 0 oklch(0% 0 0 / 0.15)"
-                  : "inset 0 1px 0 oklch(100% 0 0 / 0.15), 0 1px 2px oklch(0% 0 0 / 0.06)",
-                opacity: amSpymaster && showColor && !card.revealed ? 0.9 : 1,
-              }}
-              aria-label={card.word}
+              style={{ overflowWrap: "anywhere" }}
             >
-              <span
-                className={[
-                  "block text-sm md:text-base leading-tight",
-                  card.revealed ? "line-through opacity-80" : "",
-                ].join(" ")}
-              >
-                {card.word}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+              {card.word}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 
-      {!isOver && (
-        <div className="w-full max-w-xl surface-ivory px-5 py-4 flex flex-col gap-3">
-          {isCluing && isMyTurn && amSpymaster && (
-            <>
-              <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
-                Give a one-word clue
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  className="input input-bordered flex-1 rounded-lg"
-                  placeholder="clue word"
-                  value={clueWord}
-                  onChange={(e) => setClueWord(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void submitClue();
-                  }}
-                  maxLength={40}
-                />
-                <input
-                  type="number"
-                  className="input input-bordered w-20 text-center tabular rounded-lg"
-                  min={0}
-                  max={9}
-                  value={clueCount}
-                  onChange={(e) =>
-                    setClueCount(parseInt(e.target.value, 10) || 0)
-                  }
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary rounded-full px-5 font-semibold"
-                  onClick={submitClue}
-                >
-                  Give
-                </button>
-              </div>
-            </>
-          )}
-          {isCluing && !(isMyTurn && amSpymaster) && (
-            <div className="text-sm text-base-content/65 text-center">
-              Waiting on the{" "}
-              <span
-                className={
-                  view.turn === "red"
-                    ? "text-error font-semibold"
-                    : "text-info font-semibold"
-                }
-              >
-                {view.turn}
-              </span>{" "}
-              spymaster's clue…
+  const cluePanel = !isOver && (
+    <div className="w-full surface-ivory px-5 py-4 flex flex-col gap-3">
+      {isCluing && isMyTurn && amSpymaster && (
+        <>
+          <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+            Give a one-word clue
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="input input-bordered flex-1 rounded-lg"
+              placeholder="clue word"
+              value={clueWord}
+              onChange={(e) => setClueWord(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void submitClue();
+              }}
+              maxLength={40}
+            />
+            <input
+              type="number"
+              className="input input-bordered w-20 text-center tabular rounded-lg"
+              min={0}
+              max={9}
+              value={clueCount}
+              onChange={(e) => setClueCount(parseInt(e.target.value, 10) || 0)}
+            />
+            <button
+              type="button"
+              className="btn btn-primary rounded-full px-5 font-semibold"
+              onClick={submitClue}
+            >
+              Give
+            </button>
+          </div>
+        </>
+      )}
+      {isCluing && !(isMyTurn && amSpymaster) && (
+        <div className="text-sm text-base-content/65 text-center">
+          Waiting on the{" "}
+          <span
+            className={
+              view.turn === "red"
+                ? "text-error font-semibold"
+                : "text-info font-semibold"
+            }
+          >
+            {view.turn}
+          </span>{" "}
+          spymaster's clue…
+        </div>
+      )}
+      {isGuessing && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+              Clue
             </div>
-          )}
-          {isGuessing && (
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
-                  Clue
-                </div>
-                <div className="text-2xl font-display tracking-tight mt-0.5">
-                  {view.clue?.word}
-                  <span className="ml-2 text-base-content/50 tabular">
-                    {view.clue?.count}
-                  </span>
-                </div>
-                <div className="text-xs text-base-content/55 mt-1">
-                  {view.guessesLeft} guess
-                  {view.guessesLeft === 1 ? "" : "es"} remaining
-                </div>
-              </div>
-              {isMyTurn && !amSpymaster && (
-                <button
-                  type="button"
-                  className="text-xs uppercase tracking-[0.2em] text-base-content/55 hover:text-base-content transition-colors"
-                  onClick={endGuessing}
-                >
-                  End guessing →
-                </button>
-              )}
+            <div className="text-2xl font-display tracking-tight mt-0.5">
+              {view.clue?.word}
+              <span className="ml-2 text-base-content/50 tabular">
+                {view.clue?.count}
+              </span>
             </div>
+            <div className="text-xs text-base-content/55 mt-1">
+              {view.guessesLeft} guess
+              {view.guessesLeft === 1 ? "" : "es"} remaining
+            </div>
+          </div>
+          {isMyTurn && !amSpymaster && (
+            <button
+              type="button"
+              className="text-xs uppercase tracking-[0.2em] text-base-content/55 hover:text-base-content transition-colors"
+              onClick={endGuessing}
+            >
+              End guessing →
+            </button>
           )}
         </div>
       )}
     </div>
+  );
+
+  // Sticky private panel: your team + role, plus a quick reminder of what
+  // your job is in the current phase.
+  const privatePanel = (
+    <div className="surface-ivory p-4 flex flex-col gap-3">
+      <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+        Your role
+      </div>
+      <div
+        className="rounded-xl px-4 py-3 flex flex-col gap-1"
+        style={{
+          background:
+            myTeam === "red"
+              ? "color-mix(in oklch, var(--color-error) 18%, var(--color-base-100))"
+              : myTeam === "blue"
+                ? "color-mix(in oklch, var(--color-info) 18%, var(--color-base-100))"
+                : "var(--color-base-200)",
+          boxShadow:
+            myTeam === "red"
+              ? "inset 0 0 0 1px var(--color-error)"
+              : myTeam === "blue"
+                ? "inset 0 0 0 1px var(--color-info)"
+                : undefined,
+        }}
+      >
+        <div
+          className="text-xs uppercase tracking-[0.22em] font-semibold"
+          style={{
+            color:
+              myTeam === "red"
+                ? "var(--color-error)"
+                : myTeam === "blue"
+                  ? "var(--color-info)"
+                  : "var(--color-base-content)",
+          }}
+        >
+          {myTeam ? `${myTeam} team` : "observer"}
+        </div>
+        <div className="font-display text-lg tracking-tight">
+          {myRole === "spymaster" ? "Spymaster" : "Operative"}
+        </div>
+        <div className="text-xs text-base-content/60 leading-snug pt-1">
+          {amSpymaster
+            ? "Give a single-word clue plus a number. The board reveals your team's tiles to you."
+            : "Tap a tile that fits the clue. Pick wrong and the turn ends — or worse."}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Phase bar — turn indicator + score remaining for both teams.
+  const phaseBar = (
+    <div className="flex flex-wrap items-center justify-center gap-3 md:gap-5">
+      <TurnIndicator view={view} />
+      <div className="flex items-center gap-3 md:gap-4">
+        <ScoreDot color="var(--color-error)" label="Red" value={view.remaining.red} />
+        <ScoreDot color="var(--color-info)" label="Blue" value={view.remaining.blue} />
+      </div>
+    </div>
+  );
+
+  return (
+    <HiddenRoleLayout
+      phaseBar={phaseBar}
+      privatePanel={privatePanel}
+      decision={
+        <div className="flex flex-col gap-4 items-center w-full">
+          {grid}
+          {cluePanel}
+        </div>
+      }
+      privateWidth={260}
+      // The 5-column grid wants room. Cap so cards don't blow up too large.
+      mainMaxWidth={820}
+    />
   );
 }
 

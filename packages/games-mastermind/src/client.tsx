@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
-import type { BoardProps, ClientGameModule, SummaryProps } from "@bgo/sdk-client";
+import {
+  BoardLayout,
+  SeatChip,
+  SeatStrip,
+  type BoardProps,
+  type ClientGameModule,
+  type SummaryProps,
+} from "@bgo/sdk-client";
 import {
   CODE_LENGTH,
   COLORS,
@@ -520,117 +527,211 @@ function MastermindBoard({
     !iExhausted &&
     guessDraft.every((c) => c !== null);
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full">
-      <PhaseBanner view={view} me={me} opponentName={opponentName} />
+  const myName = playersById[me]?.name ?? "You";
+  const myCodeSet = view.mySecret !== null;
+  const myStatus = isOver
+    ? view.iCracked
+      ? "Cracked"
+      : iExhausted
+        ? "Out of guesses"
+        : "Code held"
+    : view.phase === "setting"
+      ? myCodeSet
+        ? "Code locked"
+        : "Setting code"
+      : view.iCracked
+        ? "Cracked"
+        : iExhausted
+          ? "Out of guesses"
+          : `Guess ${view.myGuesses.length}/${MAX_GUESSES}`;
+  const oppGuessCount = opp?.guesses.length ?? 0;
+  const oppExhausted = oppGuessCount >= MAX_GUESSES;
+  const oppStatus = isOver
+    ? view.theyCracked
+      ? "Cracked"
+      : oppExhausted
+        ? "Out of guesses"
+        : "Code held"
+    : view.phase === "setting"
+      ? oppHasSet
+        ? "Code locked"
+        : "Setting code"
+      : view.theyCracked
+        ? "Cracked"
+        : oppExhausted
+          ? "Out of guesses"
+          : `Guess ${oppGuessCount}/${MAX_GUESSES}`;
 
-      {view.phase === "setting" && !isOver && (
-        <SettingPanel
-          draft={settingDraft}
-          setDraft={setSettingDraft}
-          selecting={settingSelecting}
-          setSelecting={setSettingSelecting}
-          onLock={lockCode}
-          locked={iHaveSet}
-        />
-      )}
-
-      {view.phase !== "setting" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
-          <MyBoard
-            guesses={view.myGuesses}
-            draft={guessDraft}
-            setDraft={setGuessDraft}
-            selecting={guessSelecting}
-            setSelecting={setGuessSelecting}
-            canSubmit={canSubmitGuess}
-            onSubmit={submitGuess}
-            cracked={view.iCracked}
-            exhausted={iExhausted}
+  // Status swatch — small code-pegs preview when locked, dotted placeholder
+  // while setting. Cracked overlays a success or error fill.
+  const statusSwatch = (
+    locked: boolean,
+    cracked: boolean,
+    revealed: Color[] | null,
+  ) => {
+    const accent = cracked
+      ? "var(--color-error)"
+      : locked
+        ? "var(--color-success)"
+        : "color-mix(in oklch, var(--color-base-content) 25%, transparent)";
+    return (
+      <span
+        aria-hidden
+        className="rounded-md flex items-center justify-center"
+        style={{
+          width: 32,
+          height: 32,
+          background: `color-mix(in oklch, ${accent} 18%, var(--color-base-100))`,
+          boxShadow: `inset 0 0 0 1px ${accent}`,
+        }}
+      >
+        {revealed ? (
+          <span className="grid grid-cols-2 gap-[2px]">
+            {revealed.slice(0, 4).map((c, i) => (
+              <span
+                key={i}
+                className="rounded-full"
+                style={{
+                  width: 7,
+                  height: 7,
+                  background: COLOR_VAR[c],
+                  boxShadow:
+                    "inset 0 1px 1px oklch(100% 0 0 / 0.35), inset 0 -1px 1px oklch(0% 0 0 / 0.25)",
+                }}
+              />
+            ))}
+          </span>
+        ) : (
+          <span
+            className="rounded-full"
+            style={{
+              width: locked ? 12 : 8,
+              height: locked ? 12 : 8,
+              background: accent,
+              opacity: locked ? 1 : 0.6,
+            }}
           />
-          {opp && opponentId && (
-            <OpponentBoard
-              guesses={opp.guesses}
-              cracked={opp.cracked}
-              codeSet={opp.codeSet}
-              secret={opp.secret}
+        )}
+      </span>
+    );
+  };
+
+  const phaseLabel = (() => {
+    if (view.phase === "setting") return "Phase 1 · Set your code";
+    if (view.phase === "guessing") return "Phase 2 · Crack the code";
+    if (view.isDraw) {
+      if (view.iCracked && view.theyCracked)
+        return "Draw — both cracked on the same guess";
+      if (!view.iCracked && !view.theyCracked)
+        return "Draw — neither code was cracked";
+      return "Draw";
+    }
+    if (view.winner === me) return "You win!";
+    if (view.winner) return `${opponentName} wins`;
+    return "";
+  })();
+  const phaseTone: "neutral" | "primary" | "success" | "error" = isOver
+    ? view.isDraw
+      ? "neutral"
+      : view.winner === me
+        ? "success"
+        : "error"
+    : "primary";
+
+  return (
+    <BoardLayout
+      statusBar={
+        <SeatStrip
+          left={
+            <SeatChip
+              swatch={statusSwatch(oppHasSet, view.theyCracked, opp?.secret ?? null)}
+              label={oppStatus}
               name={opponentName}
+              active={!isOver && view.phase === "guessing"}
+              align="start"
+            />
+          }
+          center={
+            <span
+              style={{
+                color:
+                  phaseTone === "success"
+                    ? "var(--color-success)"
+                    : phaseTone === "error"
+                      ? "var(--color-error)"
+                      : phaseTone === "primary"
+                        ? "var(--color-primary)"
+                        : "var(--color-base-content)",
+              }}
+            >
+              {phaseLabel}
+            </span>
+          }
+          right={
+            <SeatChip
+              swatch={statusSwatch(
+                myCodeSet,
+                view.iCracked,
+                view.mySecret ?? null,
+              )}
+              label={myStatus}
+              name={myName}
+              isYou
+              active={!isOver && view.phase === "guessing"}
+              align="end"
+            />
+          }
+        />
+      }
+      board={
+        <div className="w-full flex flex-col items-center gap-4">
+          {view.phase === "setting" && !isOver && (
+            <SettingPanel
+              draft={settingDraft}
+              setDraft={setSettingDraft}
+              selecting={settingSelecting}
+              setSelecting={setSettingSelecting}
+              onLock={lockCode}
+              locked={iHaveSet}
             />
           )}
+
+          {view.phase !== "setting" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+              <MyBoard
+                guesses={view.myGuesses}
+                draft={guessDraft}
+                setDraft={setGuessDraft}
+                selecting={guessSelecting}
+                setSelecting={setGuessSelecting}
+                canSubmit={canSubmitGuess}
+                onSubmit={submitGuess}
+                cracked={view.iCracked}
+                exhausted={iExhausted}
+              />
+              {opp && opponentId && (
+                <OpponentBoard
+                  guesses={opp.guesses}
+                  cracked={opp.cracked}
+                  codeSet={opp.codeSet}
+                  secret={opp.secret}
+                  name={opponentName}
+                />
+              )}
+            </div>
+          )}
         </div>
-      )}
-
-      {view.phase === "setting" && !iHaveSet && (
-        <div className="text-xs text-base-content/50 italic">
-          {oppHasSet ? "Opponent is ready." : "Both players are choosing codes."}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PhaseBanner({
-  view,
-  me,
-  opponentName,
-}: {
-  view: MastermindView;
-  me: string;
-  opponentName: string;
-}) {
-  let text = "";
-  let tone: "neutral" | "primary" | "success" | "error" = "primary";
-
-  if (view.phase === "setting") {
-    text = "Phase 1 — Set your secret code";
-  } else if (view.phase === "guessing") {
-    text = "Phase 2 — Crack the code";
-  } else {
-    if (view.isDraw) {
-      tone = "neutral";
-      if (view.iCracked && view.theyCracked) {
-        text = "Draw — both cracked on the same guess";
-      } else if (!view.iCracked && !view.theyCracked) {
-        text = "Draw — neither code was cracked";
-      } else {
-        text = "Draw";
       }
-    } else if (view.winner === me) {
-      tone = "success";
-      text = "You win!";
-    } else if (view.winner) {
-      tone = "error";
-      text = `${opponentName} wins`;
-    }
-  }
-
-  const bg =
-    tone === "success"
-      ? "var(--color-success)"
-      : tone === "error"
-        ? "var(--color-error)"
-        : tone === "neutral"
-          ? "var(--color-base-200)"
-          : "var(--color-base-200)";
-  const fg =
-    tone === "success"
-      ? "var(--color-success-content)"
-      : tone === "error"
-        ? "var(--color-error-content)"
-        : "var(--color-base-content)";
-
-  return (
-    <div
-      className="px-5 py-2 rounded-full font-display tracking-tight text-base md:text-lg"
-      style={{
-        background: bg,
-        color: fg,
-        boxShadow:
-          "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.12)",
-      }}
-    >
-      {text}
-    </div>
+      toolbar={
+        view.phase === "setting" && !iHaveSet ? (
+          <div className="text-xs text-base-content/50 italic text-center">
+            {oppHasSet ? "Opponent is ready." : "Both players are choosing codes."}
+          </div>
+        ) : undefined
+      }
+      // Two-panel guess board needs more horizontal room than a single board.
+      boardMaxSize="none"
+    />
   );
 }
 

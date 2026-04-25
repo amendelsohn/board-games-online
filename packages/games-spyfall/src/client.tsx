@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import type {
-  BoardProps,
-  ClientGameModule,
-  LobbyPanelProps,
-  SummaryProps,
+import {
+  HiddenRoleLayout,
+  type BoardProps,
+  type ClientGameModule,
+  type LobbyPanelProps,
+  type SummaryProps,
 } from "@bgo/sdk-client";
 import {
   DEFAULT_ROUND_SECONDS,
@@ -75,42 +76,42 @@ function SpyfallBoard({
   };
 
   return (
-    <div className="flex flex-col items-center gap-5 w-full">
-      <ClockBanner remainingMs={remainingMs} phase={view.phase} />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
-        <IdentityCard view={view} />
-        <PlayersCard
-          view={view}
-          players={players}
-          playersById={playersById}
-          me={me}
-          canAccuse={isPlaying && !isSpy && !isOver}
-          onAccuse={accuse}
-        />
-      </div>
-
-      {isVoting && accusation && (
-        <VotingPanel
-          view={view}
-          playersById={playersById}
-          me={me}
-          onVote={vote}
-          onCancel={cancelAccusation}
-        />
-      )}
-
-      {isSpy && !isOver && (
-        <SpyGuessPanel
-          locations={view.locationPool}
-          guess={guess}
-          setGuess={setGuess}
-          onSubmit={submitSpyGuess}
-        />
-      )}
-
-      {!isSpy && !isOver && <LocationPoolHint locations={view.locationPool} />}
-    </div>
+    <HiddenRoleLayout
+      phaseBar={<ClockBanner remainingMs={remainingMs} phase={view.phase} />}
+      privatePanel={<IdentityCard view={view} />}
+      decision={
+        <div className="flex flex-col items-stretch gap-4 w-full">
+          <PlayersCard
+            view={view}
+            players={players}
+            playersById={playersById}
+            me={me}
+            canAccuse={isPlaying && !isSpy && !isOver}
+            onAccuse={accuse}
+          />
+          {isVoting && accusation && (
+            <VotingPanel
+              view={view}
+              playersById={playersById}
+              me={me}
+              onVote={vote}
+              onCancel={cancelAccusation}
+            />
+          )}
+          {isSpy && !isOver && (
+            <SpyGuessPanel
+              locations={view.locationPool}
+              guess={guess}
+              setGuess={setGuess}
+              onSubmit={submitSpyGuess}
+            />
+          )}
+        </div>
+      }
+      log={!isSpy && !isOver ? <LocationPoolHint locations={view.locationPool} /> : undefined}
+      privateWidth={280}
+      mainMaxWidth={640}
+    />
   );
 }
 
