@@ -1,5 +1,9 @@
 import { useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  PlayerUILayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   DICE_COUNT,
   MAX_ROLLS_PER_TURN,
@@ -160,205 +164,212 @@ function YahtzeeBoard({
 
   const winnerName = view.winner ? displayName(view.winner) : null;
 
-  return (
-    <div className="flex flex-col gap-6 w-full max-w-5xl">
-      {/* Turn banner */}
-      <div className="flex flex-col items-center gap-1">
-        <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+  // Top strip: tight horizontal — turn status, dice, roll button. Cuts the
+  // old "dice column == half the screen" pattern; the scorecard is the
+  // thinking surface and earns the main slot.
+  const topStrip = (
+    <div
+      className="rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-5"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
+      }}
+    >
+      <div className="flex flex-col gap-0.5 min-w-0 sm:min-w-[180px]">
+        <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+          {isOver ? "Result" : isMyTurn ? "Your turn" : "Rolling"}
+        </div>
+        <div
+          className="font-display tracking-tight"
+          style={{ fontSize: "1.125rem", lineHeight: 1.1 }}
+        >
           {isOver ? (
             view.isDraw ? (
-              <span className="text-base-content">Draw</span>
+              "Draw"
             ) : (
-              <span>
-                Winner:{" "}
-                <span className="text-success font-bold">{winnerName}</span>
-              </span>
+              <>
+                <span className="text-success">{winnerName}</span> wins
+              </>
             )
           ) : isMyTurn ? (
             <>
-              Your turn ·{" "}
-              <span className="text-primary font-bold">
-                {rollsLeft} roll{rollsLeft === 1 ? "" : "s"} left
-              </span>
+              <span className="text-primary">{rollsLeft}</span> roll
+              {rollsLeft === 1 ? "" : "s"} left
             </>
           ) : (
-            <>
-              <span className="text-secondary font-bold">
-                {displayName(view.current)}
-              </span>{" "}
-              is rolling
-            </>
+            <>{displayName(view.current)} rolling</>
           )}
         </div>
       </div>
+      <div className="flex gap-2 md:gap-3 flex-1 justify-center">
+        {view.dice.map((face, i) => (
+          <Die
+            key={i}
+            face={face}
+            held={holdMask[i] === true}
+            rolled={rolled}
+            disabled={!isMyTurn || !rolled || isOver}
+            onClick={() => toggleHold(i)}
+          />
+        ))}
+      </div>
+      <button
+        type="button"
+        disabled={!canRoll}
+        onClick={handleRoll}
+        className={[
+          "btn btn-primary px-5 font-display rounded-full",
+          !canRoll ? "btn-disabled opacity-60" : "",
+        ].join(" ")}
+      >
+        {view.turnRollNumber === 0 ? "Roll" : `Reroll (${rollsLeft})`}
+      </button>
+    </div>
+  );
 
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* Dice column */}
-        <div className="flex flex-col items-center gap-4 flex-1">
-          <div
-            className="relative rounded-2xl p-4"
-            style={{
-              background:
-                "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
-              boxShadow:
-                "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
-            }}
-          >
-            <div className="flex gap-2 md:gap-3">
-              {view.dice.map((face, i) => (
-                <Die
-                  key={i}
-                  face={face}
-                  held={holdMask[i] === true}
-                  rolled={rolled}
-                  disabled={!isMyTurn || !rolled || isOver}
-                  onClick={() => toggleHold(i)}
-                />
+  const scorecard = (
+    <div className="w-full">
+      <div
+        className="rounded-2xl overflow-x-auto"
+        style={{
+          background:
+            "color-mix(in oklch, var(--color-base-300) 60%, transparent)",
+          boxShadow: "inset 0 1px 0 oklch(100% 0 0 / 0.1)",
+        }}
+      >
+        <table className="w-full text-sm min-w-[480px]">
+          <thead>
+            <tr className="text-[0.65rem] uppercase tracking-[0.16em] text-base-content/55">
+              <th className="text-left px-3 py-2">Category</th>
+              {view.players.map((pid) => (
+                <th
+                  key={pid}
+                  className={[
+                    "px-3 py-2 text-center",
+                    pid === view.current && !isOver
+                      ? "text-primary font-bold"
+                      : "",
+                  ].join(" ")}
+                >
+                  {displayName(pid)}
+                  {pid === me && (
+                    <span className="ml-1 text-base-content/45">(you)</span>
+                  )}
+                </th>
               ))}
-            </div>
-            {isMyTurn && rolled && !isOver && (
-              <div className="mt-2 text-center text-[0.7rem] uppercase tracking-[0.18em] text-base-content/45">
-                Tap dice to hold before your next roll
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            disabled={!canRoll}
-            onClick={handleRoll}
-            className={[
-              "btn btn-primary px-6 font-display",
-              !canRoll ? "btn-disabled opacity-60" : "",
-            ].join(" ")}
-          >
-            {view.turnRollNumber === 0 ? "Roll" : `Reroll (${rollsLeft} left)`}
-          </button>
-        </div>
-
-        {/* Scorecard column */}
-        <div className="flex-1 w-full">
-          <div
-            className="rounded-2xl overflow-hidden"
-            style={{
-              background:
-                "color-mix(in oklch, var(--color-base-300) 60%, transparent)",
-              boxShadow:
-                "inset 0 1px 0 oklch(100% 0 0 / 0.1)",
-            }}
-          >
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[0.65rem] uppercase tracking-[0.16em] text-base-content/55">
-                  <th className="text-left px-3 py-2">Category</th>
-                  {view.players.map((pid) => (
-                    <th
-                      key={pid}
-                      className={[
-                        "px-3 py-2 text-center",
-                        pid === view.current && !isOver
-                          ? "text-primary font-bold"
-                          : "",
-                      ].join(" ")}
+            </tr>
+          </thead>
+          <tbody>
+            {UPPER.map((cat) => (
+              <ScoreRow
+                key={cat}
+                cat={cat}
+                view={view}
+                me={me}
+                canAssign={canAssign}
+                dice={view.dice}
+                rolled={rolled}
+                onAssign={handleAssign}
+              />
+            ))}
+            <tr className="bg-base-100/30">
+              <td className="px-3 py-1.5 text-xs text-base-content/60 italic">
+                Upper (≥ {UPPER_BONUS_THRESHOLD} → +{UPPER_BONUS})
+              </td>
+              {view.players.map((pid) => {
+                const sub = upperSubtotal(view.scorecards[pid] ?? {});
+                return (
+                  <td
+                    key={pid}
+                    className="px-3 py-1.5 text-center text-xs"
+                  >
+                    <span
+                      className={
+                        sub >= UPPER_BONUS_THRESHOLD
+                          ? "text-success font-semibold"
+                          : "text-base-content/70"
+                      }
                     >
-                      {displayName(pid)}
-                      {pid === me && (
-                        <span className="ml-1 text-base-content/45">
-                          (you)
-                        </span>
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {UPPER.map((cat) => (
-                  <ScoreRow
-                    key={cat}
-                    cat={cat}
-                    view={view}
-                    me={me}
-                    canAssign={canAssign}
-                    dice={view.dice}
-                    rolled={rolled}
-                    onAssign={handleAssign}
-                  />
-                ))}
-                <tr className="bg-base-100/30">
-                  <td className="px-3 py-1.5 text-xs text-base-content/60 italic">
-                    Upper (≥ {UPPER_BONUS_THRESHOLD} → +{UPPER_BONUS})
+                      {sub} / {UPPER_BONUS_THRESHOLD}
+                    </span>
                   </td>
-                  {view.players.map((pid) => {
-                    const sub = upperSubtotal(view.scorecards[pid] ?? {});
-                    return (
-                      <td
-                        key={pid}
-                        className="px-3 py-1.5 text-center text-xs"
-                      >
-                        <span
-                          className={
-                            sub >= UPPER_BONUS_THRESHOLD
-                              ? "text-success font-semibold"
-                              : "text-base-content/70"
-                          }
-                        >
-                          {sub} / {UPPER_BONUS_THRESHOLD}
-                        </span>
-                      </td>
-                    );
-                  })}
-                </tr>
-                {LOWER.map((cat) => (
-                  <ScoreRow
-                    key={cat}
-                    cat={cat}
-                    view={view}
-                    me={me}
-                    canAssign={canAssign}
-                    dice={view.dice}
-                    rolled={rolled}
-                    onAssign={handleAssign}
-                  />
-                ))}
-                <tr className="bg-base-100/60 font-display">
-                  <td className="px-3 py-2 text-sm font-bold">Total</td>
-                  {view.players.map((pid) => {
-                    const total = totals[pid] ?? 0;
-                    const isTopScore =
-                      isOver &&
-                      view.winner === pid &&
-                      !view.isDraw;
-                    return (
-                      <td
-                        key={pid}
-                        className={[
-                          "px-3 py-2 text-center text-base",
-                          isTopScore ? "text-success font-bold" : "",
-                        ].join(" ")}
-                      >
-                        {total}
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          {isOver && (
-            <div className="mt-3 text-center text-xs uppercase tracking-[0.22em] text-base-content/55">
-              {view.isDraw
-                ? "All scorecards filled — tied at the top."
-                : `${winnerName} wins with ${view.winner ? totals[view.winner] : 0} points.`}
-            </div>
-          )}
-          {!isOver && myFilled && (
-            <div className="mt-3 text-center text-xs uppercase tracking-[0.2em] text-base-content/50">
-              Your card is full — waiting on the others.
-            </div>
-          )}
-        </div>
+                );
+              })}
+            </tr>
+            {LOWER.map((cat) => (
+              <ScoreRow
+                key={cat}
+                cat={cat}
+                view={view}
+                me={me}
+                canAssign={canAssign}
+                dice={view.dice}
+                rolled={rolled}
+                onAssign={handleAssign}
+              />
+            ))}
+            <tr className="bg-base-100/60 font-display">
+              <td className="px-3 py-2 text-sm font-bold">Total</td>
+              {view.players.map((pid) => {
+                const total = totals[pid] ?? 0;
+                const isTopScore =
+                  isOver && view.winner === pid && !view.isDraw;
+                return (
+                  <td
+                    key={pid}
+                    className={[
+                      "px-3 py-2 text-center text-base",
+                      isTopScore ? "text-success font-bold" : "",
+                    ].join(" ")}
+                  >
+                    {total}
+                  </td>
+                );
+              })}
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
+  );
+
+  const banner = (() => {
+    if (isOver) {
+      return (
+        <div className="text-center text-xs uppercase tracking-[0.22em] text-base-content/55">
+          {view.isDraw
+            ? "All scorecards filled — tied at the top."
+            : `${winnerName} wins with ${view.winner ? totals[view.winner] : 0} points.`}
+        </div>
+      );
+    }
+    if (myFilled) {
+      return (
+        <div className="text-center text-xs uppercase tracking-[0.2em] text-base-content/50">
+          Your card is full — waiting on the others.
+        </div>
+      );
+    }
+    if (isMyTurn && rolled) {
+      return (
+        <div className="text-center text-[0.7rem] uppercase tracking-[0.18em] text-base-content/45">
+          Tap dice to hold before your next roll · or assign a category above
+        </div>
+      );
+    }
+    return null;
+  })();
+
+  return (
+    <PlayerUILayout
+      topStrip={topStrip}
+      main={scorecard}
+      bottomStrip={banner}
+      mainMaxWidth={780}
+      containerMaxWidth={1100}
+    />
   );
 }
 
