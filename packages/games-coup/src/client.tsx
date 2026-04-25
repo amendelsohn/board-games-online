@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Card as CardShell,
+  HandActionLayout,
   type BoardProps,
   type ClientGameModule,
   type SummaryProps,
@@ -103,66 +104,76 @@ function CoupBoard({
   const showExchangePanel =
     view.phase === "exchange" && pa?.actor === me && view.exchangeDraw;
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full max-w-3xl">
-      <PlayerRow
+  if (isOver) {
+    return (
+      <div className="flex flex-col items-center gap-5 w-full max-w-3xl mx-auto">
+        <PlayerRow view={view} me={me} playersById={playersById} excludeMe={false} />
+        <GameOverPanel view={view} playersById={playersById} />
+        <LogPanel view={view} playersById={playersById} />
+      </div>
+    );
+  }
+
+  let actionSlot: React.ReactNode;
+  if (showActionPanel) {
+    actionSlot = (
+      <ActionPanel
         view={view}
         me={me}
         playersById={playersById}
+        mustCoup={mustCoup}
+        myCoins={myCoins}
+        onSubmit={(actionType, target) =>
+          sendMove({ kind: "action", actionType, target: target ?? undefined })
+        }
       />
+    );
+  } else if (showRespondPanel && pa) {
+    actionSlot = (
+      <RespondPanel
+        view={view}
+        me={me}
+        playersById={playersById}
+        onRespond={(response, blockAs) =>
+          sendMove({ kind: "respond", response, blockAs })
+        }
+      />
+    );
+  } else if (showRevealPanel && myHand) {
+    actionSlot = (
+      <RevealPanel
+        hand={myHand}
+        reason={view.forcedReveal?.reason ?? "lostChallenge"}
+        onReveal={(cardIndex) =>
+          sendMove({ kind: "revealInfluence", cardIndex })
+        }
+      />
+    );
+  } else if (showExchangePanel && myHand && view.exchangeDraw) {
+    actionSlot = (
+      <ExchangePanel
+        hand={myHand}
+        draw={view.exchangeDraw}
+        onSubmit={(keep) =>
+          sendMove({ kind: "exchangeSelect", keep })
+        }
+      />
+    );
+  } else {
+    actionSlot = <WaitingPanel view={view} me={me} playersById={playersById} />;
+  }
 
-      {showActionPanel && (
-        <ActionPanel
-          view={view}
-          me={me}
-          playersById={playersById}
-          mustCoup={mustCoup}
-          myCoins={myCoins}
-          onSubmit={(actionType, target) =>
-            sendMove({ kind: "action", actionType, target: target ?? undefined })
-          }
-        />
-      )}
-
-      {showRespondPanel && pa && (
-        <RespondPanel
-          view={view}
-          me={me}
-          playersById={playersById}
-          onRespond={(response, blockAs) =>
-            sendMove({ kind: "respond", response, blockAs })
-          }
-        />
-      )}
-
-      {showRevealPanel && myHand && (
-        <RevealPanel
-          hand={myHand}
-          reason={view.forcedReveal?.reason ?? "lostChallenge"}
-          onReveal={(cardIndex) =>
-            sendMove({ kind: "revealInfluence", cardIndex })
-          }
-        />
-      )}
-
-      {showExchangePanel && myHand && view.exchangeDraw && (
-        <ExchangePanel
-          hand={myHand}
-          draw={view.exchangeDraw}
-          onSubmit={(keep) =>
-            sendMove({ kind: "exchangeSelect", keep })
-          }
-        />
-      )}
-
-      {!isOver && !showActionPanel && !showRespondPanel && !showRevealPanel && !showExchangePanel && (
-        <WaitingBanner view={view} me={me} playersById={playersById} />
-      )}
-
-      {isOver && <GameOverPanel view={view} playersById={playersById} />}
-
-      <LogPanel view={view} playersById={playersById} />
-    </div>
+  return (
+    <HandActionLayout
+      opponents={
+        <PlayerRow view={view} me={me} playersById={playersById} excludeMe />
+      }
+      hand={
+        <YourHandPanel view={view} me={me} playersById={playersById} />
+      }
+      actions={actionSlot}
+      history={<LogPanel view={view} playersById={playersById} />}
+    />
   );
 }
 
@@ -172,14 +183,19 @@ function PlayerRow({
   view,
   me,
   playersById,
+  excludeMe = false,
 }: {
   view: CoupView;
   me: string;
   playersById: Record<string, PlayerLike>;
+  excludeMe?: boolean;
 }) {
+  const ids = excludeMe
+    ? view.playerOrder.filter((id) => id !== me)
+    : view.playerOrder;
   return (
-    <div className="flex flex-wrap gap-2 justify-center w-full">
-      {view.playerOrder.map((id) => {
+    <div className="flex flex-wrap gap-2 lg:justify-start justify-center w-full">
+      {ids.map((id) => {
         const isMe = id === me;
         const coins = view.coins[id] ?? 0;
         const isCurrent = view.current === id && view.phase === "action";
@@ -308,6 +324,186 @@ function PlayerRow({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ------------------------- Your hand panel -------------------------
+
+function YourHandPanel({
+  view,
+  me,
+  playersById,
+}: {
+  view: CoupView;
+  me: string;
+  playersById: Record<string, PlayerLike>;
+}) {
+  const myHand = view.myHand ?? [];
+  const myCoins = view.coins[me] ?? 0;
+  const aliveCards = myHand.filter((c) => !c.revealed).length;
+  const isOut = aliveCards === 0;
+  const isCurrent = view.current === me && view.phase === "action";
+  const isResponder =
+    (view.phase === "respond" || view.phase === "blockRespond") &&
+    view.respondersRemaining.includes(me);
+  const isReveal = view.forcedReveal?.player === me;
+  const isActor = view.pendingAction?.actor === me;
+  const isBlocker = view.pendingBlock?.blocker === me;
+
+  const status = isOut
+    ? "Out of the game"
+    : isReveal
+      ? "Losing an influence"
+      : isActor
+        ? "Acting"
+        : isBlocker
+          ? "Blocking"
+          : isCurrent
+            ? "Your turn"
+            : isResponder
+              ? "Deciding"
+              : "Waiting";
+
+  const accent = isOut
+    ? "var(--color-base-content)"
+    : isReveal
+      ? "var(--color-error)"
+      : isActor || isCurrent
+        ? "var(--color-primary)"
+        : isBlocker
+          ? "var(--color-warning)"
+          : isResponder
+            ? "var(--color-primary)"
+            : "var(--color-base-content)";
+
+  const meName = playersById[me]?.name ?? me;
+
+  return (
+    <div
+      className="surface-ivory p-5 flex flex-col gap-4 h-full min-h-[280px]"
+      style={{
+        borderColor:
+          isCurrent || isActor || isResponder || isReveal
+            ? accent
+            : undefined,
+        boxShadow:
+          isCurrent || isActor || isResponder || isReveal
+            ? `0 0 0 1px color-mix(in oklch, ${accent} 35%, transparent), var(--shadow-soft)`
+            : undefined,
+        opacity: isOut ? 0.6 : 1,
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+            Your influences
+          </span>
+          <span
+            className="font-display tracking-tight truncate"
+            style={{ fontSize: "var(--text-display-sm)", lineHeight: 1.05 }}
+          >
+            {meName}{" "}
+            <span className="text-base-content/55 font-sans text-base">
+              (you)
+            </span>
+          </span>
+        </div>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <span
+            className="text-xs uppercase tracking-[0.18em] font-semibold rounded-full px-2.5 py-1 tabular-nums"
+            style={{
+              background:
+                "color-mix(in oklch, var(--color-warning) 22%, transparent)",
+              color: "var(--color-warning-content)",
+            }}
+          >
+            ◎ {myCoins}
+          </span>
+          <span
+            className="text-[10px] uppercase tracking-[0.22em] font-semibold"
+            style={{ color: accent }}
+          >
+            {status}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-1 items-center justify-center gap-4 flex-wrap">
+        {myHand.length === 0 ? (
+          <span className="text-base-content/55 italic">
+            No influences yet.
+          </span>
+        ) : (
+          myHand.map((c, i) => (
+            <CardShell
+              key={i}
+              ghost={c.revealed}
+              ariaLabel={`${CARD_LABEL[c.card]}${c.revealed ? " (revealed)" : ""}`}
+              style={{ width: 148, height: 208, borderRadius: 12 }}
+            >
+              <CoupFace card={c.card} revealed={c.revealed} />
+            </CardShell>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ------------------------- Waiting panel -------------------------
+
+function WaitingPanel({
+  view,
+  me,
+  playersById,
+}: {
+  view: CoupView;
+  me: string;
+  playersById: Record<string, PlayerLike>;
+}) {
+  let headline = "Waiting on other players";
+  let detail = "";
+  if (view.phase === "action") {
+    const n = playersById[view.current]?.name ?? view.current;
+    if (view.current === me) {
+      headline = "Your turn";
+      detail = "Choose an action below.";
+    } else {
+      headline = `${n} is choosing`;
+      detail = "Waiting for an action.";
+    }
+  } else if (view.phase === "respond" || view.phase === "blockRespond") {
+    const names = view.respondersRemaining
+      .map((id) => playersById[id]?.name ?? id)
+      .join(", ");
+    headline = "Awaiting responses";
+    detail = `Waiting on ${names}.`;
+  } else if (view.phase === "reveal") {
+    const p = view.forcedReveal?.player;
+    const n = p ? (playersById[p]?.name ?? p) : "someone";
+    headline = `${n} is choosing an influence`;
+    detail = "Reveal in progress.";
+  } else if (view.phase === "exchange") {
+    const p = view.pendingAction?.actor;
+    const n = p ? (playersById[p]?.name ?? p) : "someone";
+    headline = `${n} is exchanging`;
+    detail = "Picking cards from the court.";
+  }
+  return (
+    <div className="surface-ivory p-5 flex flex-col gap-2 h-full min-h-[280px] justify-center items-start">
+      <div className="text-[10px] uppercase tracking-[0.3em] font-semibold text-base-content/55">
+        ◆ Standing by ◆
+      </div>
+      <div
+        className="font-display tracking-tight"
+        style={{ fontSize: "var(--text-display-sm)", lineHeight: 1.1 }}
+      >
+        {headline}
+      </div>
+      {detail && (
+        <div className="text-sm text-base-content/65">{detail}</div>
+      )}
     </div>
   );
 }
@@ -990,40 +1186,6 @@ function ExchangePanel({
         </button>
       </div>
     </div>
-  );
-}
-
-// ------------------------- Waiting banner -------------------------
-
-function WaitingBanner({
-  view,
-  me,
-  playersById,
-}: {
-  view: CoupView;
-  me: string;
-  playersById: Record<string, PlayerLike>;
-}) {
-  let text = "Waiting on other players…";
-  if (view.phase === "action") {
-    const n = playersById[view.current]?.name ?? view.current;
-    text = view.current === me ? "Your turn." : `Waiting for ${n} to act…`;
-  } else if (view.phase === "respond" || view.phase === "blockRespond") {
-    const names = view.respondersRemaining
-      .map((id) => playersById[id]?.name ?? id)
-      .join(", ");
-    text = `Waiting on ${names}…`;
-  } else if (view.phase === "reveal") {
-    const p = view.forcedReveal?.player;
-    const n = p ? (playersById[p]?.name ?? p) : "someone";
-    text = `${n} is choosing an influence to reveal…`;
-  } else if (view.phase === "exchange") {
-    const p = view.pendingAction?.actor;
-    const n = p ? (playersById[p]?.name ?? p) : "someone";
-    text = `${n} is exchanging with the court…`;
-  }
-  return (
-    <div className="text-xs italic text-base-content/55">{text}</div>
   );
 }
 
