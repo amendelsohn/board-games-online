@@ -1,5 +1,6 @@
 import {
   Card as CardShell,
+  PlayerUILayout,
   type BoardProps,
   type ClientGameModule,
 } from "@bgo/sdk-client";
@@ -128,159 +129,156 @@ function MemoryBoard({
       banner = { text: `${nameOf(view.winner)} wins.`, tone: "lose" };
   }
 
-  return (
-    <div className="flex flex-col items-center gap-5">
-      {/* Scoreboard */}
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        {view.players.map((pid) => {
-          const color = colorForPlayer(view.players, pid);
-          const isCurrent = pid === view.current && !isOver;
-          const isWinner = isOver && view.winner === pid;
-          return (
-            <div
-              key={pid}
-              className={[
-                "flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl",
-                "transition-all",
-                isCurrent
-                  ? "ring-2 ring-offset-2 ring-offset-base-100"
-                  : isOver && !isWinner
-                    ? "opacity-60"
-                    : "",
-                isWinner ? "parlor-win" : "",
-              ].join(" ")}
-              style={{
-                background: `color-mix(in oklch, ${color} 14%, transparent)`,
-                boxShadow: isCurrent
-                  ? `0 0 0 2px ${color}`
-                  : isWinner
-                    ? `0 0 0 2px ${color}, 0 8px 22px color-mix(in oklch, ${color} 35%, transparent)`
-                    : undefined,
-              }}
+  const scoreboard = (
+    <div className="flex flex-wrap items-center justify-center gap-3">
+      {view.players.map((pid) => {
+        const color = colorForPlayer(view.players, pid);
+        const isCurrent = pid === view.current && !isOver;
+        const isWinner = isOver && view.winner === pid;
+        return (
+          <div
+            key={pid}
+            className={[
+              "flex items-center gap-2 px-4 py-2 rounded-xl",
+              "transition-all",
+              isCurrent ? "" : isOver && !isWinner ? "opacity-60" : "",
+              isWinner ? "parlor-win" : "",
+            ].join(" ")}
+            style={{
+              background: `color-mix(in oklch, ${color} 14%, transparent)`,
+              boxShadow: isCurrent
+                ? `inset 0 0 0 2px ${color}`
+                : isWinner
+                  ? `inset 0 0 0 2px ${color}, 0 8px 22px color-mix(in oklch, ${color} 35%, transparent)`
+                  : undefined,
+            }}
+          >
+            <span
+              className="text-2xl font-display font-bold leading-none"
+              style={{ color }}
             >
+              {view.scores[pid] ?? 0}
+            </span>
+            <div className="flex flex-col">
               <span
-                className="text-[10px] uppercase tracking-[0.22em] font-semibold"
+                className="text-[10px] uppercase tracking-[0.22em] font-semibold leading-tight"
                 style={{ color }}
               >
                 {pid === me ? "You" : nameOf(pid)}
               </span>
-              <span
-                className="text-2xl font-display font-bold leading-none"
-                style={{ color }}
-              >
-                {view.scores[pid] ?? 0}
-              </span>
-              <span
-                className="text-[9px] uppercase tracking-wider text-base-content/55"
-              >
+              <span className="text-[9px] uppercase tracking-wider text-base-content/55 leading-tight">
                 pairs
+                {isCurrent ? " · turn" : ""}
               </span>
             </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const turnBanner = turnLabel && (
+    <div
+      className={[
+        "text-xs uppercase tracking-[0.22em] font-semibold text-center",
+        inPeek ? "text-warning" : "text-base-content/60",
+      ].join(" ")}
+    >
+      {turnLabel}
+    </div>
+  );
+
+  const board = (
+    <div
+      className="relative rounded-2xl p-3 md:p-4 mx-auto"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
+        width: "min(95%, 720px)",
+      }}
+    >
+      <div
+        className="grid gap-2"
+        style={{
+          gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))`,
+        }}
+      >
+        {view.cards.map((card, i) => {
+          const claimed = card.owner !== null;
+          const revealed = view.revealed.includes(i);
+          const faceUp = claimed || revealed;
+          const ownerColor = claimed
+            ? colorForPlayer(view.players, card.owner)
+            : null;
+          const ownerInitial = claimed
+            ? (nameOf(card.owner!).slice(0, 1).toUpperCase() || null)
+            : null;
+
+          const disabled =
+            isOver ||
+            inPeek ||
+            !isMyTurn ||
+            claimed ||
+            revealed ||
+            view.revealed.length >= 2;
+
+          return (
+            <CardShell
+              key={i}
+              size="md"
+              faceDown={!faceUp}
+              disabled={disabled}
+              onClick={disabled ? undefined : () => handleFlip(i)}
+              ariaLabel={
+                faceUp
+                  ? `card ${i} showing ${card.symbol}${claimed ? ` owned by ${nameOf(card.owner!)}` : ""}`
+                  : `face-down card ${i}`
+              }
+              className="parlor-rise"
+              style={{
+                width: "100%",
+                height: "auto",
+                aspectRatio: "1 / 1",
+                borderRadius: 12,
+              }}
+            >
+              {faceUp && (
+                <MemoryFace
+                  symbol={card.symbol}
+                  ownerColor={ownerColor}
+                  ownerInitial={ownerInitial}
+                />
+              )}
+            </CardShell>
           );
         })}
       </div>
+    </div>
+  );
 
-      {/* Board */}
-      <div
-        className="relative rounded-2xl p-3 md:p-4"
-        style={{
-          background:
-            "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
-          boxShadow:
-            "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
-          width: "min(92vw, 540px)",
-        }}
-      >
-        <div
-          className="grid gap-2"
-          style={{
-            gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))`,
-          }}
-        >
-          {view.cards.map((card, i) => {
-            const claimed = card.owner !== null;
-            const revealed = view.revealed.includes(i);
-            const faceUp = claimed || revealed;
-            const ownerColor = claimed
-              ? colorForPlayer(view.players, card.owner)
-              : null;
-            const ownerInitial = claimed
-              ? (nameOf(card.owner!).slice(0, 1).toUpperCase() || null)
-              : null;
-
-            const disabled =
-              isOver ||
-              inPeek ||
-              !isMyTurn ||
-              claimed ||
-              revealed ||
-              view.revealed.length >= 2;
-
-            return (
-              <CardShell
-                key={i}
-                size="md"
-                faceDown={!faceUp}
-                disabled={disabled}
-                onClick={disabled ? undefined : () => handleFlip(i)}
-                ariaLabel={
-                  faceUp
-                    ? `card ${i} showing ${card.symbol}${claimed ? ` owned by ${nameOf(card.owner!)}` : ""}`
-                    : `face-down card ${i}`
-                }
-                className="parlor-rise"
-                style={{
-                  width: "100%",
-                  height: "auto",
-                  aspectRatio: "1 / 1",
-                  borderRadius: 12,
-                }}
-              >
-                {faceUp && (
-                  <MemoryFace
-                    symbol={card.symbol}
-                    ownerColor={ownerColor}
-                    ownerInitial={ownerInitial}
-                  />
-                )}
-              </CardShell>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Turn / phase indicator */}
-      {turnLabel && (
-        <div
-          className={[
-            "text-xs uppercase tracking-[0.22em] font-semibold",
-            inPeek ? "text-warning" : "text-base-content/60",
-          ].join(" ")}
-        >
-          {turnLabel}
-        </div>
-      )}
-
-      {inPeek && currentIsMe && (
+  const toolbar =
+    inPeek && currentIsMe ? (
+      <div className="flex justify-center">
         <button
           type="button"
           onClick={dismissPeek}
           className="px-4 py-1.5 rounded-full text-xs uppercase tracking-[0.2em] font-semibold transition-colors"
           style={{
-            background: "color-mix(in oklch, var(--color-warning) 22%, transparent)",
+            background:
+              "color-mix(in oklch, var(--color-warning) 22%, transparent)",
             color: "var(--color-warning)",
             boxShadow: "inset 0 0 0 1px var(--color-warning)",
           }}
         >
           Continue
         </button>
-      )}
-
-      {banner && (
+      </div>
+    ) : banner ? (
+      <div className="flex justify-center">
         <div
-          className={[
-            "mt-1 px-5 py-2 rounded-xl font-display font-bold text-lg parlor-win",
-          ].join(" ")}
+          className="px-5 py-2 rounded-xl font-display font-bold text-lg parlor-win"
           style={{
             background:
               banner.tone === "win"
@@ -302,8 +300,21 @@ function MemoryBoard({
         >
           {banner.text}
         </div>
-      )}
-    </div>
+      </div>
+    ) : undefined;
+
+  return (
+    <PlayerUILayout
+      topStrip={
+        <div className="flex flex-col gap-3 items-center">
+          {scoreboard}
+          {turnBanner}
+        </div>
+      }
+      main={board}
+      bottomStrip={toolbar}
+      containerMaxWidth={1200}
+    />
   );
 }
 
