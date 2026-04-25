@@ -385,17 +385,19 @@ function StorytellerSetup({
     await sendMove({ kind: "st.advancePhase" });
   };
 
-  return (
-    <div className="max-w-3xl w-full flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
-          Storyteller · setup · {scriptDisplayName(state.scriptId)}
-        </span>
-        <h2 className="font-display text-2xl tracking-tight">
-          Distribute characters
-        </h2>
-      </header>
+  const header = (
+    <header className="flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+        Storyteller · setup · {scriptDisplayName(state.scriptId)}
+      </span>
+      <h2 className="font-display text-2xl tracking-tight">
+        Distribute characters
+      </h2>
+    </header>
+  );
 
+  const body = (
+    <div className="flex flex-col gap-6">
       <div className="surface-ivory p-5 flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-3 flex-wrap">
           <div className="text-sm text-base-content/70">
@@ -491,6 +493,15 @@ function StorytellerSetup({
           : `Assign ${state.seatOrder.length - countAssigned(draft)} more to start`}
       </button>
     </div>
+  );
+
+  return (
+    <PlayerUILayout
+      topStrip={header}
+      main={body}
+      containerMaxWidth={900}
+      gap={1.25}
+    />
   );
 }
 
