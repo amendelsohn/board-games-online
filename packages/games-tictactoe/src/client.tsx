@@ -1,4 +1,9 @@
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import { useMemo } from "react";
+import {
+  BoardLayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import type { TicTacToeMove, TicTacToeView } from "./shared";
 import { TIC_TAC_TOE_TYPE } from "./shared";
 
@@ -6,89 +11,181 @@ function TicTacToeBoard({
   view,
   me,
   isMyTurn,
+  players,
   sendMove,
 }: BoardProps<TicTacToeView, TicTacToeMove>) {
+  const playersById = useMemo(() => {
+    const m: Record<string, { id: string; name: string }> = {};
+    for (const p of players) m[p.id] = p;
+    return m;
+  }, [players]);
+
   const mySymbol = view.symbols[me];
   const isOver = view.winner !== null || view.isDraw;
+
+  const opponentId =
+    Object.keys(view.symbols).find((id) => id !== me) ?? null;
+  const opponentSymbol = opponentId ? view.symbols[opponentId] : null;
+  const opponentName = opponentId
+    ? playersById[opponentId]?.name ?? opponentId
+    : "Opponent";
+  const myName = playersById[me]?.name ?? "You";
 
   const handleClick = (i: number) => {
     if (!isMyTurn || isOver || view.cells[i] !== null) return;
     void sendMove({ kind: "place", cellIndex: i });
   };
 
-  return (
-    <div className="flex flex-col items-center gap-5">
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-        You play as{" "}
+  const status = (() => {
+    if (view.winner === me) return { label: "You win", tone: "success" };
+    if (view.winner && view.winner !== me)
+      return { label: `${opponentName} wins`, tone: "error" };
+    if (view.isDraw) return { label: "Draw", tone: "neutral" };
+    if (isMyTurn) return { label: "Your move", tone: "primary" };
+    return { label: `${opponentName}'s move`, tone: "muted" };
+  })();
+
+  const seatPanel = (
+    name: string,
+    symbol: "X" | "O" | undefined,
+    isYou: boolean,
+    isTheirTurn: boolean,
+  ) => (
+    <div
+      className="rounded-2xl p-4 flex flex-col gap-1"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
+        boxShadow: isTheirTurn
+          ? "inset 0 0 0 2px var(--color-primary), 0 6px 16px color-mix(in oklch, var(--color-primary) 18%, transparent)"
+          : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
+      }}
+    >
+      <div className="flex items-baseline gap-2">
         <span
-          className={
-            mySymbol === "X"
-              ? "text-primary font-bold"
-              : "text-secondary font-bold"
-          }
-          style={{ letterSpacing: "0" }}
+          className="font-display leading-none"
+          style={{
+            fontSize: "1.75rem",
+            color:
+              symbol === "X"
+                ? "var(--color-primary)"
+                : symbol === "O"
+                  ? "var(--color-secondary)"
+                  : undefined,
+          }}
         >
-          {mySymbol ?? "?"}
+          {symbol ?? "?"}
+        </span>
+        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+          {isTheirTurn ? "to move" : "waiting"}
         </span>
       </div>
-
-      <div
-        className="relative rounded-2xl p-3 md:p-4"
-        style={{
-          background:
-            "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
-          boxShadow:
-            "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
-        }}
+      <span
+        className="font-display tracking-tight truncate"
+        style={{ fontSize: "1.125rem", lineHeight: 1.1 }}
       >
-        <div className="grid grid-cols-3 gap-2">
-          {view.cells.map((cell, i) => {
-            const isWinning = view.winningLine?.includes(i) ?? false;
-            const disabled = !isMyTurn || isOver || cell !== null;
-            return (
-              <button
-                key={i}
-                type="button"
-                data-testid={`ttt-cell-${i}`}
-                disabled={disabled}
-                onClick={() => handleClick(i)}
-                className={[
-                  "relative h-24 w-24 md:h-28 md:w-28 rounded-xl",
-                  "bg-base-100",
-                  "transition-all duration-200",
-                  !disabled && !isOver
-                    ? "hover:scale-[1.03] hover:bg-base-200 cursor-pointer"
-                    : "cursor-default",
-                  isWinning
-                    ? "bg-success/15 ring-2 ring-success parlor-win"
-                    : "",
-                ].join(" ")}
-                style={{
-                  boxShadow: isWinning
-                    ? "0 0 0 2px var(--color-success), 0 10px 24px color-mix(in oklch, var(--color-success) 25%, transparent)"
-                    : "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
-                }}
-                aria-label={`cell ${i}`}
-              >
-                {cell && (
-                  <span
-                    className={[
-                      "absolute inset-0 flex items-center justify-center",
-                      "font-display leading-none parlor-fade",
-                      "text-6xl md:text-7xl",
-                      cell === "X" ? "text-primary" : "text-secondary",
-                    ].join(" ")}
-                    style={{ fontVariationSettings: "'wght' 700" }}
-                  >
-                    {cell}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {name}
+        {isYou && (
+          <span className="text-base-content/55 font-sans text-sm ml-1">
+            (you)
+          </span>
+        )}
+      </span>
+    </div>
+  );
+
+  const board = (
+    <div
+      className="relative rounded-2xl p-3 md:p-4 mx-auto"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
+      }}
+    >
+      <div className="grid grid-cols-3 gap-2">
+        {view.cells.map((cell, i) => {
+          const isWinning = view.winningLine?.includes(i) ?? false;
+          const disabled = !isMyTurn || isOver || cell !== null;
+          return (
+            <button
+              key={i}
+              type="button"
+              data-testid={`ttt-cell-${i}`}
+              disabled={disabled}
+              onClick={() => handleClick(i)}
+              className={[
+                "relative h-24 w-24 md:h-28 md:w-28 rounded-xl",
+                "bg-base-100",
+                "transition-all duration-200",
+                !disabled && !isOver
+                  ? "hover:scale-[1.03] hover:bg-base-200 cursor-pointer"
+                  : "cursor-default",
+                isWinning
+                  ? "bg-success/15 ring-2 ring-success parlor-win"
+                  : "",
+              ].join(" ")}
+              style={{
+                boxShadow: isWinning
+                  ? "0 0 0 2px var(--color-success), 0 10px 24px color-mix(in oklch, var(--color-success) 25%, transparent)"
+                  : "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
+              }}
+              aria-label={`cell ${i}`}
+            >
+              {cell && (
+                <span
+                  className={[
+                    "absolute inset-0 flex items-center justify-center",
+                    "font-display leading-none parlor-fade",
+                    "text-6xl md:text-7xl",
+                    cell === "X" ? "text-primary" : "text-secondary",
+                  ].join(" ")}
+                  style={{ fontVariationSettings: "'wght' 700" }}
+                >
+                  {cell}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
+  );
+
+  return (
+    <BoardLayout
+      statusBar={
+        <div
+          className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.22em] font-semibold"
+          style={{
+            color:
+              status.tone === "primary"
+                ? "var(--color-primary)"
+                : status.tone === "success"
+                  ? "var(--color-success)"
+                  : status.tone === "error"
+                    ? "var(--color-error)"
+                    : "var(--color-base-content)",
+          }}
+        >
+          {status.label}
+        </div>
+      }
+      leftRail={seatPanel(
+        opponentName,
+        opponentSymbol ?? undefined,
+        false,
+        !isOver && !isMyTurn,
+      )}
+      board={board}
+      rightRail={seatPanel(myName, mySymbol, true, isMyTurn && !isOver)}
+      // 3x3 doesn't need much room — cap so it doesn't inflate awkwardly
+      // on widescreen, but stays full-width on mobile.
+      boardMaxSize="min(50vh, 420px)"
+      leftRailWidth={200}
+      rightRailWidth={200}
+    />
   );
 }
 
