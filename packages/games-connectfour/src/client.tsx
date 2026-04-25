@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BoardLayout,
+  SeatChip,
+  SeatStrip,
   type BoardProps,
   type ClientGameModule,
 } from "@bgo/sdk-client";
@@ -84,7 +86,7 @@ function ConnectFourBoard({
       ) ?? null
     : null;
 
-  const seatChip = (
+  const seatChipFor = (
     name: string,
     color: "R" | "Y" | undefined | null,
     isYou: boolean,
@@ -92,55 +94,38 @@ function ConnectFourBoard({
     showLastMoveCol: number | null,
     align: "start" | "end",
   ) => (
-    <div
-      className={[
-        "rounded-2xl px-3 py-2 flex items-center gap-3 min-w-0 max-w-full",
-        align === "end" ? "flex-row-reverse text-right" : "flex-row",
-      ].join(" ")}
-      style={{
-        background:
-          "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
-        boxShadow: isTheirTurn
-          ? `inset 0 0 0 2px ${colorVar(color)}, 0 6px 16px color-mix(in oklch, ${colorVar(color)} 22%, transparent)`
-          : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
-      }}
-    >
-      <span
-        className="rounded-full shrink-0"
-        style={{
-          width: 22,
-          height: 22,
-          background: colorVar(color),
-          boxShadow:
-            "inset 0 -2px 0 oklch(0% 0 0 / 0.18), inset 0 1px 0 oklch(100% 0 0 / 0.18)",
-        }}
-      />
-      <div className="flex flex-col min-w-0">
+    <SeatChip
+      swatch={
         <span
-          className="text-[10px] uppercase tracking-[0.22em] font-semibold leading-tight"
-          style={{ color: colorVar(color) }}
-        >
+          className="rounded-full"
+          style={{
+            width: 22,
+            height: 22,
+            background: colorVar(color),
+            boxShadow:
+              "inset 0 -2px 0 oklch(0% 0 0 / 0.18), inset 0 1px 0 oklch(100% 0 0 / 0.18)",
+          }}
+        />
+      }
+      label={
+        <span style={{ color: colorVar(color) }}>
           {colorLabel(color)}
           {isTheirTurn ? " · to drop" : ""}
         </span>
-        <span
-          className="font-display tracking-tight truncate leading-tight"
-          style={{ fontSize: "1rem" }}
-        >
-          {name}
-          {isYou && (
-            <span className="text-base-content/55 font-sans text-xs ml-1">
-              (you)
-            </span>
-          )}
-          {showLastMoveCol != null && (
-            <span className="ml-2 text-[10px] uppercase tracking-[0.18em] font-semibold text-base-content/55 tabular-nums">
-              col {showLastMoveCol + 1}
-            </span>
-          )}
-        </span>
-      </div>
-    </div>
+      }
+      name={name}
+      isYou={isYou}
+      meta={
+        showLastMoveCol != null ? (
+          <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-base-content/55 tabular-nums">
+            col {showLastMoveCol + 1}
+          </span>
+        ) : undefined
+      }
+      active={isTheirTurn}
+      accent={colorVar(color)}
+      align={align}
+    />
   );
 
   const status = (() => {
@@ -226,8 +211,8 @@ function ConnectFourBoard({
   return (
     <BoardLayout
       statusBar={
-        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_1fr] items-stretch sm:items-center gap-2 sm:gap-3 w-full">
-          {seatChip(
+        <SeatStrip
+          left={seatChipFor(
             opponentName,
             opponentColor,
             false,
@@ -235,22 +220,23 @@ function ConnectFourBoard({
             opponentId === lastFrom ? view.lastMove?.col ?? null : null,
             "start",
           )}
-          <div
-            className="text-[10px] sm:text-xs uppercase tracking-[0.22em] font-semibold text-center px-2"
-            style={{
-              color:
-                status.tone === "primary"
-                  ? "var(--color-primary)"
-                  : status.tone === "success"
-                    ? "var(--color-success)"
-                    : status.tone === "error"
-                      ? "var(--color-error)"
-                      : "var(--color-base-content)",
-            }}
-          >
-            {status.label}
-          </div>
-          {seatChip(
+          center={
+            <span
+              style={{
+                color:
+                  status.tone === "primary"
+                    ? "var(--color-primary)"
+                    : status.tone === "success"
+                      ? "var(--color-success)"
+                      : status.tone === "error"
+                        ? "var(--color-error)"
+                        : "var(--color-base-content)",
+              }}
+            >
+              {status.label}
+            </span>
+          }
+          right={seatChipFor(
             myName,
             myColor,
             true,
@@ -258,7 +244,7 @@ function ConnectFourBoard({
             me === lastFrom ? view.lastMove?.col ?? null : null,
             "end",
           )}
-        </div>
+        />
       }
       board={board}
       // Lets the board fill the play area, capped on widescreen so cells

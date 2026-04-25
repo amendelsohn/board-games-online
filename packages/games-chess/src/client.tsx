@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   BoardLayout,
+  SeatChip,
+  SeatStrip,
   type BoardProps,
   type ClientGameModule,
 } from "@bgo/sdk-client";
@@ -238,10 +240,9 @@ function ChessBoard({
   const opponentColor: Color | null =
     myColor === "w" ? "b" : myColor === "b" ? "w" : null;
 
-  // Compact horizontal seat chip for the top strip. Color square + label
-  // + name, plus a +N material delta when this seat is ahead. The active
-  // mover gets a colored ring so a glance reveals whose turn it is.
-  const seatChip = (
+  // Build a seat chip for a given color. Color square swatch + "Color · to move"
+  // label, with a "+N" material delta in the meta slot when the seat is ahead.
+  const seatChipFor = (
     color: Color | null,
     name: string,
     isYou: boolean,
@@ -260,55 +261,40 @@ function ChessBoard({
     const swatchStroke =
       color === "w" ? PIECE_WHITE_STROKE : PIECE_BLACK_STROKE;
     return (
-      <div
-        className={[
-          "rounded-2xl px-3 py-2 flex items-center gap-3 min-w-0 max-w-full",
-          align === "end" ? "flex-row-reverse text-right" : "flex-row",
-        ].join(" ")}
-        style={{
-          background:
-            "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
-          boxShadow: isTheirTurn
-            ? "inset 0 0 0 2px var(--color-primary), 0 6px 16px color-mix(in oklch, var(--color-primary) 18%, transparent)"
-            : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
-        }}
-      >
-        <span
-          aria-hidden
-          className="rounded-md shrink-0"
-          style={{
-            width: 28,
-            height: 28,
-            background: swatchFill,
-            boxShadow: `inset 0 0 0 1.5px ${swatchStroke}`,
-          }}
-        />
-        <div className="flex flex-col min-w-0">
-          <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 leading-tight">
+      <SeatChip
+        swatch={
+          <span
+            aria-hidden
+            className="rounded-md"
+            style={{
+              width: 28,
+              height: 28,
+              background: swatchFill,
+              boxShadow: `inset 0 0 0 1.5px ${swatchStroke}`,
+            }}
+          />
+        }
+        label={
+          <>
             {colorLabel}
             {isTheirTurn ? " · to move" : ""}
-          </span>
-          <span
-            className="font-display tracking-tight truncate leading-tight"
-            style={{ fontSize: "1rem" }}
-          >
-            {name}
-            {isYou && (
-              <span className="text-base-content/55 font-sans text-xs ml-1">
-                (you)
-              </span>
-            )}
-            {advantage > 0 && (
-              <span
-                className="ml-2 font-mono tabular-nums text-xs font-semibold text-base-content/70"
-                aria-label={`material advantage +${advantage}`}
-              >
-                +{advantage}
-              </span>
-            )}
-          </span>
-        </div>
-      </div>
+          </>
+        }
+        name={name}
+        isYou={isYou}
+        meta={
+          advantage > 0 ? (
+            <span
+              className="font-mono tabular-nums text-xs font-semibold text-base-content/70"
+              aria-label={`material advantage +${advantage}`}
+            >
+              +{advantage}
+            </span>
+          ) : undefined
+        }
+        active={isTheirTurn}
+        align={align}
+      />
     );
   };
 
@@ -393,7 +379,10 @@ function ChessBoard({
                   "transition-colors",
                   interactive ? "cursor-pointer" : "cursor-default",
                 ].join(" ")}
-                style={{ background: squareBg }}
+                style={{
+                  background: squareBg,
+                  containerType: "inline-size",
+                }}
                 aria-label={`square ${"abcdefgh"[col]}${8 - row}`}
               >
                 {(isLastFrom || isLastTo) && !isSelected && !dest && (
@@ -518,10 +507,10 @@ function ChessBoard({
     <>
       <BoardLayout
         statusBar={
-          <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_1fr] items-stretch sm:items-center gap-2 sm:gap-3 w-full">
-            {seatChip(opponentColor, opponentName, false, "start")}
-            <div className="text-[10px] sm:text-xs uppercase tracking-[0.22em] font-semibold text-center px-2">
-              {isOver ? (
+          <SeatStrip
+            left={seatChipFor(opponentColor, opponentName, false, "start")}
+            center={
+              isOver ? (
                 <span>{statusLine}</span>
               ) : isMyTurn ? (
                 <span className="text-primary">
@@ -531,10 +520,10 @@ function ChessBoard({
                 <span className="text-base-content/55">
                   {view.inCheck ? "Opponent in check" : "Opponent thinking…"}
                 </span>
-              )}
-            </div>
-            {seatChip(myColor ?? null, myName, true, "end")}
-          </div>
+              )
+            }
+            right={seatChipFor(myColor ?? null, myName, true, "end")}
+          />
         }
         board={board}
         boardMaxSize="min(75vh, 100%)"
@@ -629,7 +618,10 @@ function PieceGlyph({
       : {
           width: "90%",
           height: "90%",
-          fontSize: "clamp(1.6rem, 3.8vw, 2.4rem)",
+          // Each board cell is its own inline-size container. 75cqi keeps the
+          // glyph proportional to the cell across the full responsive range
+          // (mobile board ~36px cells → big desktop boards ~96px+ cells).
+          fontSize: "75cqi",
         };
 
   return (
