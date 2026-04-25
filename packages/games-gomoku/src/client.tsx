@@ -29,6 +29,16 @@ const STAR_POINTS = new Set<number>([
   11 * BOARD_SIZE + 11,
 ]);
 
+// Stone palette is pinned so two-player contrast survives both themes.
+// Theme tokens (--color-base-100, --color-neutral) collapse to similar
+// dark teals in parlor-night, which destroys black-vs-white legibility.
+const STONE_BLACK_BG =
+  "radial-gradient(circle at 35% 30%, oklch(38% 0.014 60) 0%, oklch(20% 0.012 60) 55%, oklch(10% 0.008 60) 100%)";
+const STONE_WHITE_BG =
+  "radial-gradient(circle at 35% 30%, oklch(99% 0.005 80) 0%, oklch(94% 0.012 80) 55%, oklch(82% 0.018 75) 100%)";
+const STONE_BLACK_SOLID = "oklch(20% 0.012 60)";
+const STONE_WHITE_SOLID = "oklch(94% 0.012 80)";
+
 function GomokuBoard({
   view,
   me,
@@ -267,8 +277,8 @@ function GomokuBoard({
                           height: "calc(var(--gomoku-cell) * 0.78)",
                           background:
                             myStone === "B"
-                              ? "var(--color-neutral)"
-                              : "var(--color-base-100)",
+                              ? STONE_BLACK_SOLID
+                              : STONE_WHITE_SOLID,
                         }}
                       />
                     ) : null}
@@ -342,9 +352,7 @@ function Stone({
   last: boolean;
 }) {
   const isBlack = color === "B";
-  const bg = isBlack
-    ? "radial-gradient(circle at 35% 30%, oklch(40% 0.02 60) 0%, var(--color-neutral) 55%, oklch(15% 0.01 60) 100%)"
-    : "radial-gradient(circle at 35% 30%, oklch(99% 0.005 80) 0%, var(--color-base-100) 55%, oklch(90% 0.012 80) 100%)";
+  const bg = isBlack ? STONE_BLACK_BG : STONE_WHITE_BG;
   const innerShadow = isBlack
     ? "oklch(100% 0 0 / 0.18)"
     : "oklch(0% 0 0 / 0.18)";
@@ -414,8 +422,8 @@ function StatusLabel({
             height: "10px",
             background:
               trailingStone === "B"
-                ? "var(--color-neutral)"
-                : "var(--color-base-100)",
+                ? STONE_BLACK_SOLID
+                : STONE_WHITE_SOLID,
             boxShadow: "inset 0 -1px 0 oklch(0% 0 0 / 0.25)",
           }}
         />

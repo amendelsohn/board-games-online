@@ -9,6 +9,12 @@ import {
 
 const PILE_LABELS = ["I", "II", "III"] as const;
 
+// Stone palette pinned absolute so the resting stone reads against any
+// theme background. Theme-derived `--color-base-100` collapses to dark
+// teal in parlor-night, making the stones blend into the board panel.
+const STONE_INNER = "oklch(98% 0.012 80)";
+const STONE_OUTER = "oklch(82% 0.02 78)";
+
 function NimBoard({
   view,
   me,
@@ -254,8 +260,8 @@ function NimBoard({
                             ].join(" ")}
                             style={{
                               background: willBeTaken
-                                ? "radial-gradient(ellipse at 35% 30%, color-mix(in oklch, var(--color-primary) 40%, white 20%) 0%, color-mix(in oklch, var(--color-primary) 65%, var(--color-base-100)) 80%)"
-                                : "radial-gradient(ellipse at 35% 30%, color-mix(in oklch, var(--color-base-100) 92%, white 8%) 0%, color-mix(in oklch, var(--color-base-content) 22%, var(--color-base-100)) 78%)",
+                                ? "radial-gradient(ellipse at 35% 30%, color-mix(in oklch, var(--color-primary) 40%, white 20%) 0%, color-mix(in oklch, var(--color-primary) 70%, oklch(20% 0.012 60)) 80%)"
+                                : `radial-gradient(ellipse at 35% 30%, ${STONE_INNER} 0%, ${STONE_OUTER} 78%)`,
                               boxShadow: willBeTaken
                                 ? "0 2px 6px color-mix(in oklch, var(--color-primary) 40%, transparent), inset 0 1px 0 oklch(100% 0 0 / 0.4), inset 0 -1px 0 oklch(0% 0 0 / 0.2)"
                                 : "inset 0 1px 0 oklch(100% 0 0 / 0.3), inset 0 -1px 0 oklch(0% 0 0 / 0.2), 0 1px 2px oklch(0% 0 0 / 0.15)",

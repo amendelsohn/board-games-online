@@ -22,6 +22,15 @@ interface Highlight {
   isCapture: boolean;
 }
 
+// Board palette pinned to absolute oklch so two-state contrast survives
+// parlor-night, where --color-base-100/200/300/neutral all collapse to
+// near-identical dark teals and would erase both square contrast and
+// black-piece-on-dark-square legibility.
+const SQUARE_LIGHT = "oklch(86% 0.035 78)"; // warm cream
+const SQUARE_DARK = "oklch(40% 0.04 60)"; // walnut
+const PIECE_BLACK_BG = "oklch(22% 0.012 60)"; // ink
+const PIECE_BLACK_RING = "oklch(8% 0.008 60)";
+
 const CHECKERS_KEYFRAMES = `
 @keyframes checkers-capture-pulse-ring {
   0%, 100% {
@@ -220,9 +229,7 @@ function CheckersBoard({
               playable &&
               (cell || highlight || isSelected);
 
-            const squareBg = playable
-              ? "color-mix(in oklch, var(--color-neutral) 55%, var(--color-base-300))"
-              : "color-mix(in oklch, var(--color-base-100) 85%, var(--color-base-200))";
+            const squareBg = playable ? SQUARE_DARK : SQUARE_LIGHT;
 
             return (
               <button
@@ -312,16 +319,14 @@ function PieceGlyph({
   const isRed = color === "r";
   const isCrown = isKing(piece);
 
-  const bg = isRed
-    ? "var(--color-error)"
-    : "var(--color-neutral)";
+  const bg = isRed ? "var(--color-error)" : PIECE_BLACK_BG;
 
   // Tighten contrast: red pieces keep a warm dark ring, black pieces get a
-  // near-ink ring so they separate cleanly from the graphite dark square in
+  // near-ink ring so they separate cleanly from the walnut dark square in
   // both light and dark mode. Also darken the gradient tail for blacks.
   const ring = isRed
     ? "color-mix(in oklch, var(--color-error) 55%, black)"
-    : "oklch(20% 0 0 / 0.85)";
+    : PIECE_BLACK_RING;
 
   const gradientTail = isRed
     ? `color-mix(in oklch, ${bg} 70%, black)`
