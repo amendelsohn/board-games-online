@@ -1,5 +1,11 @@
 import type * as React from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  BoardLayout,
+  SeatChip,
+  SeatStrip,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   COLS,
   DOTS_AND_BOXES_TYPE,
@@ -222,74 +228,122 @@ function DotsAndBoxesBoard({
     }
   }
 
-  return (
-    <div className="flex flex-col items-center gap-5">
-      <div className="flex items-center gap-6">
-        {[p1, p2].map((pid) =>
-          pid ? (
-            <div
-              key={pid}
-              className={[
-                "flex flex-col items-center gap-1 px-4 py-2 rounded-xl",
-                view.current === pid && !isOver
-                  ? "ring-2 ring-offset-2 ring-offset-base-100"
-                  : "opacity-75",
-              ].join(" ")}
-              style={{
-                background: `color-mix(in oklch, ${colorVarFor(view.colors[pid])} 14%, transparent)`,
-                boxShadow:
-                  view.current === pid && !isOver
-                    ? `0 0 0 2px ${colorVarFor(view.colors[pid])}`
-                    : undefined,
-              }}
-            >
-              <span
-                className="text-[10px] uppercase tracking-[0.22em] font-semibold"
-                style={{ color: colorVarFor(view.colors[pid]) }}
-              >
-                {pid === me ? "You" : nameOf(pid)}
-                {" · "}
-                {view.colors[pid]}
-              </span>
-              <span
-                className="text-2xl font-display font-bold leading-none"
-                style={{ color: colorVarFor(view.colors[pid]) }}
-              >
-                {view.scores[pid] ?? 0}
-              </span>
-            </div>
-          ) : null,
-        )}
-      </div>
+  const opponentId = playerIds.find((id) => id !== me) ?? null;
+  const myColor = view.colors[me];
+  const opponentColor = opponentId ? view.colors[opponentId] : undefined;
+  const myScore = view.scores[me] ?? 0;
+  const oppScore = opponentId ? view.scores[opponentId] ?? 0 : 0;
 
+  const seatSwatch = (sym: PlayerSymbol | undefined) => (
+    <span
+      className="rounded-md flex items-center justify-center font-display font-bold"
+      style={{
+        width: 24,
+        height: 24,
+        fontSize: "14px",
+        background: `color-mix(in oklch, ${colorVarFor(sym)} 22%, transparent)`,
+        color: colorVarFor(sym),
+      }}
+    >
+      {sym ?? "—"}
+    </span>
+  );
+
+  const board = (
+    <div
+      className="relative rounded-2xl p-4 md:p-5"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
+      }}
+    >
       <div
-        className="relative rounded-2xl p-4 md:p-5"
+        className="grid mx-auto"
         style={{
-          background:
-            "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
-          boxShadow:
-            "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
+          gridTemplateColumns: gridCols,
+          gridTemplateRows: gridRows,
         }}
       >
-        <div
-          className="grid"
-          style={{
-            gridTemplateColumns: gridCols,
-            gridTemplateRows: gridRows,
-          }}
-        >
-          {cells}
-        </div>
-      </div>
-
-      <div className="text-xs text-base-content/50 tracking-wide text-center">
-        {isOver
-          ? "Game over."
-          : isMyTurn
-            ? "Your turn — complete a box to go again."
-            : "Waiting for opponent."}
+        {cells}
       </div>
     </div>
+  );
+
+  return (
+    <BoardLayout
+      statusBar={
+        <SeatStrip
+          left={
+            <SeatChip
+              swatch={seatSwatch(opponentColor)}
+              label={
+                <>
+                  {opponentColor ?? "—"}
+                  {!isOver && view.current === opponentId
+                    ? " · to draw"
+                    : ""}
+                </>
+              }
+              name={opponentId ? nameOf(opponentId) : "Opponent"}
+              meta={
+                <span className="font-mono tabular-nums text-sm font-semibold text-base-content/80">
+                  {oppScore}
+                </span>
+              }
+              active={!isOver && view.current === opponentId}
+              accent={colorVarFor(opponentColor)}
+              align="start"
+            />
+          }
+          center={
+            <span
+              style={{
+                color: isOver
+                  ? "var(--color-success)"
+                  : isMyTurn
+                    ? "var(--color-primary)"
+                    : "var(--color-base-content)",
+              }}
+            >
+              {isOver
+                ? view.isDraw
+                  ? "Draw"
+                  : view.winner === me
+                    ? "You win"
+                    : `${nameOf(view.winner!)} wins`
+                : isMyTurn
+                  ? "Draw an edge — close a box to go again"
+                  : `${nameOf(view.current)} drawing…`}
+            </span>
+          }
+          right={
+            <SeatChip
+              swatch={seatSwatch(myColor)}
+              label={
+                <>
+                  {myColor ?? "—"}
+                  {!isOver && isMyTurn ? " · to draw" : ""}
+                </>
+              }
+              name={nameOf(me)}
+              isYou
+              meta={
+                <span className="font-mono tabular-nums text-sm font-semibold text-base-content/80">
+                  {myScore}
+                </span>
+              }
+              active={!isOver && isMyTurn}
+              accent={colorVarFor(myColor)}
+              align="end"
+            />
+          }
+        />
+      }
+      board={board}
+      boardMaxSize="min(70vh, 100%)"
+    />
   );
 }
 
