@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  BoardLayout,
+  SeatChip,
+  SeatStrip,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   NIM_TYPE,
   type NimMove,
@@ -101,53 +107,34 @@ function NimBoard({
     ? playersById[view.winner]?.name ?? "Someone"
     : null;
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full">
-      <div
-        role="status"
-        aria-live="polite"
-        className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold"
-      >
-        {isOver ? (
-          view.winner === me ? (
-            <span>
-              <span className="text-success font-bold">You win!</span>{" "}
-              <span className="text-base-content/60 normal-case tracking-normal">
-                (took the last stone)
-              </span>
-            </span>
-          ) : (
-            <span>
-              <span className="text-base-content font-bold">{winnerName}</span>{" "}
-              wins.{" "}
-              <span className="text-base-content/60 normal-case tracking-normal">
-                (took the last stone)
-              </span>
-            </span>
-          )
-        ) : isMyTurn ? (
-          <span className="text-primary font-bold">Your turn</span>
-        ) : (
-          <span className="inline-flex items-center gap-1">
-            Waiting on{" "}
-            <span className="text-base-content font-bold">{currentName}</span>
-            <span
-              aria-hidden
-              className="inline-block h-1.5 w-1.5 rounded-full bg-base-content/40 animate-pulse ml-1"
-            />
-          </span>
-        )}
-      </div>
+  const opponentId = view.players.find((id) => id !== me) ?? null;
+  const opponentName = opponentId
+    ? playersById[opponentId]?.name ?? opponentId
+    : "Opponent";
+  const myName = playersById[me]?.name ?? "You";
+  const stoneSwatch = (
+    <span
+      className="rounded-full"
+      style={{
+        width: 22,
+        height: 22,
+        background: `radial-gradient(ellipse at 35% 30%, ${STONE_INNER} 0%, ${STONE_OUTER} 78%)`,
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.3), inset 0 -1px 0 oklch(0% 0 0 / 0.2)",
+      }}
+    />
+  );
 
-      <div
-        className="relative rounded-2xl p-4 md:p-6 w-full max-w-2xl"
-        style={{
-          background:
-            "color-mix(in oklch, var(--color-base-300) 75%, color-mix(in oklch, var(--color-warning) 8%, transparent))",
-          boxShadow:
-            "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
-        }}
-      >
+  const board = (
+    <div
+      className="relative rounded-2xl p-4 md:p-6 w-full"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-300) 75%, color-mix(in oklch, var(--color-warning) 8%, transparent))",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
+      }}
+    >
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-center gap-3 sm:gap-6 md:gap-8">
           {view.piles.map((size, i) => {
             const pileIdx = i as PileIndex;
@@ -278,8 +265,10 @@ function NimBoard({
           })}
         </div>
       </div>
+  );
 
-      {/* Unified stepper + submit pill */}
+  const toolbar = (
+    <div className="flex flex-col items-center gap-3">
       {!isOver && (
         <div className="flex flex-col items-center gap-2">
           <div
@@ -352,12 +341,76 @@ function NimBoard({
       )}
 
       {view.lastMove && (
-        <div className="text-[11px] text-base-content/50 tracking-wide font-mono tabular-nums">
+        <div className="text-[11px] text-base-content/50 tracking-wide font-mono tabular-nums text-center">
           Last: {playersById[view.lastMove.by]?.name ?? "Someone"} took{" "}
           {view.lastMove.count} from {PILE_LABELS[view.lastMove.pile]}
         </div>
       )}
     </div>
+  );
+
+  return (
+    <BoardLayout
+      statusBar={
+        <SeatStrip
+          left={
+            <SeatChip
+              swatch={stoneSwatch}
+              label={
+                <>
+                  Stones
+                  {!isOver && view.current === opponentId
+                    ? " · to take"
+                    : ""}
+                </>
+              }
+              name={opponentName}
+              active={!isOver && view.current === opponentId}
+              align="start"
+            />
+          }
+          center={
+            <span
+              style={{
+                color: isOver
+                  ? view.winner === me
+                    ? "var(--color-success)"
+                    : "var(--color-base-content)"
+                  : isMyTurn
+                    ? "var(--color-primary)"
+                    : "var(--color-base-content)",
+              }}
+            >
+              {isOver
+                ? view.winner === me
+                  ? "You took the last stone"
+                  : `${winnerName} took the last stone`
+                : isMyTurn
+                  ? "Your turn"
+                  : `${currentName} thinking…`}
+            </span>
+          }
+          right={
+            <SeatChip
+              swatch={stoneSwatch}
+              label={
+                <>
+                  Stones
+                  {!isOver && isMyTurn ? " · to take" : ""}
+                </>
+              }
+              name={myName}
+              isYou
+              active={!isOver && isMyTurn}
+              align="end"
+            />
+          }
+        />
+      }
+      board={board}
+      toolbar={toolbar}
+      boardMaxSize="min(70vh, 720px)"
+    />
   );
 }
 
