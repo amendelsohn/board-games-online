@@ -51,9 +51,6 @@ lerna-debug.log*
 /*.png
 .todos/
 
-# UI-polish baseline screenshots + report
-.baseline/
-
 # Playwright test outputs (per-package)
 **/test-results/
 **/playwright-report/

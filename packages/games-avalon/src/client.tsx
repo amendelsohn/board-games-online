@@ -195,7 +195,7 @@ function QuestTokens({ view }: { view: AvalonView }) {
             </div>
             {fails > 1 && (
               <div
-                className="absolute -top-2 -right-2 text-[9px] font-bold rounded-full px-1.5 py-[1px]"
+                className="absolute -top-1 -right-1 text-[9px] font-bold rounded-full px-1.5 py-[1px]"
                 style={{
                   background: "var(--color-warning)",
                   color: "var(--color-warning-content)",
@@ -342,7 +342,7 @@ function LeaderBanner({
       {failsLabel}
       {" · "}
       Proposal{" "}
-      <span className="font-semibold tabular-nums">
+      <span className="font-semibold tabular">
         {view.proposalNumber}/5
       </span>
       {" · Leader: "}
@@ -376,7 +376,7 @@ function ProposalPanel({
       <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
         {amLeader ? "Assemble your team" : "Waiting for the leader"}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {view.playerOrder.map((id) => {
           const p = playersById[id] ?? { id, name: id };
           const selected = proposal.includes(id);
@@ -410,7 +410,7 @@ function ProposalPanel({
       </div>
       {amLeader && (
         <div className="flex items-center justify-between gap-3">
-          <div className="text-xs text-base-content/55 tabular-nums">
+          <div className="text-xs text-base-content/55 tabular">
             {proposal.length}/{view.currentQuestSize} selected
           </div>
           <button
@@ -477,7 +477,7 @@ function VotePanel({
         rejections and the spies win.
       </div>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="text-xs text-base-content/55 tabular-nums">
+        <div className="text-xs text-base-content/55 tabular">
           {view.voteTally.voters.length}/{view.playerOrder.length} voted
           {pending.length > 0 && (
             <span className="ml-2 text-base-content/45">
@@ -491,7 +491,7 @@ function VotePanel({
           <div className="flex gap-2">
             <button
               type="button"
-              className="btn btn-info rounded-full px-5 font-semibold"
+              className="btn btn-success rounded-full px-5 font-semibold"
               onClick={() => onVote("approve")}
             >
               Approve
@@ -511,11 +511,11 @@ function VotePanel({
               style={{
                 color:
                   myVote === "approve"
-                    ? "var(--color-info)"
+                    ? "var(--color-success)"
                     : "var(--color-error)",
               }}
             >
-              {myVote === "approve" ? "Approved" : "Rejected"}
+              {myVote}
             </span>{" "}
             · waiting for the rest
           </div>
@@ -537,11 +537,11 @@ function VotePanel({
                   style={{
                     background:
                       v === "approve"
-                        ? "var(--color-info)"
+                        ? "var(--color-success)"
                         : "var(--color-error)",
                     color:
                       v === "approve"
-                        ? "var(--color-info-content)"
+                        ? "var(--color-success-content)"
                         : "var(--color-error-content)",
                   }}
                   title={p.name}

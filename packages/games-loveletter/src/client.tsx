@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Card as CardShell,
   type BoardProps,
@@ -7,9 +7,7 @@ import {
   type SummaryProps,
 } from "@bgo/sdk-client";
 import {
-  ALL_RANKS,
   CARDS,
-  DECK_COMPOSITION,
   GUARD_GUESS_RANKS,
   LOVE_LETTER_TYPE,
   type GuardGuessRank,
@@ -21,12 +19,6 @@ import {
 } from "./shared";
 
 type PlayerMap = Record<string, { id: string; name: string }>;
-
-const STARTING_COUNTS: Readonly<Record<Rank, number>> = (() => {
-  const acc: Record<Rank, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
-  for (const r of DECK_COMPOSITION) acc[r] += 1;
-  return acc;
-})();
 
 function rankColor(rank: Rank): string {
   // Give each card a slightly different accent so rich-info decks look varied.
@@ -58,14 +50,12 @@ function CardFace({
   dim,
   selected,
   onClick,
-  showEliminatedStamp,
 }: {
   rank: Rank;
   size?: CardSize;
   dim?: boolean;
   selected?: boolean;
   onClick?: () => void;
-  showEliminatedStamp?: boolean;
 }) {
   const def = CARDS[rank];
   return (
@@ -74,78 +64,10 @@ function CardFace({
       ghost={dim}
       selected={selected}
       onClick={onClick}
-      ariaLabel={`${def.rank} · ${def.name} — ${def.effect}`}
+      ariaLabel={`${def.rank} · ${def.name}`}
     >
       <LoveLetterFace rank={rank} />
-      {showEliminatedStamp && (
-        <svg
-          viewBox="0 0 100 140"
-          preserveAspectRatio="xMidYMid meet"
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-          }}
-          aria-hidden
-        >
-          <g transform="translate(50 70) rotate(-15)">
-            <rect
-              x="-42"
-              y="-12"
-              width="84"
-              height="24"
-              rx="3"
-              fill="none"
-              stroke="var(--color-error)"
-              strokeWidth="1.6"
-              opacity="0.55"
-            />
-            <text
-              x="0"
-              y="5"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight={900}
-              fontFamily="var(--font-display, serif)"
-              fill="var(--color-error)"
-              opacity="0.85"
-              letterSpacing="0.12em"
-            >
-              ELIMINATED
-            </text>
-          </g>
-        </svg>
-      )}
-      {/*
-       * Native title attribute: cheap cross-platform tooltip with the
-       * card's effect. Positioned tooltip primitive is a follow-up.
-       */}
-      <span
-        title={`${def.name} (${def.rank}) — ${def.effect}`}
-        aria-hidden
-        style={{ position: "absolute", inset: 0, display: "block" }}
-      />
     </CardShell>
-  );
-}
-
-/**
- * Mini (inline) version of RankGlyph for deck composition chips. Uses a
- * tight viewBox + transform so the bespoke glyph paths render untouched at
- * ~14px — just scaled into a smaller frame.
- */
-function MiniRankGlyph({ rank, size = 14 }: { rank: Rank; size?: number }) {
-  const accent = rankColor(rank);
-  return (
-    <svg
-      viewBox="-28 -28 56 56"
-      width={size}
-      height={size}
-      style={{ display: "block", color: accent }}
-      aria-label={CARDS[rank].name}
-    >
-      <RankGlyph rank={rank} />
-    </svg>
   );
 }
 
@@ -499,19 +421,7 @@ function LoveLetterBoard({
 
   return (
     <div className="flex flex-col gap-4 w-full max-w-5xl mx-auto">
-      <style>{`
-        @keyframes love-turn-pulse {
-          0%, 100% { box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 45%, transparent), 0 0 18px color-mix(in oklch, var(--color-primary) 18%, transparent); }
-          50%      { box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 60%, transparent), 0 0 30px color-mix(in oklch, var(--color-primary) 26%, transparent); }
-        }
-        @keyframes love-log-new {
-          0%   { background: color-mix(in oklch, var(--color-primary) 22%, transparent); }
-          100% { background: transparent; }
-        }
-      `}</style>
       <TopRibbon view={view} playersById={playersById} me={me} />
-
-      <DeckTracker view={view} />
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-4">
         <div className="flex flex-col gap-4">
@@ -519,7 +429,6 @@ function LoveLetterBoard({
             view={view}
             me={me}
             playersById={playersById}
-            pendingRank={pending?.rank ?? null}
             targetable={
               pending && needsTarget(pending.rank)
                 ? view.players.filter((id) => {
@@ -535,7 +444,6 @@ function LoveLetterBoard({
               setPending((p) => (p ? { ...p, target: id } : p))
             }
             selectedTarget={pending?.target ?? null}
-            log={view.log}
           />
 
           {view.revealed.length > 0 && (
@@ -616,9 +524,6 @@ function TopRibbon({
       style={{
         background:
           "color-mix(in oklch, var(--color-base-300) 55%, var(--color-base-100))",
-        animation: isMine
-          ? "love-turn-pulse 2.4s ease-in-out infinite"
-          : undefined,
       }}
     >
       <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
@@ -633,150 +538,10 @@ function TopRibbon({
       >
         {isMine ? "Your move" : currentName}
       </div>
-      <div className="ml-auto flex items-center gap-3 text-xs text-base-content/65 font-mono tabular-nums">
+      <div className="ml-auto flex items-center gap-3 text-xs text-base-content/65 tabular">
         <div>
           Deck <span className="font-semibold">{view.deckCount}</span>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * DeckTracker — strategic HUD. Shows remaining card counts derived from the
- * starting composition minus all publicly revealed cards. The server doesn't
- * expose `remainingByRank`, so we undercount (the figure reads as "at least
- * this many remain"). Flagged for a follow-up with team-lead.
- */
-function DeckTracker({ view }: { view: LoveLetterView }) {
-  // Count publicly-known out-of-deck cards per rank.
-  const seen = useMemo(() => {
-    const acc: Record<Rank, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
-    // Face-up revealed (2p setup).
-    for (const r of view.revealed) acc[r] += 1;
-    // Log-derived public discards / reveals.
-    for (const e of view.log) {
-      if (e.kind === "play") acc[e.card] += 1;
-      else if (e.kind === "eliminated") acc[e.card] += 1;
-      else if (e.kind === "princeDiscard") acc[e.discarded] += 1;
-      else if (e.kind === "finalReveal") {
-        for (const r of Object.values(e.hands)) acc[r] += 1;
-      }
-    }
-    // Burned card, once revealed at gameOver.
-    if (view.burned !== null) acc[view.burned] += 1;
-    return acc;
-  }, [view.revealed, view.log, view.burned]);
-
-  const deckCount = view.deckCount;
-  const stackFronts = Math.max(1, Math.min(3, Math.ceil(deckCount / 5)));
-
-  return (
-    <div
-      className="rounded-2xl p-3 flex items-center gap-4 flex-wrap"
-      style={{
-        background:
-          "color-mix(in oklch, var(--color-base-200) 55%, var(--color-base-100))",
-        border: "1px solid color-mix(in oklch, var(--color-base-content) 12%, transparent)",
-      }}
-    >
-      {/* Stack visual */}
-      <div className="flex items-center gap-2 shrink-0">
-        <div
-          className="relative"
-          style={{ width: 26, height: 38 }}
-          aria-label={`draw pile, ${deckCount} cards`}
-        >
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="absolute rounded-[3px]"
-              style={{
-                width: 26,
-                height: 38,
-                top: -i * 2,
-                left: -i * 2,
-                background:
-                  "color-mix(in oklch, var(--color-base-100) 90%, var(--color-base-300))",
-                border:
-                  "1px solid color-mix(in oklch, var(--color-base-content) 22%, transparent)",
-                boxShadow: "inset 0 1px 0 oklch(100% 0 0 / 0.18), 0 1px 2px oklch(0% 0 0 / 0.12)",
-                opacity: i < stackFronts ? 1 - i * 0.3 : 0,
-              }}
-            />
-          ))}
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[9px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
-            Draw pile
-          </span>
-          <span className="font-display font-bold tabular-nums text-lg leading-tight">
-            {deckCount}
-          </span>
-        </div>
-      </div>
-
-      {/* Per-rank remaining chips */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {ALL_RANKS.map((r) => {
-          const remaining = Math.max(0, STARTING_COUNTS[r] - seen[r]);
-          const exhausted = remaining === 0;
-          return (
-            <div
-              key={r}
-              title={`${CARDS[r].name}: ${remaining} of ${STARTING_COUNTS[r]} remaining (public info)`}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-              style={{
-                background: exhausted
-                  ? "color-mix(in oklch, var(--color-base-300) 50%, transparent)"
-                  : `color-mix(in oklch, ${rankColor(r)} 14%, var(--color-base-100))`,
-                border: exhausted
-                  ? "1px dashed color-mix(in oklch, var(--color-base-content) 22%, transparent)"
-                  : `1px solid color-mix(in oklch, ${rankColor(r)} 40%, transparent)`,
-                opacity: exhausted ? 0.5 : 1,
-              }}
-            >
-              <span className="font-mono font-bold tabular-nums text-[10px]" style={{ color: exhausted ? undefined : rankColor(r) }}>
-                {remaining}
-                <span className="text-base-content/40">×</span>
-              </span>
-              <MiniRankGlyph rank={r} size={13} />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Burned card slot */}
-      <div className="flex items-center gap-2 shrink-0 ml-auto">
-        <span className="text-[9px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
-          Burned
-        </span>
-        {view.burned === null ? (
-          <div
-            className="rounded-[3px] flex items-center justify-center text-[9px] uppercase tracking-[0.18em] font-semibold text-base-content/40"
-            style={{
-              width: 26,
-              height: 38,
-              border:
-                "1px dashed color-mix(in oklch, var(--color-base-content) 28%, transparent)",
-            }}
-          >
-            ?
-          </div>
-        ) : (
-          <div
-            className="rounded-[3px] flex items-center justify-center text-[9px] font-bold"
-            style={{
-              width: 26,
-              height: 38,
-              background: `color-mix(in oklch, ${rankColor(view.burned)} 22%, var(--color-base-100))`,
-              border: `1px solid color-mix(in oklch, ${rankColor(view.burned)} 55%, transparent)`,
-              color: rankColor(view.burned),
-            }}
-          >
-            {view.burned}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -787,36 +552,16 @@ function OpponentsRow({
   me,
   playersById,
   targetable,
-  pendingRank,
   onPickTarget,
   selectedTarget,
-  log,
 }: {
   view: LoveLetterView;
   me: string;
   playersById: PlayerMap;
   targetable: string[] | null;
-  pendingRank: Rank | null;
   onPickTarget: (id: string) => void;
   selectedTarget: string | null;
-  log: LogEntry[];
 }) {
-  // Tint the target-pick ring by the pending card's color so it reads as
-  // "{card} will hit this player." Falls back to primary.
-  const pickRingColor = pendingRank ? rankColor(pendingRank) : "var(--color-primary)";
-
-  // For each eliminated opponent, find the elimination entry in the log so we
-  // can annotate the card they held at elimination.
-  const eliminatedHeldBy = useMemo(() => {
-    const map: Record<string, Rank> = {};
-    for (const e of log) {
-      if (e.kind === "eliminated") {
-        map[e.player] = e.card;
-      }
-    }
-    return map;
-  }, [log]);
-
   return (
     <div className="flex gap-3 flex-wrap">
       {view.players
@@ -827,7 +572,6 @@ function OpponentsRow({
           const canPick = targetable?.includes(id) ?? false;
           const isPicked = selectedTarget === id;
           const isCurrent = view.current === id && view.phase !== "gameOver";
-          const heldRank = pv.eliminated ? eliminatedHeldBy[id] : undefined;
           return (
             <button
               type="button"
@@ -837,8 +581,11 @@ function OpponentsRow({
               className={[
                 "flex flex-col items-center gap-2 rounded-xl px-3 py-3 min-w-[120px]",
                 "transition-all",
-                canPick ? "cursor-pointer" : "cursor-default",
-                pv.eliminated ? "opacity-60 grayscale" : "",
+                canPick
+                  ? "cursor-pointer hover:ring-2 hover:ring-primary"
+                  : "cursor-default",
+                isPicked ? "ring-2 ring-primary" : "",
+                pv.eliminated ? "opacity-50 grayscale" : "",
               ].join(" ")}
               style={{
                 background:
@@ -846,18 +593,9 @@ function OpponentsRow({
                 border: isCurrent
                   ? "1.5px solid var(--color-primary)"
                   : "1.5px solid color-mix(in oklch, var(--color-base-content) 10%, transparent)",
-                boxShadow: isPicked
-                  ? `0 0 0 2px ${pickRingColor}, 0 0 16px color-mix(in oklch, ${pickRingColor} 30%, transparent)`
-                  : canPick
-                    ? `0 0 0 0 ${pickRingColor}`
-                    : undefined,
-                outline: canPick && !isPicked ? `1px dashed color-mix(in oklch, ${pickRingColor} 55%, transparent)` : undefined,
-                outlineOffset: 3,
               }}
             >
-              {pv.eliminated && heldRank ? (
-                <CardFace rank={heldRank} size="md" dim showEliminatedStamp />
-              ) : pv.hand && pv.hand.length > 0 ? (
+              {pv.hand && pv.hand.length > 0 ? (
                 <CardFace rank={pv.hand[0]!} size="md" dim={pv.eliminated} />
               ) : pv.handCount > 0 ? (
                 <CardBack size="md" />
@@ -877,18 +615,9 @@ function OpponentsRow({
               <div className="text-sm font-semibold truncate max-w-[110px]">
                 {name}
               </div>
-              <div className="flex flex-col items-center gap-0.5 text-[10px] uppercase tracking-[0.18em] font-semibold">
+              <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] font-semibold">
                 {pv.eliminated && (
-                  <>
-                    <span className="text-error">eliminated</span>
-                    {heldRank !== undefined && (
-                      <span
-                        className="normal-case tracking-normal font-normal text-error/80"
-                      >
-                        held {CARDS[heldRank].name}
-                      </span>
-                    )}
-                  </>
+                  <span className="text-error">eliminated</span>
                 )}
                 {!pv.eliminated && pv.immune && (
                   <span className="text-accent">immune</span>
@@ -1122,25 +851,8 @@ function LogPanel({
   me: string;
 }) {
   const nameOf = (id: string) => playersById[id]?.name ?? id;
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const prevLen = useRef(log.length);
-
-  // Auto-scroll to bottom on new entries. Always-scroll variant — simple,
-  // predictable, and matches what players expect from a turn-by-turn log.
-  useEffect(() => {
-    if (log.length > prevLen.current) {
-      const el = containerRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    }
-    prevLen.current = log.length;
-  }, [log.length]);
-
-  // Count turns (each "play" entry starts a new turn) for grouping separators.
-  let turnCounter = 0;
-
   return (
     <div
-      ref={containerRef}
       className="rounded-2xl p-4 flex flex-col gap-2 min-h-[240px] max-h-[520px] overflow-y-auto"
       style={{
         background:
@@ -1156,30 +868,11 @@ function LogPanel({
         </div>
       )}
       <ul className="flex flex-col gap-1.5 text-xs leading-relaxed">
-        {log.map((entry, i) => {
-          const isNew = i >= prevLen.current && i === log.length - 1;
-          const isPlay = entry.kind === "play";
-          if (isPlay) turnCounter += 1;
-          const showSeparator = isPlay && turnCounter > 1;
-          return (
-            <li
-              key={i}
-              className="text-base-content/80 rounded px-1"
-              style={{
-                animation: isNew
-                  ? "love-log-new 1.5s ease-out"
-                  : undefined,
-              }}
-            >
-              {showSeparator && (
-                <div className="text-[8px] uppercase tracking-[0.22em] text-base-content/40 border-t border-base-content/10 pt-1.5 mt-1 mb-1 font-mono tabular-nums">
-                  Turn {turnCounter} · {isPlay ? nameOf((entry as { actor: string }).actor) : ""}
-                </div>
-              )}
-              {renderLogEntry(entry, nameOf, me)}
-            </li>
-          );
-        })}
+        {log.map((entry, i) => (
+          <li key={i} className="text-base-content/80">
+            {renderLogEntry(entry, nameOf, me)}
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -1190,12 +883,9 @@ function renderLogEntry(
   nameOf: (id: string) => string,
   me: string,
 ): React.ReactNode {
-  const nameOrYou = (id: string, subject: boolean) =>
-    id === me ? (subject ? "You" : "you") : nameOf(id);
   if (e.kind === "play") {
     const card = CARDS[e.card];
-    const actorIsMe = e.actor === me;
-    const target = e.target ? ` → ${nameOrYou(e.target, false)}` : "";
+    const target = e.target ? ` → ${nameOf(e.target)}` : "";
     const guessPart =
       e.card === 1 && e.guess
         ? ` guessed ${CARDS[e.guess].name} (${e.guessCorrect ? "hit" : "miss"})`
@@ -1203,8 +893,7 @@ function renderLogEntry(
     const fizzle = e.fizzled ? " — no legal target, fizzled" : "";
     return (
       <span>
-        <strong className="text-base-content">{nameOrYou(e.actor, true)}</strong>{" "}
-        {actorIsMe ? "played" : "played"}{" "}
+        <strong className="text-base-content">{nameOf(e.actor)}</strong> played{" "}
         <span style={{ color: rankColor(e.card) }} className="font-semibold">
           {card.name}
         </span>
@@ -1277,10 +966,9 @@ function renderLogEntry(
     );
   }
   if (e.kind === "eliminated") {
-    const isMe = e.player === me;
     return (
       <span>
-        <strong>{nameOrYou(e.player, true)}</strong> {isMe ? "are" : "is"} eliminated (held{" "}
+        <strong>{nameOf(e.player)}</strong> is eliminated (held{" "}
         <span style={{ color: rankColor(e.card) }}>{CARDS[e.card].name}</span>)
       </span>
     );
@@ -1288,17 +976,16 @@ function renderLogEntry(
   if (e.kind === "swap") {
     return (
       <span>
-        <strong>{nameOrYou(e.actor, true)}</strong> swapped hands with{" "}
-        <strong>{nameOrYou(e.target, false)}</strong>
+        <strong>{nameOf(e.actor)}</strong> swapped hands with{" "}
+        <strong>{nameOf(e.target)}</strong>
       </span>
     );
   }
   if (e.kind === "princeDiscard") {
     const from = e.drewFromBurned ? " (from the face-down card)" : "";
-    const isMe = e.target === me;
     return (
       <span>
-        <strong>{nameOrYou(e.target, true)}</strong> {isMe ? "discarded" : "discarded"}{" "}
+        <strong>{nameOf(e.target)}</strong> discarded{" "}
         <span style={{ color: rankColor(e.discarded) }}>
           {CARDS[e.discarded].name}
         </span>{" "}
@@ -1307,11 +994,9 @@ function renderLogEntry(
     );
   }
   if (e.kind === "handmaidImmune") {
-    const isMe = e.actor === me;
     return (
       <span className="text-accent">
-        <strong>{nameOrYou(e.actor, true)}</strong> {isMe ? "are" : "is"} immune until{" "}
-        {isMe ? "your" : "their"} next turn
+        <strong>{nameOf(e.actor)}</strong> is immune until their next turn
       </span>
     );
   }
@@ -1347,14 +1032,11 @@ function LoveLetterSummary({ view }: SummaryProps<LoveLetterView>) {
             : "Draw"}
       </div>
       {view.burned !== null && (
-        <div className="flex items-center justify-center gap-3 mt-3">
-          <CardFace rank={view.burned} size="sm" />
-          <div className="text-sm text-base-content/65">
-            Burned card was{" "}
-            <span className="font-semibold" style={{ color: rankColor(view.burned) }}>
-              {CARDS[view.burned].name}
-            </span>
-          </div>
+        <div className="text-sm text-base-content/65 mt-2">
+          Burned card was{" "}
+          <span className="font-semibold" style={{ color: rankColor(view.burned) }}>
+            {CARDS[view.burned].name}
+          </span>
         </div>
       )}
     </div>

@@ -369,7 +369,7 @@ function Coin({ amount }: { amount: number }) {
           boxShadow: "inset 0 -1px 0 oklch(0% 0 0 / 0.3)",
         }}
       />
-      <span className="font-display tabular-nums font-bold text-base-content">
+      <span className="font-display tabular font-bold text-base-content">
         {amount}
       </span>
     </div>
@@ -603,43 +603,28 @@ function Scoreboard({
             key={id}
             className={[
               "rounded-xl px-3 py-2 flex flex-col items-center gap-1 min-w-[128px]",
-              "border transition-colors relative",
+              "border transition-colors",
               active
                 ? "border-primary/55 bg-primary/10"
                 : passed
                   ? "border-base-300/60 bg-base-200/40 text-base-content/50"
                   : "border-base-300/80 bg-base-100",
             ].join(" ")}
-            // Persistent self cue: an additional 1px primary-tinted inset
-            // ring layers *under* the turn-active border so the player's own
-            // chip is never anonymous, even when they're not on turn.
-            style={
-              isMe
-                ? {
-                    boxShadow:
-                      "inset 0 0 0 1px color-mix(in oklch, var(--color-primary) 30%, transparent)",
-                  }
-                : undefined
-            }
           >
             <div className="flex items-center gap-1">
-              {isMe && (
-                <span
-                  aria-hidden
-                  className="text-[10px] leading-none"
-                  style={{ color: "var(--color-primary)" }}
-                >
-                  ◆
-                </span>
-              )}
               <span
                 className={[
                   "text-xs font-semibold truncate max-w-[100px]",
                   active ? "text-primary" : "",
                 ].join(" ")}
               >
-                {isMe ? "You" : p.name}
+                {p.name}
               </span>
+              {isMe && (
+                <span className="text-[9px] uppercase tracking-[0.18em] text-base-content/50">
+                  you
+                </span>
+              )}
               {passed && (
                 <span className="text-[9px] uppercase tracking-[0.18em] text-base-content/50">
                   passed
@@ -655,14 +640,14 @@ function Scoreboard({
               <Coin amount={view.coins[id] ?? 0} />
               <span className="text-base-content/55">·</span>
               <span className="text-base-content/70">
-                <span className="tabular-nums font-semibold">
+                <span className="tabular font-semibold">
                   {view.propertyCount[id] ?? 0}
                 </span>
                 <span className="text-base-content/45"> prop</span>
               </span>
               <span className="text-base-content/55">·</span>
               <span className="text-base-content/70">
-                <span className="tabular-nums font-semibold">
+                <span className="tabular font-semibold">
                   {view.chequeCount[id] ?? 0}
                 </span>
                 <span className="text-base-content/45"> cheq</span>
@@ -771,7 +756,7 @@ function PropertyActions({
           −
         </button>
         <div
-          className="font-display tracking-tight tabular-nums text-center"
+          className="font-display tracking-tight tabular text-center"
           style={{ fontSize: "var(--text-display-sm)", minWidth: "2ch" }}
         >
           {canBid ? v : "—"}
@@ -983,12 +968,12 @@ function Leaderboard({
               <div className="ml-auto flex items-center gap-2 text-xs">
                 <Coin amount={r.coins} />
                 <span className="text-base-content/35">+</span>
-                <span className="font-semibold tabular-nums">
+                <span className="font-semibold tabular">
                   {r.cheques.reduce((a, b) => a + b, 0)}
                 </span>
                 <span className="text-base-content/35">=</span>
                 <span
-                  className="font-display tracking-tight font-bold tabular-nums"
+                  className="font-display tracking-tight font-bold tabular"
                   style={{ fontSize: "1.1rem" }}
                 >
                   {r.score}

@@ -56,12 +56,6 @@ function SpyfallBoard({
   const isVoting = view.phase === "voting";
   const isSpy = view.viewer.isSpy;
 
-  // Round length fallback: view doesn't expose startedAt, so we use the
-  // shared default. Custom lobby lengths will render a slightly-off progress
-  // bar; the clock readout itself stays authoritative. Flagged as a follow-up
-  // for iteration-2 (add `startedAt` or `roundLengthMs` to SpyfallView).
-  const totalMs = DEFAULT_ROUND_SECONDS * 1000;
-
   const accuse = async (target: string) => {
     if (!isPlaying || isSpy) return;
     await sendMove({ kind: "accuse", target });
@@ -82,11 +76,7 @@ function SpyfallBoard({
 
   return (
     <div className="flex flex-col items-center gap-5 w-full">
-      <ClockBanner
-        remainingMs={remainingMs}
-        totalMs={totalMs}
-        phase={view.phase}
-      />
+      <ClockBanner remainingMs={remainingMs} phase={view.phase} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
         <IdentityCard view={view} />
@@ -126,71 +116,29 @@ function SpyfallBoard({
 
 function ClockBanner({
   remainingMs,
-  totalMs,
   phase,
 }: {
   remainingMs: number;
-  totalMs: number;
   phase: SpyfallView["phase"];
 }) {
   if (phase === "gameOver") return null;
-  const level: "error" | "warning" | "normal" =
-    remainingMs < 60_000
-      ? "error"
-      : remainingMs < 120_000
-        ? "warning"
-        : "normal";
-  const pct =
-    totalMs > 0
-      ? Math.max(0, Math.min(100, (remainingMs / totalMs) * 100))
-      : 0;
-  const pillClass =
-    level === "error"
-      ? "bg-error text-error-content animate-pulse"
-      : level === "warning"
-        ? "text-warning"
-        : "bg-base-200 text-base-content";
-  const pillStyle: React.CSSProperties = {
-    boxShadow:
-      "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
-    letterSpacing: "0.08em",
-    ...(level === "warning"
-      ? {
-          background:
-            "color-mix(in oklch, var(--color-warning) 25%, var(--color-base-100))",
-        }
-      : {}),
-  };
-  const barFill =
-    level === "error"
-      ? "var(--color-error)"
-      : level === "warning"
-        ? "var(--color-warning)"
-        : "var(--color-primary)";
+  const low = remainingMs < 60_000;
   return (
     <div
-      role="timer"
-      aria-live="off"
-      className="flex flex-col items-center gap-2"
+      className={[
+        "px-6 py-2.5 rounded-full font-mono tabular text-2xl md:text-3xl font-bold",
+        "transition-colors",
+        low
+          ? "bg-error text-error-content animate-pulse"
+          : "bg-base-200 text-base-content",
+      ].join(" ")}
+      style={{
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.1)",
+        letterSpacing: "0.08em",
+      }}
     >
-      <div
-        className={[
-          "px-6 py-2.5 rounded-full font-mono tabular-nums text-2xl md:text-3xl font-bold transition-colors",
-          pillClass,
-        ].join(" ")}
-        style={pillStyle}
-      >
-        {formatClock(remainingMs)}
-      </div>
-      <div
-        className="w-48 h-1 rounded-full bg-base-200/80 overflow-hidden"
-        aria-hidden
-      >
-        <div
-          className="h-full transition-all duration-500"
-          style={{ width: `${pct}%`, background: barFill }}
-        />
-      </div>
+      {formatClock(remainingMs)}
     </div>
   );
 }
@@ -240,10 +188,7 @@ function IdentityCard({ view }: { view: SpyfallView }) {
             Your role:{" "}
             <span className="font-semibold">{view.viewer.role}</span>
           </div>
-          <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-warning/85 pt-1">
-            ◆ Private to you
-          </div>
-          <div className="text-xs text-base-content/55 italic">
+          <div className="text-xs text-base-content/55 pt-1 italic">
             Don't say the location out loud — someone here is a spy.
           </div>
         </>
@@ -268,9 +213,6 @@ function PlayersCard({
   onAccuse: (id: string) => void;
 }) {
   const order = view.order;
-  const isVoting = view.phase === "voting";
-  const accusedId = view.accusation?.target ?? null;
-  const accuserId = view.accusation?.accuser ?? null;
   return (
     <div className="surface-ivory p-5 flex flex-col gap-3">
       <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
@@ -281,24 +223,13 @@ function PlayersCard({
           const p = playersById[id] ?? { id, name: id };
           const isMe = id === me;
           const isSpy = view.spyId === id;
-          const isAccused = isVoting && accusedId === id;
-          const isAccuser = isVoting && accuserId === id;
-          const dim = isVoting && !isAccused && !isAccuser && !isMe;
           return (
             <li
               key={id}
-              className={[
-                "flex items-center justify-between gap-2 rounded-lg px-3 py-2 border transition-all",
-                isAccused
-                  ? "border-warning bg-warning/10 shadow-[0_0_0_1px_var(--color-warning)]"
-                  : isAccuser
-                    ? "border-primary/55 bg-primary/5"
-                    : "border-base-300/60",
-                dim ? "opacity-55" : "",
-              ].join(" ")}
+              className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 border border-base-300/60"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs font-mono tabular-nums text-base-content/40 w-5">
+                <span className="text-xs font-mono tabular text-base-content/40 w-5">
                   {i + 1}.
                 </span>
                 <span className="font-semibold truncate">{p.name}</span>
@@ -312,23 +243,12 @@ function PlayersCard({
                     spy
                   </span>
                 )}
-                {isAccused && (
-                  <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-warning">
-                    accused
-                  </span>
-                )}
-                {isAccuser && !isAccused && (
-                  <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-primary/85">
-                    accuser
-                  </span>
-                )}
               </div>
               {canAccuse && !isMe && (
                 <button
                   type="button"
+                  className="text-xs uppercase tracking-[0.18em] text-base-content/50 hover:text-error transition-colors font-semibold"
                   onClick={() => onAccuse(id)}
-                  className="text-[10px] uppercase tracking-[0.2em] font-semibold px-2.5 py-1 rounded-full ring-1 ring-base-300 text-base-content/60 hover:ring-error hover:text-error hover:bg-error/5 active:scale-95 transition-all"
-                  aria-label={`Accuse ${p.name}`}
                 >
                   Accuse
                 </button>
@@ -363,14 +283,10 @@ function VotingPanel({
   const iAmAccuser = acc.accuser === me;
   return (
     <div
-      role="status"
-      aria-live="polite"
       className="max-w-xl w-full rounded-2xl p-5 flex flex-col gap-3"
       style={{
-        background:
-          "color-mix(in oklch, var(--color-warning) 20%, var(--color-base-100))",
-        border:
-          "1px solid color-mix(in oklch, var(--color-warning) 50%, transparent)",
+        background: "color-mix(in oklch, var(--color-warning) 20%, var(--color-base-100))",
+        border: "1px solid color-mix(in oklch, var(--color-warning) 50%, transparent)",
       }}
     >
       <div className="text-[10px] uppercase tracking-[0.3em] font-semibold text-warning-content">
@@ -378,13 +294,12 @@ function VotingPanel({
       </div>
       <div className="text-lg">
         <span className="font-display tracking-tight">{accuserName}</span>{" "}
-        accuses{" "}
-        <span className="font-display tracking-tight">{targetName}</span>.
+        accuses <span className="font-display tracking-tight">{targetName}</span>.
       </div>
       <div className="text-xs text-base-content/65">
         All others must vote to approve. Any rejection cancels it.
       </div>
-      <div className="flex items-center gap-2 text-sm font-mono tabular-nums flex-wrap">
+      <div className="flex items-center gap-2 text-sm tabular">
         <span
           className="px-2 py-0.5 rounded-full text-xs font-semibold"
           style={{
@@ -404,19 +319,11 @@ function VotingPanel({
           ✗ {acc.rejections}
         </span>
         {acc.pending.length > 0 && (
-          <div className="flex flex-wrap gap-1 items-center">
-            <span className="text-[10px] uppercase tracking-wider text-base-content/45 ml-1 normal-case tracking-normal">
-              Waiting
-            </span>
-            {acc.pending.map((id) => (
-              <span
-                key={id}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-base-100 ring-1 ring-base-300 text-base-content/65 font-semibold normal-case tracking-normal"
-              >
-                {playersById[id]?.name ?? id}
-              </span>
-            ))}
-          </div>
+          <span className="text-base-content/55 ml-1">
+            waiting: {acc.pending
+              .map((id) => playersById[id]?.name ?? id)
+              .join(", ")}
+          </span>
         )}
       </div>
       <div className="flex gap-2 flex-wrap">
@@ -441,7 +348,7 @@ function VotingPanel({
         {iAmAccuser && (
           <button
             type="button"
-            className="text-[10px] uppercase tracking-[0.2em] font-semibold px-3 py-1 rounded-full ring-1 ring-base-300 text-base-content/55 hover:ring-base-content/40 hover:text-base-content ml-auto self-center transition-all"
+            className="text-xs uppercase tracking-[0.2em] text-base-content/55 hover:text-base-content ml-auto self-center transition-colors"
             onClick={onCancel}
           >
             Cancel accusation
@@ -463,72 +370,32 @@ function SpyGuessPanel({
   setGuess: (s: string) => void;
   onSubmit: () => void;
 }) {
-  const [filter, setFilter] = useState("");
-  const filtered = useMemo(
-    () =>
-      locations.filter((l) =>
-        l.toLowerCase().includes(filter.trim().toLowerCase()),
-      ),
-    [locations, filter],
-  );
   return (
     <div className="surface-ivory max-w-xl w-full p-5 flex flex-col gap-3">
       <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
         Spy — guess the location
       </div>
-      <input
-        type="text"
-        placeholder="Filter locations…"
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        className="input input-bordered rounded-lg"
-        aria-label="Filter locations"
-      />
-      <div
-        className="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto pr-1"
-        role="listbox"
-      >
-        {filtered.map((l) => (
-          <button
-            key={l}
-            type="button"
-            role="option"
-            aria-selected={guess === l}
-            onClick={() => setGuess(l)}
-            className={[
-              "text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer",
-              guess === l
-                ? "border-primary bg-primary/15 text-primary font-semibold"
-                : "border-base-300 bg-base-100 text-base-content/70 hover:border-primary/50",
-            ].join(" ")}
-          >
-            {l}
-          </button>
-        ))}
-        {filtered.length === 0 && (
-          <span className="text-xs italic text-base-content/50">
-            No matches.
-          </span>
-        )}
-      </div>
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 flex-wrap">
+        <select
+          className="select select-bordered flex-1 min-w-[200px] rounded-lg"
+          value={guess}
+          onChange={(e) => setGuess(e.target.value)}
+        >
+          <option value="">Choose a location…</option>
+          {locations.map((l) => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           className="btn btn-primary rounded-full px-5 font-semibold"
           onClick={onSubmit}
           disabled={!guess}
         >
-          Guess{guess ? ` — ${guess}` : ""}
+          Guess
         </button>
-        {guess && (
-          <button
-            type="button"
-            className="text-[10px] uppercase tracking-wider text-base-content/50 hover:text-base-content"
-            onClick={() => setGuess("")}
-          >
-            Clear
-          </button>
-        )}
       </div>
       <div className="text-xs text-base-content/55">
         Guess correctly and you win. Guess wrong and the non-spies win
@@ -539,31 +406,22 @@ function SpyGuessPanel({
 }
 
 function LocationPoolHint({ locations }: { locations: string[] }) {
-  const [expanded, setExpanded] = useState(true);
   return (
-    <div className="max-w-3xl w-full">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/50 hover:text-base-content flex items-center gap-1 cursor-pointer"
-        aria-expanded={expanded}
-      >
-        Possible locations ({locations.length}){" "}
-        <span className="text-[9px]">{expanded ? "▴" : "▾"}</span>
-      </button>
-      {expanded && (
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {locations.map((l) => (
-            <span
-              key={l}
-              className="text-[11px] px-2 py-0.5 rounded-full bg-base-100 ring-1 ring-base-300/60 text-base-content/65"
-            >
-              {l}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
+    <details className="max-w-3xl w-full">
+      <summary className="cursor-pointer text-xs uppercase tracking-[0.2em] text-base-content/55 hover:text-base-content transition-colors">
+        All possible locations ({locations.length}) ▾
+      </summary>
+      <div className="flex flex-wrap gap-2 mt-3">
+        {locations.map((l) => (
+          <span
+            key={l}
+            className="text-xs px-2.5 py-1 rounded-full border border-base-300 bg-base-100 text-base-content/70"
+          >
+            {l}
+          </span>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -600,9 +458,8 @@ function SpyfallLobbyPanel({
             onChange({ ...config, roundSeconds: parseInt(e.target.value, 10) })
           }
         />
-        <span className="font-mono tabular-nums font-bold text-lg">
-          {Math.floor(seconds / 60)}:
-          {String(seconds % 60).padStart(2, "0")}
+        <span className="font-mono tabular font-bold text-lg">
+          {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
         </span>
       </div>
     </div>
@@ -623,11 +480,7 @@ function SpyfallSummary({ view }: SummaryProps<SpyfallView>) {
   const reason = view.winReason ? reasonLabel[view.winReason] : "";
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="surface-ivory max-w-xl mx-auto px-6 py-5 text-center"
-    >
+    <div className="surface-ivory max-w-xl mx-auto px-6 py-5 text-center">
       <div className="text-[10px] uppercase tracking-[0.3em] font-semibold text-primary mb-1">
         ◆ Result ◆
       </div>

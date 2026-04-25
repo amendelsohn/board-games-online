@@ -21,8 +21,7 @@ function cardFill(role: CardRole | null | undefined, revealed: boolean): string 
   if (role === "blue") return "var(--color-info)";
   if (role === "neutral")
     return "color-mix(in oklch, var(--color-base-300) 90%, transparent)";
-  // Revealed assassin is near-ink — higher drama than warm graphite.
-  if (role === "assassin") return "oklch(15% 0.005 60)";
+  if (role === "assassin") return "var(--color-neutral)";
   return "var(--color-base-100)";
 }
 
@@ -30,49 +29,9 @@ function cardText(role: CardRole | null | undefined, revealed: boolean): string 
   if (!revealed && role == null) return "var(--color-base-content)";
   if (role === "red") return "var(--color-error-content)";
   if (role === "blue") return "var(--color-info-content)";
-  if (role === "assassin") return "color-mix(in oklch, white 92%, transparent)";
+  if (role === "assassin") return "var(--color-neutral-content)";
   return "var(--color-base-content)";
 }
-
-// For the spymaster pre-reveal view: a colored top stripe + dot cue instead
-// of a full flood, so the word stays readable on an ivory card.
-function cueStripe(role: CardRole): string {
-  switch (role) {
-    case "red":
-      return "var(--color-error)";
-    case "blue":
-      return "var(--color-info)";
-    case "assassin":
-      return "oklch(15% 0.005 60)";
-    case "neutral":
-      return "color-mix(in oklch, var(--color-base-content) 25%, transparent)";
-  }
-}
-
-function wordSizeClass(word: string): string {
-  const n = word.length;
-  if (n >= 10) return "text-[11px] md:text-[13px]";
-  if (n >= 8) return "text-xs md:text-sm";
-  return "text-sm md:text-base";
-}
-
-const CODENAMES_KEYFRAMES = `
-@keyframes codenames-assassin-shake {
-  0%, 100% { transform: translateX(0); }
-  15%      { transform: translateX(-2px); }
-  30%      { transform: translateX(2px); }
-  45%      { transform: translateX(-2px); }
-  60%      { transform: translateX(2px); }
-  75%      { transform: translateX(-1px); }
-  90%      { transform: translateX(1px); }
-}
-.codenames-assassin-shake {
-  animation: codenames-assassin-shake 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .codenames-assassin-shake { animation: none; }
-}
-`;
 
 function CodenamesBoard({
   view,
@@ -111,7 +70,6 @@ function CodenamesBoard({
 
   return (
     <div className="flex flex-col items-center gap-5 w-full">
-      <style>{CODENAMES_KEYFRAMES}</style>
       <TurnIndicator view={view} />
 
       <div className="flex items-center gap-4 md:gap-6 text-sm">
@@ -140,81 +98,43 @@ function CodenamesBoard({
         {view.grid.map((card, i) => {
           const clickable =
             !isOver && isMyTurn && !amSpymaster && isGuessing && !card.revealed;
-          // Pre-reveal, the spymaster sees a subtle cue (top stripe) instead
-          // of a full flood. Post-reveal, everyone sees the full flood.
-          const spymasterCue =
-            amSpymaster && !card.revealed && card.role != null;
-          const revealedRole = card.revealed ? card.role : null;
-          const bg = cardFill(revealedRole, card.revealed);
-          const fg = cardText(revealedRole, card.revealed);
-          const isAssassinRevealed = card.revealed && card.role === "assassin";
+          const showColor = card.revealed || (amSpymaster && card.role != null);
+          const bg = cardFill(
+            showColor ? card.role : null,
+            card.revealed,
+          );
+          const fg = cardText(showColor ? card.role : null, card.revealed);
           return (
             <button
               key={i}
               type="button"
               disabled={!clickable}
               onClick={() => guess(i)}
-              lang="en"
               className={[
-                "relative min-h-[72px] md:min-h-[82px] px-2 py-2.5 rounded-lg",
+                "relative min-h-[62px] md:min-h-[82px] px-2 py-3 rounded-lg",
                 "text-center transition-all duration-200",
                 "border border-base-300/70",
                 "font-display tracking-tight",
-                "flex items-center justify-center",
                 clickable ? "hover:-translate-y-0.5 cursor-pointer" : "",
                 card.revealed ? "parlor-fade" : "",
-                isAssassinRevealed ? "codenames-assassin-shake" : "",
               ].join(" ")}
               style={{
                 background: bg,
                 color: fg,
                 boxShadow: card.revealed
-                  ? isAssassinRevealed
-                    ? "inset 0 1px 0 oklch(100% 0 0 / 0.18), 0 0 0 2px color-mix(in oklch, var(--color-error) 65%, transparent), 0 0 18px color-mix(in oklch, var(--color-error) 35%, transparent)"
-                    : "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -2px 0 oklch(0% 0 0 / 0.15)"
+                  ? "inset 0 1px 0 oklch(100% 0 0 / 0.2), inset 0 -2px 0 oklch(0% 0 0 / 0.15)"
                   : "inset 0 1px 0 oklch(100% 0 0 / 0.15), 0 1px 2px oklch(0% 0 0 / 0.06)",
+                opacity: amSpymaster && showColor && !card.revealed ? 0.9 : 1,
               }}
               aria-label={card.word}
             >
-              {spymasterCue && card.role && (
-                <>
-                  {/* Top stripe — 5px colored band on ivory card. */}
-                  <span
-                    aria-hidden
-                    className="absolute top-0 inset-x-0 h-1.5 rounded-t-lg"
-                    style={{ background: cueStripe(card.role) }}
-                  />
-                  {/* Discreet dot in top-right for secondary confirmation. */}
-                  <span
-                    aria-hidden
-                    className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full"
-                    style={{ background: cueStripe(card.role), opacity: 0.7 }}
-                  />
-                </>
-              )}
-
-              <span className="flex flex-col items-center gap-0.5 w-full">
-                {isAssassinRevealed && (
-                  <span
-                    aria-hidden
-                    className="text-[9px] md:text-[10px] uppercase tracking-[0.22em] font-bold leading-none"
-                    style={{
-                      color: "color-mix(in oklch, var(--color-error) 60%, white 40%)",
-                    }}
-                  >
-                    ☠ Assassin
-                  </span>
-                )}
-                <span
-                  className={[
-                    "block leading-tight break-words whitespace-normal hyphens-auto w-full",
-                    wordSizeClass(card.word),
-                    card.revealed && !isAssassinRevealed ? "line-through opacity-80" : "",
-                    isAssassinRevealed ? "font-bold" : "",
-                  ].join(" ")}
-                >
-                  {card.word}
-                </span>
+              <span
+                className={[
+                  "block text-sm md:text-base leading-tight",
+                  card.revealed ? "line-through opacity-80" : "",
+                ].join(" ")}
+              >
+                {card.word}
               </span>
             </button>
           );
@@ -242,7 +162,7 @@ function CodenamesBoard({
                 />
                 <input
                   type="number"
-                  className="input input-bordered w-20 text-center tabular-nums rounded-lg"
+                  className="input input-bordered w-20 text-center tabular rounded-lg"
                   min={0}
                   max={9}
                   value={clueCount}
@@ -283,7 +203,7 @@ function CodenamesBoard({
                 </div>
                 <div className="text-2xl font-display tracking-tight mt-0.5">
                   {view.clue?.word}
-                  <span className="ml-2 text-base-content/50 tabular-nums">
+                  <span className="ml-2 text-base-content/50 tabular">
                     {view.clue?.count}
                   </span>
                 </div>
@@ -326,7 +246,7 @@ function ScoreDot({
         style={{ background: color }}
       />
       <span className="text-base-content/60">{label}</span>
-      <span className="font-semibold tabular-nums">{value}</span>
+      <span className="font-semibold tabular">{value}</span>
     </div>
   );
 }
@@ -489,7 +409,7 @@ function TeamColumn({
           style={{ background: dot }}
         />
         <h3 className="font-display text-lg tracking-tight">{label}</h3>
-        <span className="text-xs text-base-content/50 ml-auto tabular-nums">
+        <span className="text-xs text-base-content/50 ml-auto tabular">
           {members.length} player{members.length === 1 ? "" : "s"}
         </span>
       </div>

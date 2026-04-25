@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import {
   Card as CardShell,
   type BoardProps,
@@ -13,7 +13,6 @@ import {
   type SHPolicy,
   type SHRole,
   type SHView,
-  type SHVote,
 } from "./shared";
 
 type PlayerLike = { id: string; name: string };
@@ -41,88 +40,15 @@ function SecretHitlerBoard({
   const amChancellor = me === view.chancellor;
   const iHaveVoted = view.voteTally.voters.includes(me);
 
-  // Role card collapse toggle — shrinks to a pill when the player wants
-  // table space back.
-  const [roleCollapsed, setRoleCollapsed] = useState(false);
-
-  // Vote-resolution reveal: when phase transitions out of "vote" and
-  // results are populated, flash 2.5s per-voter chips + pass/fail heading.
-  const [voteReveal, setVoteReveal] = useState<
-    null | { passed: boolean; votes: Record<string, SHVote> }
-  >(null);
-  const prevPhaseRef = useRef(view.phase);
-  useEffect(() => {
-    const prev = prevPhaseRef.current;
-    prevPhaseRef.current = view.phase;
-    if (
-      prev === "vote" &&
-      view.phase !== "vote" &&
-      view.voteTally.results
-    ) {
-      const votes = view.voteTally.results;
-      const jaCount = Object.values(votes).filter((v) => v === "ja").length;
-      const total = Object.keys(votes).length;
-      setVoteReveal({ passed: jaCount * 2 > total, votes });
-      const t = setTimeout(() => setVoteReveal(null), 2500);
-      return () => clearTimeout(t);
-    }
-  }, [view.phase, view.voteTally.results]);
-
-  // Policy-enactment reveal: fires on policyHistory growth, 1.8s hold.
-  const [policyReveal, setPolicyReveal] = useState<
-    null | { policy: SHPolicy }
-  >(null);
-  const prevPolicyLenRef = useRef(view.policyHistory.length);
-  useEffect(() => {
-    if (view.policyHistory.length > prevPolicyLenRef.current) {
-      const latest = view.policyHistory[view.policyHistory.length - 1];
-      prevPolicyLenRef.current = view.policyHistory.length;
-      if (latest) {
-        setPolicyReveal({ policy: latest });
-        const t = setTimeout(() => setPolicyReveal(null), 1800);
-        return () => clearTimeout(t);
-      }
-    } else {
-      prevPolicyLenRef.current = view.policyHistory.length;
-    }
-  }, [view.policyHistory.length, view.policyHistory]);
-
   return (
     <div className="flex flex-col items-center gap-5 w-full">
-      <style>{`
-        @keyframes sh-reveal-in {
-          0%   { transform: translateY(8px) scale(0.97); opacity: 0; }
-          100% { transform: translateY(0) scale(1); opacity: 1; }
-        }
-        .sh-reveal-in { animation: sh-reveal-in 260ms cubic-bezier(0.22, 1, 0.36, 1); }
-      `}</style>
-
       <PolicyTracks view={view} />
 
-      {voteReveal && (
-        <VoteRevealBanner
-          reveal={voteReveal}
-          playersById={playersById}
-        />
-      )}
-
-      {policyReveal && <PolicyRevealBanner policy={policyReveal.policy} />}
-
-      <RoleCard
-        view={view}
-        playersById={playersById}
-        collapsed={roleCollapsed}
-        setCollapsed={setRoleCollapsed}
-      />
+      <RoleCard view={view} playersById={playersById} />
 
       <RoundBanner view={view} playersById={playersById} me={me} />
 
-      <PlayerBoard
-        view={view}
-        playersById={playersById}
-        me={me}
-        isOver={isOver}
-      />
+      <PlayerBoard view={view} playersById={playersById} me={me} />
 
       {isNomination && (
         <NominationPanel
@@ -166,22 +92,21 @@ function SecretHitlerBoard({
 }
 
 function PolicyTracks({ view }: { view: SHView }) {
-  const maxSlots = Math.max(LIBERAL_TRACK_WIN, FASCIST_TRACK_WIN);
+  const liberalSlots = Array.from({ length: LIBERAL_TRACK_WIN }, (_, i) => i);
+  const fascistSlots = Array.from({ length: FASCIST_TRACK_WIN }, (_, i) => i);
   return (
     <div className="w-full max-w-2xl flex flex-col gap-2">
       <Track
         label="Liberals"
         color="var(--color-info)"
-        trackSlots={LIBERAL_TRACK_WIN}
-        maxSlots={maxSlots}
+        slots={liberalSlots}
         filled={view.liberalTrack}
         goalLabel={`${view.liberalTrack}/${LIBERAL_TRACK_WIN}`}
       />
       <Track
         label="Fascists"
         color="var(--color-error)"
-        trackSlots={FASCIST_TRACK_WIN}
-        maxSlots={maxSlots}
+        slots={fascistSlots}
         filled={view.fascistTrack}
         goalLabel={`${view.fascistTrack}/${FASCIST_TRACK_WIN}`}
       />
@@ -190,27 +115,19 @@ function PolicyTracks({ view }: { view: SHView }) {
   );
 }
 
-/**
- * A single policy track. Uses a CSS grid templated to `maxSlots` columns
- * so Liberal (5) and Fascist (6) cells render at identical widths; the
- * shorter track pads with invisible spacer cells on the right.
- */
 function Track({
   label,
   color,
-  trackSlots,
-  maxSlots,
+  slots,
   filled,
   goalLabel,
 }: {
   label: string;
   color: string;
-  trackSlots: number;
-  maxSlots: number;
+  slots: number[];
   filled: number;
   goalLabel: string;
 }) {
-  const extraCount = maxSlots - trackSlots;
   return (
     <div className="flex items-center gap-3">
       <div
@@ -219,16 +136,13 @@ function Track({
       >
         {label}
       </div>
-      <div
-        className="grid flex-1 gap-1.5"
-        style={{ gridTemplateColumns: `repeat(${maxSlots}, minmax(0, 1fr))` }}
-      >
-        {Array.from({ length: trackSlots }).map((_, i) => {
+      <div className="flex gap-1.5 flex-1">
+        {slots.map((i) => {
           const on = i < filled;
           return (
             <div
               key={i}
-              className="h-7 rounded-md flex items-center justify-center"
+              className="h-7 flex-1 rounded-md flex items-center justify-center"
               style={{
                 background: on
                   ? color
@@ -246,97 +160,10 @@ function Track({
             </div>
           );
         })}
-        {Array.from({ length: extraCount }).map((_, i) => (
-          <div key={`spacer-${i}`} aria-hidden className="h-7" />
-        ))}
       </div>
-      <div className="text-xs text-base-content/65 font-mono tabular-nums w-14 text-right">
+      <div className="text-xs text-base-content/65 tabular w-14 text-right">
         {goalLabel}
       </div>
-    </div>
-  );
-}
-
-function VoteRevealBanner({
-  reveal,
-  playersById,
-}: {
-  reveal: { passed: boolean; votes: Record<string, SHVote> };
-  playersById: Record<string, PlayerLike>;
-}) {
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="w-full max-w-2xl rounded-2xl p-5 flex flex-col gap-2 sh-reveal-in"
-      style={{
-        background: reveal.passed
-          ? "color-mix(in oklch, var(--color-success) 14%, var(--color-base-100))"
-          : "color-mix(in oklch, var(--color-error) 12%, var(--color-base-100))",
-        border: reveal.passed
-          ? "1px solid color-mix(in oklch, var(--color-success) 40%, transparent)"
-          : "1px solid color-mix(in oklch, var(--color-error) 35%, transparent)",
-      }}
-    >
-      <div
-        className="text-[10px] uppercase tracking-[0.3em] font-semibold"
-        style={{
-          color: reveal.passed
-            ? "var(--color-success)"
-            : "var(--color-error)",
-        }}
-      >
-        ◆ {reveal.passed ? "Government elected" : "Government rejected"} ◆
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {Object.entries(reveal.votes).map(([id, v]) => (
-          <span
-            key={id}
-            className={[
-              "text-[11px] px-2 py-0.5 rounded-full font-semibold",
-              v === "ja"
-                ? "bg-success/20 text-success"
-                : "bg-error/20 text-error",
-            ].join(" ")}
-          >
-            {playersById[id]?.name ?? id}: {v === "ja" ? "Ja" : "Nein"}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PolicyRevealBanner({ policy }: { policy: SHPolicy }) {
-  const isLiberal = policy === "liberal";
-  const tone = isLiberal ? "var(--color-info)" : "var(--color-error)";
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="w-full max-w-2xl rounded-2xl p-4 flex items-center justify-between gap-3 sh-reveal-in"
-      style={{
-        background: `color-mix(in oklch, ${tone} 20%, var(--color-base-100))`,
-        border: `1px solid color-mix(in oklch, ${tone} 40%, transparent)`,
-      }}
-    >
-      <div
-        className="text-xs uppercase tracking-[0.3em] font-semibold"
-        style={{ color: tone }}
-      >
-        {isLiberal ? "Liberal policy enacted" : "Fascist policy enacted"}
-      </div>
-      <div
-        aria-hidden
-        style={{
-          width: 32,
-          height: 44,
-          borderRadius: 4,
-          background: tone,
-          boxShadow:
-            "inset 0 1px 0 oklch(100% 0 0 / 0.2), 0 4px 8px oklch(0% 0 0 / 0.2)",
-        }}
-      />
     </div>
   );
 }
@@ -369,30 +196,12 @@ function ElectionTrackerRow({ tracker }: { tracker: number }) {
                   : "No failed election here yet"
               }
             >
-              {active && (
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 10 10"
-                  aria-hidden
-                >
-                  <circle cx="5" cy="4" r="2.6" fill="currentColor" />
-                  <rect
-                    x="3.4"
-                    y="6.4"
-                    width="3.2"
-                    height="1.6"
-                    fill="currentColor"
-                  />
-                  <circle cx="4" cy="4" r="0.6" fill="var(--color-warning)" />
-                  <circle cx="6" cy="4" r="0.6" fill="var(--color-warning)" />
-                </svg>
-              )}
+              {active ? "☠" : ""}
             </div>
           );
         })}
       </div>
-      <div className="text-xs text-base-content/45 font-mono tabular-nums w-14 text-right">
+      <div className="text-xs text-base-content/45 w-14 text-right">
         {tracker}/3
       </div>
     </div>
@@ -402,13 +211,9 @@ function ElectionTrackerRow({ tracker }: { tracker: number }) {
 function RoleCard({
   view,
   playersById,
-  collapsed,
-  setCollapsed,
 }: {
   view: SHView;
   playersById: Record<string, PlayerLike>;
-  collapsed: boolean;
-  setCollapsed: (c: boolean) => void;
 }) {
   const role = view.viewerRole;
   if (!role) {
@@ -434,40 +239,10 @@ function RoleCard({
       "Survive, blend in, and take the Chancellor's gavel. If you're elected Chancellor after 3 Fascist policies, your team wins.",
   };
   const known = view.knownFascists;
-
-  // Collapsed pill — smaller footprint for mobile / deep play.
-  if (collapsed) {
-    const roleColor = isHitler
-      ? "var(--color-error)"
-      : isFascist
-        ? "currentColor"
-        : "var(--color-info)";
-    return (
-      <button
-        type="button"
-        onClick={() => setCollapsed(false)}
-        aria-expanded={false}
-        aria-label="Expand role card"
-        className={[
-          "rounded-full px-4 py-2 text-xs uppercase tracking-[0.22em] font-bold flex items-center gap-2 transition-all",
-          isFascist || isHitler
-            ? "bg-neutral text-neutral-content"
-            : "bg-base-200 text-base-content ring-1 ring-base-300",
-        ].join(" ")}
-      >
-        <span className="opacity-65">◆ Your role:</span>
-        <span style={{ color: roleColor }}>{label[role]}</span>
-        <span className="opacity-55" aria-hidden>
-          ▼
-        </span>
-      </button>
-    );
-  }
-
   return (
     <div
       className={[
-        "relative rounded-2xl p-5 flex flex-col gap-2 max-w-xl w-full",
+        "rounded-2xl p-5 flex flex-col gap-2 max-w-xl w-full",
         isFascist || isHitler ? "bg-neutral text-neutral-content" : "surface-ivory",
       ].join(" ")}
       style={{
@@ -477,15 +252,6 @@ function RoleCard({
             : undefined,
       }}
     >
-      <button
-        type="button"
-        onClick={() => setCollapsed(true)}
-        aria-label="Collapse role card"
-        aria-expanded={true}
-        className="absolute top-3 right-3 text-[9px] uppercase tracking-wider opacity-55 hover:opacity-100 px-1.5 py-0.5 rounded cursor-pointer"
-      >
-        ▲ Hide
-      </button>
       <div
         className="text-[10px] uppercase tracking-[0.3em] font-semibold"
         style={{
@@ -515,7 +281,7 @@ function RoleCard({
       {known && Object.keys(known).length > 0 && (
         <div className="mt-2 pt-2 border-t border-current/15">
           <div className="text-[10px] uppercase tracking-[0.22em] font-semibold opacity-70 mb-1">
-            {isFascist ? "Your fellow fascists" : "Your fascist team"}
+            {isFascist ? "Your team" : "The Fascists"}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {Object.entries(known).map(([id, r]) => {
@@ -565,7 +331,6 @@ function RoundBanner({
   me: string;
 }) {
   if (view.phase === "gameOver") return null;
-  // Tag for aria-live wrap below.
   const presidentId =
     view.president ?? view.playerOrder[view.presidentIdx] ?? null;
   const presidentName = presidentId
@@ -581,11 +346,7 @@ function RoundBanner({
     chancellorEnact: "Chancellor enacts a policy",
   };
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="text-sm text-base-content/70 text-center flex flex-col gap-0.5"
-    >
+    <div className="text-sm text-base-content/70 text-center flex flex-col gap-0.5">
       <div className="text-[10px] uppercase tracking-[0.3em] font-semibold text-primary">
         {phaseLabel[view.phase as Exclude<SHView["phase"], "gameOver">]}
       </div>
@@ -611,12 +372,10 @@ function PlayerBoard({
   view,
   playersById,
   me,
-  isOver,
 }: {
   view: SHView;
   playersById: Record<string, PlayerLike>;
   me: string;
-  isOver: boolean;
 }) {
   const presidentId =
     view.president ?? view.playerOrder[view.presidentIdx] ?? null;
@@ -632,9 +391,6 @@ function PlayerBoard({
         const known = view.knownFascists?.[id];
         const voted = view.voteTally.voters.includes(id);
         const revealed = view.voteTally.results?.[id];
-        // Game-over full role reveal takes precedence over the viewer's
-        // known-fascists chips — once cards are down, everybody's out.
-        const revealedRole = isOver ? view.allRoles?.[id] ?? null : null;
         return (
           <div
             key={id}
@@ -654,64 +410,29 @@ function PlayerBoard({
                   </span>
                 )}
               </span>
-              {revealedRole ? (
+              {known === "hitler" && (
                 <span
                   className="text-[9px] px-1.5 py-[1px] rounded-full font-bold uppercase tracking-wider"
                   style={{
-                    background:
-                      revealedRole === "liberal"
-                        ? "var(--color-info)"
-                        : revealedRole === "hitler"
-                          ? "var(--color-error)"
-                          : "var(--color-neutral)",
-                    color:
-                      revealedRole === "liberal"
-                        ? "var(--color-info-content)"
-                        : revealedRole === "hitler"
-                          ? "var(--color-error-content)"
-                          : "var(--color-neutral-content)",
+                    background: "var(--color-error)",
+                    color: "var(--color-error-content)",
                   }}
-                  title={
-                    revealedRole === "liberal"
-                      ? "Liberal"
-                      : revealedRole === "hitler"
-                        ? "Hitler"
-                        : "Fascist"
-                  }
+                  title="Hitler"
                 >
-                  {revealedRole === "liberal"
-                    ? "L"
-                    : revealedRole === "hitler"
-                      ? "H"
-                      : "F"}
+                  H
                 </span>
-              ) : (
-                <>
-                  {known === "hitler" && (
-                    <span
-                      className="text-[9px] px-1.5 py-[1px] rounded-full font-bold uppercase tracking-wider"
-                      style={{
-                        background: "var(--color-error)",
-                        color: "var(--color-error-content)",
-                      }}
-                      title="Hitler"
-                    >
-                      H
-                    </span>
-                  )}
-                  {known === "fascist" && (
-                    <span
-                      className="text-[9px] px-1.5 py-[1px] rounded-full font-bold uppercase tracking-wider"
-                      style={{
-                        background: "var(--color-neutral)",
-                        color: "var(--color-neutral-content)",
-                      }}
-                      title="Fascist"
-                    >
-                      F
-                    </span>
-                  )}
-                </>
+              )}
+              {known === "fascist" && (
+                <span
+                  className="text-[9px] px-1.5 py-[1px] rounded-full font-bold uppercase tracking-wider"
+                  style={{
+                    background: "var(--color-neutral)",
+                    color: "var(--color-neutral-content)",
+                  }}
+                  title="Fascist"
+                >
+                  F
+                </span>
               )}
             </div>
             <div className="flex flex-wrap gap-1">
@@ -862,8 +583,6 @@ function VotePanel({
   );
   return (
     <div
-      role="region"
-      aria-label="Vote on government"
       className="w-full max-w-xl rounded-2xl p-5 flex flex-col gap-3"
       style={{
         background:
@@ -890,27 +609,13 @@ function VotePanel({
         elections in a row trigger a forced policy.
       </div>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div
-          aria-live="polite"
-          className="text-xs text-base-content/55 font-mono tabular-nums flex-1"
-        >
-          <div>
-            {view.voteTally.voters.length}/{view.playerOrder.length} voted
-          </div>
+        <div className="text-xs text-base-content/55 tabular">
+          {view.voteTally.voters.length}/{view.playerOrder.length} voted
           {pending.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1 items-center">
-              <span className="text-[10px] uppercase tracking-wider text-base-content/45 normal-case tracking-normal">
-                Waiting:
-              </span>
-              {pending.map((id) => (
-                <span
-                  key={id}
-                  className="text-[10px] px-2 py-0.5 rounded-full bg-base-100 ring-1 ring-base-300 text-base-content/65 font-semibold normal-case tracking-normal"
-                >
-                  {playersById[id]?.name ?? id}
-                </span>
-              ))}
-            </div>
+            <span className="ml-2 text-base-content/45">
+              (waiting:{" "}
+              {pending.map((id) => playersById[id]?.name ?? id).join(", ")})
+            </span>
           )}
         </div>
         {!iHaveVoted ? (
@@ -1097,28 +802,8 @@ function PresidentDiscardPanel({
 }) {
   if (!amPresident) {
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="w-full max-w-xl rounded-2xl p-4 surface-ivory flex flex-col items-center gap-2"
-      >
-        <div className="flex gap-1" aria-hidden>
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="w-8 h-11 rounded"
-              style={{
-                background: "color-mix(in oklch, var(--color-base-300) 60%, transparent)",
-                boxShadow:
-                  "inset 0 1px 0 oklch(100% 0 0 / 0.1), 0 2px 4px oklch(0% 0 0 / 0.15)",
-                transform: `rotate(${(i - 1) * 6}deg)`,
-              }}
-            />
-          ))}
-        </div>
-        <div className="text-center text-sm text-base-content/65">
-          The President is choosing which policy to discard…
-        </div>
+      <div className="w-full max-w-xl rounded-2xl p-4 surface-ivory text-center text-sm text-base-content/65">
+        The President is choosing which policy to discard…
       </div>
     );
   }
@@ -1156,28 +841,8 @@ function ChancellorEnactPanel({
 }) {
   if (!amChancellor) {
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="w-full max-w-xl rounded-2xl p-4 surface-ivory flex flex-col items-center gap-2"
-      >
-        <div className="flex gap-1" aria-hidden>
-          {[0, 1].map((i) => (
-            <div
-              key={i}
-              className="w-8 h-11 rounded"
-              style={{
-                background: "color-mix(in oklch, var(--color-base-300) 60%, transparent)",
-                boxShadow:
-                  "inset 0 1px 0 oklch(100% 0 0 / 0.1), 0 2px 4px oklch(0% 0 0 / 0.15)",
-                transform: `rotate(${(i - 0.5) * 8}deg)`,
-              }}
-            />
-          ))}
-        </div>
-        <div className="text-center text-sm text-base-content/65">
-          The Chancellor is choosing which policy to enact…
-        </div>
+      <div className="w-full max-w-xl rounded-2xl p-4 surface-ivory text-center text-sm text-base-content/65">
+        The Chancellor is choosing which policy to enact…
       </div>
     );
   }
@@ -1230,7 +895,7 @@ function PolicyHistoryStrip({ view }: { view: SHView }) {
           );
         })}
       </div>
-      <div className="text-[10px] text-base-content/45 mt-1 font-mono tabular-nums">
+      <div className="text-[10px] text-base-content/45 mt-1 tabular">
         Deck: {view.deckSize} · Discard: {view.discardSize}
       </div>
     </div>

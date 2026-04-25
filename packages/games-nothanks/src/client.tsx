@@ -16,7 +16,10 @@ import {
 // ------------------------- Card visual -------------------------
 
 function tintForValue(v: number): { from: string; to: string; ink: string } {
+  // Map 3..35 onto a hue progression (cool -> warm) so consecutive cards look
+  // related and high cards visibly louder.
   const t = (v - 3) / (35 - 3);
+  // Hue from 220 (cool blue) to 25 (warm orange) — wraps through purple/red.
   const hue = 220 - t * 195;
   return {
     from: `oklch(78% 0.13 ${hue})`,
@@ -25,6 +28,7 @@ function tintForValue(v: number): { from: string; to: string; ink: string } {
   };
 }
 
+/** SVG face for the No Thanks deck — hue-mapped tint with corner indices and a big central numeral. */
 function NoThanksFace({ value }: { value: number }) {
   const tint = tintForValue(value);
   const id = `nt-grad-${value}`;
@@ -43,6 +47,7 @@ function NoThanksFace({ value }: { value: number }) {
         </linearGradient>
       </defs>
       <rect x="0" y="0" width="100" height="140" fill={`url(#${id})`} />
+      {/* Inner frame for card-game feel */}
       <rect
         x="6"
         y="6"
@@ -54,8 +59,10 @@ function NoThanksFace({ value }: { value: number }) {
         strokeOpacity="0.18"
         strokeWidth="1"
       />
+      {/* Decorative pip rings between corners and centerpiece */}
       <circle cx="50" cy="34" r="3.4" fill={tint.ink} fillOpacity="0.18" />
       <circle cx="50" cy="106" r="3.4" fill={tint.ink} fillOpacity="0.18" />
+      {/* Corner indices */}
       <text
         x="11"
         y="22"
@@ -78,6 +85,7 @@ function NoThanksFace({ value }: { value: number }) {
       >
         {value}
       </text>
+      {/* Central numeral */}
       <text
         x="50"
         y="84"
@@ -130,13 +138,6 @@ function runs(cards: number[]): number[][] {
   return out;
 }
 
-function deltaColor(next: number, curr: number): string {
-  if (next < curr) return "var(--color-success)";
-  if (next > curr)
-    return "color-mix(in oklch, var(--color-warning) 80%, var(--color-base-content))";
-  return "color-mix(in oklch, var(--color-base-content) 55%, transparent)";
-}
-
 // ------------------------- Board -------------------------
 
 function NoThanksBoard({
@@ -161,10 +162,6 @@ function NoThanksBoard({
   const offerCard = view.currentCard;
   const offerChips = view.chipsOnCard;
 
-  const myCurrentScore = useMemo(() => {
-    return scoreCards(view.seats[me]?.cards ?? [], myChips);
-  }, [view.seats, me, myChips]);
-
   const projectedScoreIfTaken = useMemo(() => {
     if (!offerCard) return null;
     const cards = [...(view.seats[me]?.cards ?? []), offerCard];
@@ -188,128 +185,90 @@ function NoThanksBoard({
       {/* Center stage */}
       {!isOver && offerCard !== null && (
         <div
-          // Key on offerCard so a new offer remounts and re-triggers parlor-rise.
-          key={offerCard}
-          className="relative rounded-2xl px-5 pt-4 pb-5 flex items-center gap-5 flex-wrap justify-center parlor-rise"
+          className="rounded-2xl px-6 py-5 flex items-center gap-6 flex-wrap justify-center"
           style={{
             background:
               "color-mix(in oklch, var(--color-base-300) 65%, transparent)",
             boxShadow:
               "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
           }}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
         >
-          {/* Corner deck counter — demoted from dedicated column */}
-          <div className="absolute top-2 right-3 flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-base-content/50 font-mono tabular-nums">
-            <span className="font-semibold text-base-content/75">{view.deckCount}</span>
-            <span className="normal-case tracking-normal">cards left</span>
-          </div>
-
-          <div
-            className="flex flex-col items-center gap-1"
-            style={{
-              filter: `drop-shadow(0 6px 12px color-mix(in oklch, ${tintForValue(offerCard).to} 30%, transparent))`,
-            }}
-          >
+          <div className="flex flex-col items-center gap-1">
             <CardShell size="xl" ariaLabel={`card ${offerCard} on offer`}>
               <NoThanksFace value={offerCard} />
             </CardShell>
-            <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 mt-1">
+            <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 mt-2">
               On offer
             </span>
           </div>
-          <div className="flex flex-col items-center gap-1.5 min-w-[88px]">
-            <div className="flex items-center gap-1 justify-center min-h-[20px]">
+          <div className="flex flex-col items-center gap-1 min-w-[88px]">
+            <div className="flex items-center gap-1 flex-wrap justify-center max-w-[120px]">
               {offerChips === 0 ? (
                 <span className="text-xs italic text-base-content/40">
                   no chips yet
                 </span>
-              ) : offerChips <= 4 ? (
+              ) : (
                 Array.from({ length: offerChips }).map((_, i) => (
                   <Chip key={i} size={14} />
                 ))
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <div className="flex -space-x-1">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <Chip key={i} size={14} />
-                    ))}
-                  </div>
-                  <span className="font-mono tabular-nums text-xs font-semibold text-base-content/75">
-                    × {offerChips}
-                  </span>
-                </div>
               )}
             </div>
             <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
               {offerChips} chip{offerChips === 1 ? "" : "s"} on top
             </span>
           </div>
+          <div className="flex flex-col items-center gap-1 min-w-[88px]">
+            <div
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold"
+              style={{
+                background:
+                  "color-mix(in oklch, var(--color-base-100) 80%, transparent)",
+              }}
+            >
+              {view.deckCount}
+            </div>
+            <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+              cards left
+            </span>
+          </div>
         </div>
       )}
 
-      {/* Action row with projected-score chips */}
+      {/* Action row */}
       {!isOver && isMyTurn && offerCard !== null && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:gap-4 justify-center w-full sm:w-auto">
-          <div className="flex flex-col items-center gap-1">
-            <button
-              type="button"
-              onClick={() => sendMove({ kind: "pass" })}
-              disabled={!canPass}
-              className={[
-                "rounded-full px-4 sm:px-5 h-11 sm:h-10 font-semibold transition-all",
-                "flex items-center gap-2 justify-center",
-                "bg-base-200 ring-1 ring-base-300 hover:bg-base-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer",
-                "w-full sm:w-auto",
-              ].join(" ")}
-            >
-              <Chip size={12} />
-              <span>No thanks · −1 chip</span>
-            </button>
-            {canPass && projectedScoreIfPassed !== null && (
-              <span
-                className="text-[10px] tabular-nums font-mono uppercase tracking-wider"
-                style={{
-                  color: deltaColor(projectedScoreIfPassed, myCurrentScore),
-                }}
-              >
-                → score {projectedScoreIfPassed}
-              </span>
-            )}
-            {!canPass && myChips === 0 && (
-              <span className="text-[10px] uppercase tracking-wider text-warning font-semibold">
-                no chips — must take
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <button
-              type="button"
-              onClick={() => sendMove({ kind: "take" })}
-              disabled={!canTake}
-              className={[
-                "rounded-full px-4 sm:px-5 h-11 sm:h-10 font-semibold transition-all",
-                "bg-primary text-primary-content hover:brightness-110",
-                "disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer",
-                "w-full sm:w-auto",
-                "shadow-[0_6px_16px_color-mix(in_oklch,var(--color-primary)_30%,transparent)]",
-              ].join(" ")}
-            >
-              Take + {offerChips} chip{offerChips === 1 ? "" : "s"}
-            </button>
-            {projectedScoreIfTaken !== null && (
-              <span
-                className="text-[10px] tabular-nums font-mono uppercase tracking-wider"
-                style={{
-                  color: deltaColor(projectedScoreIfTaken, myCurrentScore),
-                }}
-              >
-                → score {projectedScoreIfTaken}
-              </span>
-            )}
-          </div>
+        <div className="flex items-center gap-3 flex-wrap justify-center">
+          <button
+            type="button"
+            onClick={() => sendMove({ kind: "pass" })}
+            disabled={!canPass}
+            className="btn btn-ghost rounded-full px-5 font-semibold"
+            title={
+              canPass
+                ? `Pass — pay 1 chip, score becomes ${projectedScoreIfPassed}`
+                : "No chips left — you must take"
+            }
+          >
+            No thanks (pay 1 chip)
+          </button>
+          <button
+            type="button"
+            onClick={() => sendMove({ kind: "take" })}
+            disabled={!canTake}
+            className="btn btn-primary rounded-full px-5 font-semibold"
+            title={
+              projectedScoreIfTaken !== null
+                ? `Take — score becomes ${projectedScoreIfTaken}`
+                : "Take the card and pile of chips"
+            }
+          >
+            Take card + {offerChips} chip{offerChips === 1 ? "" : "s"}
+          </button>
+        </div>
+      )}
+
+      {!isOver && !isMyTurn && (
+        <div className="text-xs text-base-content/55 italic">
+          Waiting on {nameOf(view.current)}…
         </div>
       )}
 
@@ -359,16 +318,14 @@ function Scoreboard({
         const provisional = scoreCards(cards, chips);
         const active =
           view.current === id && view.phase === "play";
-        const mustTake = active && chips === 0;
         const isMe = id === me;
         return (
           <div
             key={id}
             className={[
-              "rounded-xl px-2 py-1.5 sm:px-3 sm:py-2 flex flex-col items-center gap-0.5",
-              "min-w-[88px] sm:min-w-[110px] border transition-colors",
+              "rounded-xl px-3 py-2 flex flex-col items-center gap-1 min-w-[110px] border transition-colors",
               active
-                ? "border-primary bg-primary/10 shadow-[0_0_0_1px_var(--color-primary)]"
+                ? "border-primary/55 bg-primary/10"
                 : "border-base-300/80 bg-base-100",
             ].join(" ")}
           >
@@ -387,22 +344,17 @@ function Scoreboard({
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-mono tabular-nums text-base-content/70">
+            <div className="flex items-center gap-2 text-[11px] tabular text-base-content/65">
               <span className="flex items-center gap-1">
                 <Chip size={10} />
                 {chips}
               </span>
-              <span className="text-base-content/35">·</span>
-              <span>{cards.length}c</span>
+              <span>·</span>
+              <span>{cards.length} cards</span>
             </div>
-            <div className="text-sm font-mono tabular-nums font-semibold text-base-content">
-              {provisional}
+            <div className="text-[10px] uppercase tracking-[0.16em] text-base-content/50">
+              score {provisional}
             </div>
-            {mustTake && (
-              <span className="text-[9px] uppercase tracking-wider text-warning font-semibold">
-                must take
-              </span>
-            )}
           </div>
         );
       })}
@@ -421,21 +373,13 @@ function StatusBanner({
 }) {
   if (view.phase === "gameOver") {
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold"
-      >
+      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
         Game over
       </div>
     );
   }
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold"
-    >
+    <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
       {isMyTurn ? (
         <span className="text-primary font-bold">Your call — take or pass</span>
       ) : (
@@ -471,7 +415,7 @@ function Tableau({
       className={[
         "rounded-xl p-3 border flex flex-col gap-2 transition-colors",
         active
-          ? "border-primary bg-primary/10 shadow-[0_0_0_1px_var(--color-primary)]"
+          ? "border-primary/55 bg-primary/10"
           : "border-base-300/70 bg-base-100",
       ].join(" ")}
     >
@@ -489,7 +433,7 @@ function Tableau({
             you
           </span>
         )}
-        <span className="ml-auto flex items-center gap-1 text-[11px] text-base-content/60 font-mono tabular-nums">
+        <span className="ml-auto flex items-center gap-1 text-[11px] text-base-content/60 tabular">
           <Chip size={11} /> {chips}
         </span>
       </div>
@@ -505,36 +449,25 @@ function Tableau({
               className="flex flex-col items-center gap-1 px-1.5 py-1.5 rounded-lg"
               style={{
                 background:
-                  "color-mix(in oklch, var(--color-base-300) 20%, transparent)",
+                  "color-mix(in oklch, var(--color-base-300) 35%, transparent)",
               }}
             >
               <div className="flex">
-                {run.map((v, j) => {
-                  // Leftmost card scores — put it on top and give it a subtle lift.
-                  return (
-                    <div
-                      key={v}
-                      style={{
-                        marginLeft: j === 0 ? 0 : -22,
-                        zIndex: j === 0 ? run.length : run.length - j,
-                        opacity: j === 0 ? 1 : 0.7,
-                        filter:
-                          j === 0
-                            ? "drop-shadow(0 2px 4px color-mix(in oklch, var(--color-primary) 25%, transparent))"
-                            : undefined,
-                      }}
-                    >
-                      <CardShell
-                        size={"xs" as CardSize}
-                        ariaLabel={`card ${v}${j === 0 ? " (scoring)" : ""}`}
-                      >
-                        <NoThanksFace value={v} />
-                      </CardShell>
-                    </div>
-                  );
-                })}
+                {run.map((v, j) => (
+                  <div
+                    key={v}
+                    style={{
+                      marginLeft: j === 0 ? 0 : -22,
+                      zIndex: j,
+                    }}
+                  >
+                    <CardShell size={"xs" as CardSize} ariaLabel={`card ${v}`}>
+                      <NoThanksFace value={v} />
+                    </CardShell>
+                  </div>
+                ))}
               </div>
-              <div className="text-[8px] uppercase tracking-[0.2em] text-base-content/55 font-mono tabular-nums">
+              <div className="text-[9px] uppercase tracking-[0.18em] text-base-content/50">
                 counts {run[0]}
               </div>
             </div>
@@ -576,9 +509,6 @@ function GameOverPanel({
         <div className="text-[10px] uppercase tracking-[0.3em] font-semibold">
           ◆ Final scores ◆
         </div>
-        <div className="text-[10px] tracking-[0.2em] uppercase text-base-content/50">
-          Lowest score wins
-        </div>
         <div
           className="font-display tracking-tight"
           style={{ fontSize: "var(--text-display-sm)" }}
@@ -603,18 +533,18 @@ function GameOverPanel({
                 isWinner ? "bg-success/15" : "bg-base-100/60",
               ].join(" ")}
             >
-              <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55 w-6 font-mono tabular-nums">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55 w-6">
                 #{i + 1}
               </span>
               <span className="font-semibold flex-1 truncate">
                 {playersById[id]?.name ?? id}
               </span>
-              <span className="text-xs text-base-content/65 font-mono tabular-nums">
+              <span className="text-xs text-base-content/65 tabular">
                 {cards.length} cards · {chips} chips
               </span>
               <span
                 className={[
-                  "tabular-nums font-display",
+                  "tabular font-display",
                   isWinner ? "text-success" : "",
                 ].join(" ")}
                 style={{ fontSize: "var(--text-display-sm)" }}

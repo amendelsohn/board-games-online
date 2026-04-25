@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
 import type { PlayerId } from "@bgo/sdk";
 import {
@@ -27,90 +27,15 @@ const SHIP_DISPLAY: Record<ShipType, string> = {
   destroyer: "Destroyer",
 };
 
-// Parlor palette for Battleship. Full-strength --color-info read as saturated
-// Bootstrap blue and flattened the board; muted "water" is a slate of info
-// blended into base-200, and ships are warm graphite instead of cold neutral.
-const WATER_BG =
-  "color-mix(in oklch, var(--color-info) 22%, var(--color-base-200))";
-const SHIP_BG =
-  "color-mix(in oklch, var(--color-neutral) 70%, var(--color-base-content) 8%)";
-const SHIP_INK =
-  "color-mix(in oklch, var(--color-neutral) 55%, var(--color-base-content) 25%)";
-
-function MissDot() {
-  return (
-    <span
-      className="absolute inset-0 flex items-center justify-center"
-      style={{
-        color: "var(--color-base-content)",
-        opacity: 0.45,
-        fontSize: "0.9em",
-      }}
-      aria-hidden
-    >
-      •
-    </span>
-  );
-}
-
-function HitMark() {
-  return (
-    <span
-      className="absolute inset-0 flex items-center justify-center battleship-hit-pop"
-      aria-hidden
-    >
-      <span
-        className="absolute inset-[2px] rounded-[2px]"
-        style={{
-          background:
-            "radial-gradient(circle at 35% 30%, color-mix(in oklch, var(--color-error) 90%, white 10%), var(--color-error) 65%, color-mix(in oklch, var(--color-error) 80%, black 20%))",
-          boxShadow:
-            "0 0 0 1px color-mix(in oklch, var(--color-error) 40%, transparent), 0 0 10px color-mix(in oklch, var(--color-error) 45%, transparent)",
-        }}
-      />
-      <span
-        className="relative text-[0.75em] font-black leading-none"
-        style={{
-          color: "color-mix(in oklch, var(--color-error-content) 70%, white 30%)",
-          textShadow: "0 1px 0 oklch(0% 0 0 / 0.45)",
-        }}
-      >
-        ✕
-      </span>
-    </span>
-  );
-}
-
-const BATTLESHIP_KEYFRAMES = `
-@keyframes battleship-hit-pop {
-  0%   { transform: scale(0.55); opacity: 0; }
-  55%  { transform: scale(1.18); opacity: 1; }
-  100% { transform: scale(1);    opacity: 1; }
-}
-.battleship-hit-pop { animation: battleship-hit-pop 260ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-@media (prefers-reduced-motion: reduce) {
-  .battleship-hit-pop { animation: none; }
-}
-`;
-
 function BattleshipBoard(
   props: BoardProps<BattleshipView, BattleshipMove>,
 ) {
   const { view, phase } = props;
 
-  const body =
-    phase === "placing" || view.phase === "placing" ? (
-      <PlacementView {...props} />
-    ) : (
-      <FiringView {...props} />
-    );
-
-  return (
-    <>
-      <style>{BATTLESHIP_KEYFRAMES}</style>
-      {body}
-    </>
-  );
+  if (phase === "placing" || view.phase === "placing") {
+    return <PlacementView {...props} />;
+  }
+  return <FiringView {...props} />;
 }
 
 // =======================================================================
@@ -320,63 +245,21 @@ function PlacementView({
         />
 
         <div className="flex flex-col gap-3 min-w-[14rem]">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
               Ships
             </span>
-            <div
-              role="radiogroup"
-              aria-label="Ship orientation"
-              className="inline-flex rounded-full p-[2px] border border-base-300/70 bg-base-100"
+            <button
+              type="button"
+              onClick={() =>
+                setOrient((o) => (o === "h" ? "v" : "h"))
+              }
+              className="btn btn-xs btn-ghost rounded-full"
+              aria-label="toggle orientation"
             >
-              {(
-                [
-                  { key: "h" as Orient, label: "Horiz", glyph: "↔" },
-                  { key: "v" as Orient, label: "Vert", glyph: "↕" },
-                ]
-              ).map(({ key, label, glyph }) => {
-                const active = orient === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setOrient(key)}
-                    className={[
-                      "flex items-center gap-1 rounded-full px-2.5 py-1",
-                      "text-[11px] font-semibold uppercase tracking-wider",
-                      "transition-colors",
-                      active
-                        ? "bg-primary text-primary-content shadow-sm"
-                        : "text-base-content/60 hover:text-base-content/90",
-                    ].join(" ")}
-                  >
-                    <span aria-hidden className="text-[0.95em] leading-none">
-                      {glyph}
-                    </span>
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+              {orient === "h" ? "Horizontal" : "Vertical"}
+            </button>
           </div>
-
-          {selected && !placements[selected] && !hover && (
-            <div
-              className="text-[11px] leading-snug text-base-content/70 rounded-md px-2.5 py-1.5"
-              style={{
-                background:
-                  "color-mix(in oklch, var(--color-primary) 8%, transparent)",
-                border:
-                  "1px dashed color-mix(in oklch, var(--color-primary) 35%, transparent)",
-              }}
-            >
-              Tap a cell to place your{" "}
-              <span className="font-semibold">{SHIP_DISPLAY[selected]}</span> (
-              {SHIP_LENGTHS[selected]}).
-            </div>
-          )}
 
           {SHIP_TYPES.map((ship) => {
             const placed = Boolean(placements[ship]);
@@ -399,24 +282,19 @@ function PlacementView({
                   onClick={() => setSelected(ship)}
                   className="flex-1 text-left"
                 >
-                  <div className="flex items-center gap-1.5 text-sm font-semibold">
-                    <span>{SHIP_DISPLAY[ship]}</span>
-                    <span className="text-base-content/45 font-mono text-[11px] tabular-nums">
-                      ({SHIP_LENGTHS[ship]})
-                    </span>
+                  <div className="text-sm font-semibold">
+                    {SHIP_DISPLAY[ship]}
                   </div>
-                  <div className="flex gap-[3px] mt-1.5">
+                  <div className="flex gap-[2px] mt-1">
                     {Array.from({ length: SHIP_LENGTHS[ship] }).map((_, i) => (
                       <span
                         key={i}
-                        className="h-3 w-6 rounded-[3px]"
+                        className="h-2.5 w-4 rounded-sm"
                         style={{
                           background: placed
-                            ? "color-mix(in oklch, var(--color-success) 70%, var(--color-base-content) 10%)"
-                            : "color-mix(in oklch, var(--color-base-content) 60%, transparent)",
-                          opacity: placed ? 0.9 : 0.55,
-                          boxShadow:
-                            "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
+                            ? "var(--color-success)"
+                            : "var(--color-neutral)",
+                          opacity: placed ? 0.8 : 0.55,
                         }}
                       />
                     ))}
@@ -573,19 +451,10 @@ function FiringView({
 // Grid components
 // =======================================================================
 
-function cellSize(_compact?: boolean) {
-  // Cells keep their aspect ratio regardless of viewport width; the grid
-  // wrapper caps the outer size so we never blow up on desktop.
-  return "aspect-square w-full";
-}
-
-function gridWrapperStyle(compact?: boolean): CSSProperties {
-  // Cap the rendered grid width so 11 × aspect-square cells stay crisp.
-  // compact = "your fleet" mini-grid in combat; larger = placement + attack.
-  return {
-    width: "100%",
-    maxWidth: compact ? "17rem" : "22rem",
-  };
+function cellSize(compact?: boolean) {
+  return compact
+    ? "h-7 w-7 md:h-8 md:w-8"
+    : "h-8 w-8 md:h-10 md:w-10";
 }
 
 function Gutters({ compact }: { compact?: boolean }) {
@@ -647,7 +516,6 @@ function FleetGrid({
     <div
       className="rounded-xl p-2"
       style={{
-        ...gridWrapperStyle(compact),
         background: "color-mix(in oklch, var(--color-base-300) 70%, transparent)",
         boxShadow:
           "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.08)",
@@ -715,16 +583,16 @@ function FleetRow({
         const isPreview = previewSet.has(idx);
         const previewOk = preview?.ok === true;
 
-        let bg = WATER_BG;
+        let bg = "var(--color-info)";
         let showShip = false;
         if (shipHere || selectionHere) {
-          bg = SHIP_BG;
+          bg = "var(--color-neutral)";
           showShip = true;
         }
         if (isPreview) {
           bg = previewOk
-            ? `color-mix(in oklch, var(--color-success) 45%, ${WATER_BG})`
-            : `color-mix(in oklch, var(--color-error) 45%, ${WATER_BG})`;
+            ? "color-mix(in oklch, var(--color-success) 55%, var(--color-info))"
+            : "color-mix(in oklch, var(--color-error) 55%, var(--color-info))";
         }
         return (
           <button
@@ -741,7 +609,7 @@ function FleetRow({
             style={{
               background: bg,
               boxShadow:
-                "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.14)",
+                "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
             }}
             aria-label={`${COLUMN_LABELS[col]}${row + 1}`}
           >
@@ -749,12 +617,29 @@ function FleetRow({
               <span
                 className="absolute inset-[2px] rounded-[2px]"
                 style={{
-                  background: SHIP_INK,
+                  background:
+                    "color-mix(in oklch, var(--color-neutral) 80%, var(--color-base-content) 20%)",
                 }}
               />
             )}
-            {incomingMark === "miss" && <MissDot />}
-            {incomingMark === "hit" && <HitMark />}
+            {incomingMark === "miss" && (
+              <span
+                className="absolute inset-0 flex items-center justify-center"
+                style={{
+                  color: "var(--color-base-content)",
+                  opacity: 0.55,
+                  fontSize: "0.9em",
+                }}
+              >
+                •
+              </span>
+            )}
+            {incomingMark === "hit" && (
+              <span
+                className="absolute inset-[3px] rounded-[2px]"
+                style={{ background: "var(--color-error)" }}
+              />
+            )}
           </button>
         );
       })}
@@ -778,7 +663,6 @@ function AttackGrid({
     <div
       className="rounded-xl p-2"
       style={{
-        ...gridWrapperStyle(false),
         background: "color-mix(in oklch, var(--color-base-300) 70%, transparent)",
         boxShadow:
           "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.08)",
@@ -833,9 +717,10 @@ function AttackRow({
         const hasShip = revealedBoard ? revealedBoard[idx] !== null : false;
         const disabled = !clickable || mark !== null;
 
-        let bg = WATER_BG;
+        let bg = "var(--color-info)";
         if (revealedBoard && hasShip && mark !== "hit") {
-          bg = `color-mix(in oklch, ${SHIP_BG} 70%, ${WATER_BG})`;
+          bg =
+            "color-mix(in oklch, var(--color-neutral) 60%, var(--color-info))";
         }
 
         return (
@@ -854,12 +739,28 @@ function AttackRow({
             style={{
               background: bg,
               boxShadow:
-                "inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.14)",
+                "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
             }}
             aria-label={`fire on ${COLUMN_LABELS[col]}${row + 1}`}
           >
-            {mark === "miss" && <MissDot />}
-            {mark === "hit" && <HitMark />}
+            {mark === "miss" && (
+              <span
+                className="absolute inset-0 flex items-center justify-center"
+                style={{
+                  color: "var(--color-base-content)",
+                  opacity: 0.55,
+                  fontSize: "0.9em",
+                }}
+              >
+                •
+              </span>
+            )}
+            {mark === "hit" && (
+              <span
+                className="absolute inset-[3px] rounded-[2px]"
+                style={{ background: "var(--color-error)" }}
+              />
+            )}
           </button>
         );
       })}

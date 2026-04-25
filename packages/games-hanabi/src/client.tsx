@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Card as CardShell,
   type BoardProps,
@@ -38,8 +38,6 @@ function HandCard({
   onClick,
   selected,
   ghost,
-  bigKnowledge,
-  strikeDiscard,
 }: {
   card: HanabiHandCardView;
   size?: CardSize;
@@ -49,10 +47,6 @@ function HandCard({
   onClick?: () => void;
   selected?: boolean;
   ghost?: boolean;
-  /** Scale knowledge dots + rank text for larger-sized own-hand cards. */
-  bigKnowledge?: boolean;
-  /** Show a strike-through indicator that discard is disabled. */
-  strikeDiscard?: boolean;
 }) {
   const knownColor =
     card.knowledge.possibleColors.length === 1
@@ -68,12 +62,6 @@ function HandCard({
   const visibleColor = showIdentity ? card.color : knownColor;
   const visibleRank = showIdentity ? card.rank : knownRank;
 
-  // Partial knowledge (some info but not full identity) — dashed border.
-  const hasPartialKnowledge =
-    !showIdentity &&
-    (card.knowledge.toldColors.length > 0 || card.knowledge.toldRanks.length > 0) &&
-    (visibleColor === null || visibleRank === null);
-
   return (
     <CardShell
       size={size}
@@ -86,37 +74,8 @@ function HandCard({
           ? `${visibleColor ?? "unknown"} ${visibleRank ?? "?"}`
           : `your card${visibleColor ? `, known ${visibleColor}` : ""}${visibleRank ? `, known ${visibleRank}` : ""}`
       }
-      style={
-        hasPartialKnowledge
-          ? {
-              outline: "1px dashed color-mix(in oklch, var(--color-primary) 55%, transparent)",
-              outlineOffset: -3,
-            }
-          : undefined
-      }
     >
-      {!showIdentity && visibleColor === null && visibleRank === null ? (
-        <HanabiCardBack />
-      ) : (
-        <HanabiFace color={visibleColor} rank={visibleRank} />
-      )}
-      {strikeDiscard && (
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: 3,
-            right: 4,
-            fontSize: 12,
-            fontWeight: 800,
-            color: "var(--color-error)",
-            opacity: 0.75,
-            textShadow: "0 0 2px oklch(100% 0 0 / 0.9)",
-          }}
-        >
-          ✕
-        </span>
-      )}
+      <HanabiFace color={visibleColor} rank={visibleRank} />
       <div
         style={{
           position: "absolute",
@@ -125,94 +84,9 @@ function HandCard({
           bottom: 3,
         }}
       >
-        <KnowledgeStrip k={card.knowledge} big={bigKnowledge} />
+        <KnowledgeStrip k={card.knowledge} />
       </div>
     </CardShell>
-  );
-}
-
-/**
- * Face-down Hanabi card — repeated firework-silhouette motif on warm
- * parchment. Visually distinct from any known-color face so the own-hand
- * panel reads as "closed book" at a glance.
- */
-function HanabiCardBack() {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        background:
-          "linear-gradient(160deg, color-mix(in oklch, var(--color-warning) 14%, var(--color-base-100)) 0%, color-mix(in oklch, var(--color-warning) 22%, var(--color-base-200)) 100%)",
-      }}
-    >
-      <svg
-        viewBox="0 0 100 140"
-        preserveAspectRatio="xMidYMid slice"
-        width="100%"
-        height="100%"
-        style={{ display: "block", opacity: 0.38 }}
-      >
-        <defs>
-          <pattern
-            id="hanabi-back-pattern"
-            x="0"
-            y="0"
-            width="22"
-            height="26"
-            patternUnits="userSpaceOnUse"
-          >
-            <g
-              stroke="color-mix(in oklch, var(--color-warning) 70%, black)"
-              strokeWidth="0.7"
-              strokeLinecap="round"
-              fill="none"
-            >
-              <g transform="translate(11 13)">
-                {[0, 45, 90, 135].map((deg) => (
-                  <line
-                    key={deg}
-                    x1="0"
-                    y1="-4"
-                    x2="0"
-                    y2="4"
-                    transform={`rotate(${deg})`}
-                  />
-                ))}
-              </g>
-            </g>
-            <circle
-              cx="11"
-              cy="13"
-              r="0.9"
-              fill="color-mix(in oklch, var(--color-warning) 80%, black)"
-            />
-          </pattern>
-        </defs>
-        <rect width="100" height="140" fill="url(#hanabi-back-pattern)" />
-        {/* Central monogram cartouche */}
-        <g transform="translate(50 70)">
-          <circle
-            r="18"
-            fill="color-mix(in oklch, var(--color-base-100) 85%, transparent)"
-            stroke="color-mix(in oklch, var(--color-warning) 60%, black)"
-            strokeWidth="0.8"
-            opacity="0.9"
-          />
-          <text
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontFamily="var(--font-display, serif)"
-            fontSize="13"
-            fontWeight={800}
-            letterSpacing="-0.02em"
-            fill="color-mix(in oklch, var(--color-warning) 60%, black)"
-          >
-            H
-          </text>
-        </g>
-      </svg>
-    </div>
   );
 }
 
@@ -329,15 +203,12 @@ function HanabiFace({
   );
 }
 
-function KnowledgeStrip({ k, big }: { k: CardKnowledge; big?: boolean }) {
+function KnowledgeStrip({ k }: { k: CardKnowledge }) {
   // Show small dots for surviving possibilities. Bold means "told yes".
   const possC = new Set(k.possibleColors);
   const toldC = new Set(k.toldColors);
   const possR = new Set(k.possibleRanks);
   const toldR = new Set(k.toldRanks);
-  const dotBase = big ? 7 : 5;
-  const dotTold = big ? 9 : 7;
-  const rankFs = big ? 11 : 8;
   return (
     <div className="flex items-center justify-between gap-1">
       <div className="flex gap-[2px]">
@@ -350,8 +221,8 @@ function KnowledgeStrip({ k, big }: { k: CardKnowledge; big?: boolean }) {
               key={c}
               className="rounded-full"
               style={{
-                width: told ? dotTold : dotBase,
-                height: told ? dotTold : dotBase,
+                width: told ? 7 : 5,
+                height: told ? 7 : 5,
                 background: COLOR_HEX[c].bg,
                 boxShadow: told
                   ? "0 0 0 1.5px oklch(100% 0 0 / 0.7)"
@@ -370,9 +241,8 @@ function KnowledgeStrip({ k, big }: { k: CardKnowledge; big?: boolean }) {
           return (
             <span
               key={r}
-              className="tabular leading-none px-[1px]"
+              className="text-[8px] tabular leading-none px-[1px]"
               style={{
-                fontSize: rankFs,
                 fontWeight: told ? 800 : 500,
                 opacity: told ? 1 : 0.6,
               }}
@@ -388,103 +258,33 @@ function KnowledgeStrip({ k, big }: { k: CardKnowledge; big?: boolean }) {
 
 // ------------------------- Played stacks -------------------------
 
-function StacksView({
-  played,
-  pulseColor,
-}: {
-  played: HanabiView["played"];
-  pulseColor: HanabiColor | null;
-}) {
+function StacksView({ played }: { played: HanabiView["played"] }) {
   return (
-    <div className="flex gap-3 flex-wrap justify-center">
+    <div className="flex gap-2 flex-wrap justify-center">
       {COLORS.map((color) => {
         const top = played[color] ?? 0;
-        const complete = top === 5;
-        const shouldPulse = pulseColor === color;
         return (
           <div key={color} className="flex flex-col items-center gap-1">
             <div
-              className="rounded-lg flex items-center justify-center font-display relative hanabi-stack-frame"
+              className="rounded-lg flex items-center justify-center font-display"
               style={{
-                width: "clamp(64px, 14vw, 80px)",
-                height: "clamp(86px, 19vw, 108px)",
+                width: 48,
+                height: 64,
                 background: top
                   ? `linear-gradient(160deg, ${COLOR_HEX[color].bg}, color-mix(in oklch, ${COLOR_HEX[color].bg} 80%, black))`
-                  : "color-mix(in oklch, var(--color-neutral) 22%, var(--color-base-100))",
+                  : "color-mix(in oklch, var(--color-neutral) 25%, var(--color-base-100))",
                 color: top ? COLOR_HEX[color].ink : "var(--color-base-content)",
-                fontSize: top ? "clamp(32px, 7vw, 44px)" : "clamp(28px, 6vw, 36px)",
+                fontSize: 28,
                 fontWeight: 800,
                 lineHeight: 1,
-                boxShadow: complete
-                  ? `inset 0 1px 0 oklch(100% 0 0 / 0.3), inset 0 -2px 4px oklch(0% 0 0 / 0.2), 0 0 0 2px color-mix(in oklch, var(--color-success) 65%, transparent), 0 0 20px color-mix(in oklch, var(--color-success) 38%, transparent)`
-                  : "inset 0 1px 0 oklch(100% 0 0 / 0.25), inset 0 -2px 4px oklch(0% 0 0 / 0.2), 0 2px 6px oklch(0% 0 0 / 0.18)",
-                animation: shouldPulse
-                  ? "hanabi-firework-complete 900ms ease-out"
-                  : undefined,
+                boxShadow:
+                  "inset 0 1px 0 oklch(100% 0 0 / 0.25), inset 0 -2px 4px oklch(0% 0 0 / 0.2), 0 2px 6px oklch(0% 0 0 / 0.18)",
               }}
             >
-              {/* Empty-stack firework silhouette */}
-              {!top && (
-                <svg
-                  viewBox="0 0 100 100"
-                  width="60%"
-                  height="60%"
-                  style={{ position: "absolute", opacity: 0.28 }}
-                  aria-hidden
-                >
-                  <g
-                    transform="translate(50 50)"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    fill="none"
-                  >
-                    {[0, 45, 90, 135].map((d) => (
-                      <line
-                        key={d}
-                        x1="-16"
-                        y1="0"
-                        x2="16"
-                        y2="0"
-                        transform={`rotate(${d})`}
-                      />
-                    ))}
-                  </g>
-                </svg>
-              )}
-              {top ? <span style={{ position: "relative" }}>{top}</span> : null}
-              {complete && (
-                <svg
-                  viewBox="0 0 100 100"
-                  width="140%"
-                  height="140%"
-                  style={{ position: "absolute", pointerEvents: "none", opacity: 0.7 }}
-                  aria-hidden
-                >
-                  <g
-                    transform="translate(50 50)"
-                    stroke="currentColor"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                    opacity="0.75"
-                  >
-                    {[0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5].map((d) => (
-                      <line
-                        key={d}
-                        x1="0"
-                        y1="-40"
-                        x2="0"
-                        y2="-32"
-                        transform={`rotate(${d})`}
-                      />
-                    ))}
-                  </g>
-                </svg>
-              )}
+              {top || "·"}
             </div>
-            <span className="text-[9px] uppercase tracking-[0.18em] text-base-content/65 font-mono tabular-nums">
-              {color} · <span className="text-base-content/90 font-semibold">{top || "—"}</span>
-              <span className="text-base-content/40">/5</span>
+            <span className="text-[9px] uppercase tracking-[0.18em] text-base-content/55">
+              {color}
             </span>
           </div>
         );
@@ -518,85 +318,63 @@ function DiscardSummary({ discard }: { discard: HanabiView["discard"] }) {
     );
   }
   return (
-    <div className="flex gap-1.5">
-      {COLORS.map((c) => {
-        const hasAny = RANKS.some((r) => (grouped[c][r] ?? 0) > 0);
-        if (!hasAny) return null;
-        return (
-          <div key={c} className="flex flex-col items-center gap-1">
-            {/* Full color swatch bar — unambiguous */}
-            <span
-              className="rounded-sm"
-              style={{
-                width: 16,
-                height: 6,
-                background: `linear-gradient(180deg, ${COLOR_HEX[c].bg}, color-mix(in oklch, ${COLOR_HEX[c].bg} 80%, black))`,
-                boxShadow: "inset 0 1px 0 oklch(100% 0 0 / 0.28)",
-              }}
-              aria-label={c}
-            />
-            {RANKS.map((r) => {
-              const n = grouped[c][r] ?? 0;
-              if (n === 0) return null;
-              return (
-                <span
-                  key={r}
-                  className="text-[11px] tabular-nums font-mono leading-none px-1"
-                  style={{ opacity: 0.9 }}
-                >
-                  {r}<span className="text-base-content/45">×</span>{n}
-                </span>
-              );
-            })}
-          </div>
-        );
-      })}
+    <div className="flex gap-2">
+      {COLORS.map((c) => (
+        <div key={c} className="flex flex-col items-center gap-0.5">
+          <span
+            className="rounded text-[10px] tabular px-1 py-0.5 font-bold"
+            style={{
+              background: COLOR_HEX[c].bg,
+              color: COLOR_HEX[c].ink,
+            }}
+          >
+            {c[0]!.toUpperCase()}
+          </span>
+          {RANKS.map((r) => {
+            const n = grouped[c][r] ?? 0;
+            if (n === 0) return null;
+            return (
+              <span
+                key={r}
+                className="text-[10px] tabular px-1 leading-none"
+                style={{ opacity: 0.85 }}
+              >
+                {r}×{n}
+              </span>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
 
 // ------------------------- Tokens -------------------------
 
-/**
- * Info & fuse rows use distinct geometry: info = rounded squares (notebook
- * chips), fuse = circles (bomb fuses). On top of the different palettes this
- * makes them readable at a glance without parsing the label.
- */
 function TokenRow({
   label,
   count,
   max,
   color,
-  shape,
-  flash,
 }: {
   label: string;
   count: number;
   max: number;
   color: string;
-  shape: "square" | "circle";
-  flash?: boolean;
 }) {
   return (
-    <div
-      className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-base-content/60"
-      style={
-        flash
-          ? { animation: "hanabi-misfire-shake 600ms ease-out" }
-          : undefined
-      }
-    >
-      <span className="font-semibold">{label}</span>
+    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-base-content/55">
+      <span>{label}</span>
       <div className="flex gap-0.5">
         {Array.from({ length: max }).map((_, i) => {
           const on = i < count;
           return (
             <span
               key={i}
-              className={shape === "square" ? "rounded-sm" : "rounded-full"}
+              className="rounded-full"
               style={{
-                width: shape === "square" ? 11 : 10,
-                height: shape === "square" ? 11 : 10,
+                width: 10,
+                height: 10,
                 background: on
                   ? color
                   : "color-mix(in oklch, var(--color-base-300) 90%, transparent)",
@@ -608,7 +386,7 @@ function TokenRow({
           );
         })}
       </div>
-      <span className="tabular-nums text-base-content/80 font-semibold">
+      <span className="tabular text-base-content/70 font-semibold">
         {count}
       </span>
     </div>
@@ -633,8 +411,7 @@ function HanabiBoard({
 
   const isOver = view.phase === "gameOver";
 
-  // Slot-select action model on own hand.
-  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  // Action mode: which seat we're about to act on.
   const [hintTarget, setHintTarget] = useState<string | null>(null);
 
   const fireworksScore = COLORS.reduce(
@@ -644,53 +421,14 @@ function HanabiBoard({
 
   const myHand = view.hands[me] ?? [];
 
-  // Track when a stack just completed (reaches 5) to fire a one-time pulse.
-  const prevPlayed = useRef<HanabiView["played"]>(view.played);
-  const [pulseColor, setPulseColor] = useState<HanabiColor | null>(null);
-  useEffect(() => {
-    const prev = prevPlayed.current;
-    let newlyCompleted: HanabiColor | null = null;
-    for (const c of COLORS) {
-      if (view.played[c] === 5 && prev[c] !== 5) {
-        newlyCompleted = c;
-        break;
-      }
-    }
-    prevPlayed.current = view.played;
-    if (newlyCompleted) {
-      setPulseColor(newlyCompleted);
-      const t = setTimeout(() => setPulseColor(null), 1000);
-      return () => clearTimeout(t);
-    }
-  }, [view.played]);
-
-  // Track misfire (wrong play) to shake the fuse row.
-  const prevLastAction = useRef(view.lastAction);
-  const [fuseFlash, setFuseFlash] = useState(false);
-  useEffect(() => {
-    const prev = prevLastAction.current;
-    const curr = view.lastAction;
-    prevLastAction.current = curr;
-    if (!curr || curr === prev) return;
-    if (curr.kind === "play" && curr.success === false) {
-      setFuseFlash(true);
-      const t = setTimeout(() => setFuseFlash(false), 650);
-      return () => clearTimeout(t);
-    }
-  }, [view.lastAction]);
-
-  const discardDisabled = view.info >= INFO_TOKENS_MAX;
-
   const playSlot = (slot: number) => {
     if (!isMyTurn || isOver) return;
     sendMove({ kind: "play", slot });
-    setSelectedSlot(null);
   };
   const discardSlot = (slot: number) => {
     if (!isMyTurn || isOver) return;
-    if (discardDisabled) return;
+    if (view.info >= INFO_TOKENS_MAX) return;
     sendMove({ kind: "discard", slot });
-    setSelectedSlot(null);
   };
   const giveColor = (target: string, color: HanabiColor) => {
     if (!isMyTurn || isOver) return;
@@ -705,71 +443,33 @@ function HanabiBoard({
 
   return (
     <div className="flex flex-col items-center gap-5 w-full max-w-6xl">
-      {/* Keyframes for firework-complete pulse and misfire shake */}
-      <style>{`
-        @keyframes hanabi-firework-complete {
-          0%   { transform: scale(1); }
-          30%  { transform: scale(1.08); }
-          60%  { transform: scale(0.98); }
-          100% { transform: scale(1); }
-        }
-        @keyframes hanabi-misfire-shake {
-          0%   { transform: translateX(0); }
-          15%  { transform: translateX(-3px); }
-          30%  { transform: translateX(3px); }
-          45%  { transform: translateX(-2px); }
-          60%  { transform: translateX(2px); }
-          75%  { transform: translateX(-1px); }
-          100% { transform: translateX(0); }
-        }
-        @keyframes hanabi-turn-pulse {
-          0%, 100% { box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 55%, transparent), 0 0 18px color-mix(in oklch, var(--color-primary) 18%, transparent); }
-          50% { box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 65%, transparent), 0 0 28px color-mix(in oklch, var(--color-primary) 26%, transparent); }
-        }
-      `}</style>
-
       <Header
         view={view}
         nameOf={nameOf}
         isMyTurn={isMyTurn}
+        score={fireworksScore}
       />
 
-      <ScoreDisplay score={fireworksScore} isOver={isOver} />
-
-      <div className="flex flex-wrap items-start justify-center gap-6 w-full">
-        <StacksView played={view.played} pulseColor={pulseColor} />
-        <div className="flex flex-col gap-1.5 items-start">
-          {view.finalRoundTurnsLeft >= 0 && (
-            <span
-              className="text-[10px] uppercase tracking-[0.2em] font-bold px-2 py-0.5 rounded-full"
-              style={{
-                background: "color-mix(in oklch, var(--color-warning) 15%, transparent)",
-                color: "var(--color-warning)",
-                border: "1px solid color-mix(in oklch, var(--color-warning) 40%, transparent)",
-                boxShadow: "inset 0 1px 0 oklch(100% 0 0 / 0.3)",
-              }}
-            >
-              Final round · {view.finalRoundTurnsLeft} turn
-              {view.finalRoundTurnsLeft === 1 ? "" : "s"} left
-            </span>
-          )}
+      <div className="flex flex-wrap items-center justify-center gap-6 w-full">
+        <StacksView played={view.played} />
+        <div className="flex flex-col gap-1 items-start">
           <TokenRow
             label="Info"
             count={view.info}
             max={INFO_TOKENS_MAX}
             color="oklch(70% 0.13 80)"
-            shape="square"
           />
           <TokenRow
             label="Fuse"
             count={view.fuses}
             max={FUSE_TOKENS_MAX}
-            color="var(--color-error)"
-            shape="circle"
-            flash={fuseFlash}
+            color="oklch(60% 0.16 25)"
           />
-          <div className="text-[10px] uppercase tracking-[0.16em] text-base-content/55 font-mono tabular-nums">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-base-content/55">
             Deck: {view.deckCount}
+            {view.finalRoundTurnsLeft >= 0 && (
+              <> · {view.finalRoundTurnsLeft} turn{view.finalRoundTurnsLeft === 1 ? "" : "s"} left</>
+            )}
           </div>
         </div>
         <DiscardSummary discard={view.discard} />
@@ -802,94 +502,64 @@ function HanabiBoard({
           })}
       </div>
 
-      {/* Own hand — distinct parchment panel, with selection + action strip */}
+      {/* Own hand — face-down except for knowledge */}
       <div
-        className="w-full rounded-2xl p-4 flex flex-col gap-3 transition-all"
+        className="w-full rounded-2xl p-4 flex flex-col gap-3"
         style={{
           background:
-            "color-mix(in oklch, var(--color-warning) 10%, var(--color-base-200))",
-          borderTop: "1px dashed color-mix(in oklch, var(--color-base-content) 25%, transparent)",
+            "color-mix(in oklch, var(--color-base-300) 70%, transparent)",
           boxShadow:
-            isMyTurn && !isOver
-              ? undefined
-              : "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
-          animation: isMyTurn && !isOver ? "hanabi-turn-pulse 2.4s ease-in-out infinite" : undefined,
+            "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
         }}
       >
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/70">
-          <span className="inline-block h-2 w-2 rounded-full bg-primary/80" />
-          <span>Your hand</span>
-          <span className="text-base-content/40">·</span>
-          <span className="text-base-content/55 normal-case tracking-normal font-normal">
-            hints &amp; intuition only
-          </span>
+        <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/60">
+          <span className="inline-block h-2 w-2 rounded-full bg-primary/70" />
+          Your hand — you can't see your own cards. Hints &amp; intuition only.
+          {isMyTurn && !isOver && (
+            <span className="ml-2 text-primary">your turn</span>
+          )}
         </div>
         {myHand.length === 0 ? (
           <div className="text-sm italic text-base-content/55 py-3 text-center">
             empty
           </div>
         ) : (
-          <>
-            <div className="flex gap-2 flex-wrap justify-center">
-              {myHand.map((c, slot) => {
-                const selectable = isMyTurn && !isOver;
-                return (
-                  <HandCard
-                    key={c.id}
-                    card={c}
-                    size="lg"
-                    showIdentity={false}
-                    bigKnowledge
-                    selected={selectedSlot === slot}
-                    onClick={
-                      selectable
-                        ? () =>
-                            setSelectedSlot(
-                              selectedSlot === slot ? null : slot,
-                            )
-                        : undefined
-                    }
-                    strikeDiscard={discardDisabled && selectedSlot === slot}
-                  />
-                );
-              })}
-            </div>
-            {isMyTurn && !isOver && (
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                {selectedSlot === null ? (
-                  <span className="text-[11px] text-base-content/55 italic">
-                    Select a slot to play or discard
-                  </span>
-                ) : (
-                  <>
-                    <span className="text-[11px] uppercase tracking-[0.2em] font-semibold text-base-content/65">
-                      Slot {selectedSlot + 1}:
-                    </span>
+          <div className="flex gap-2 flex-wrap justify-center">
+            {myHand.map((c, slot) => (
+              <div key={c.id} className="flex flex-col items-center gap-1">
+                <HandCard
+                  card={c}
+                  size="lg"
+                  showIdentity={false}
+                />
+                {isMyTurn && !isOver && (
+                  <div className="flex gap-1">
                     <button
                       type="button"
-                      onClick={() => playSlot(selectedSlot)}
-                      className="btn btn-sm btn-primary rounded-full px-4 font-semibold"
+                      onClick={() => playSlot(slot)}
+                      className="btn btn-xs btn-primary rounded-full px-2 font-semibold"
+                      title="Play this slot"
                     >
-                      Play slot {selectedSlot + 1}
+                      play
                     </button>
                     <button
                       type="button"
-                      onClick={() => discardSlot(selectedSlot)}
-                      disabled={discardDisabled}
-                      className="btn btn-sm btn-ghost rounded-full px-4 font-semibold"
+                      onClick={() => discardSlot(slot)}
+                      disabled={view.info >= INFO_TOKENS_MAX}
+                      className="btn btn-xs btn-ghost rounded-full px-2 font-semibold"
                       title={
-                        discardDisabled
-                          ? "All info tokens are available — can't discard"
+                        view.info >= INFO_TOKENS_MAX
+                          ? "All info tokens are available"
                           : "Discard for an info token"
                       }
                     >
-                      Discard slot {selectedSlot + 1}
+                      drop
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
       </div>
 
@@ -908,43 +578,22 @@ function Header({
   view,
   nameOf,
   isMyTurn,
+  score,
 }: {
   view: HanabiView;
   nameOf: (id: string) => string;
   isMyTurn: boolean;
+  score: number;
 }) {
   const status =
     view.phase === "gameOver"
-      ? "Game over"
+      ? `Game over · final score ${score}`
       : isMyTurn
-        ? "Your turn"
-        : `Waiting on ${nameOf(view.current)}`;
+        ? `Your turn — score ${score}/25`
+        : `Waiting on ${nameOf(view.current)} — score ${score}/25`;
   return (
     <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
       {status}
-    </div>
-  );
-}
-
-function ScoreDisplay({ score, isOver }: { score: number; isOver: boolean }) {
-  return (
-    <div
-      className="flex items-baseline gap-2 parlor-fade"
-      style={{
-        color: isOver && score === 25
-          ? "var(--color-success)"
-          : "var(--color-base-content)",
-      }}
-    >
-      <span
-        className="font-display tabular-nums tracking-tight leading-none"
-        style={{ fontSize: "var(--text-display-sm, 2.25rem)", fontWeight: 800 }}
-      >
-        {score}
-      </span>
-      <span className="text-base-content/50 font-mono tabular-nums text-sm">
-        / 25
-      </span>
     </div>
   );
 }
@@ -996,7 +645,6 @@ function SeatStrip({
     })
     .map(({ i }) => i);
   const matchedSet = new Set(matched);
-  const hintingActive = hoverHint !== null;
 
   return (
     <div
@@ -1041,7 +689,6 @@ function SeatStrip({
             size="md"
             showIdentity={true}
             highlight={matchedSet.has(i)}
-            ghost={hintingActive && !matchedSet.has(i)}
           />
         ))}
         {cards.length === 0 && (
