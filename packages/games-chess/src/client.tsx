@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  BoardLayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   BOARD_SIZE,
   CHESS_TYPE,
@@ -64,8 +68,14 @@ function ChessBoard({
   view,
   me,
   isMyTurn,
+  players,
   sendMove,
 }: BoardProps<ChessView, ChessMove>) {
+  const playersById = useMemo(() => {
+    const m: Record<string, { id: string; name: string }> = {};
+    for (const p of players) m[p.id] = p;
+    return m;
+  }, [players]);
   const myColor = view.colors[me] as Color | undefined;
   const isOver = view.winner !== null || view.draw !== null;
   const [selected, setSelected] = useState<Square | null>(null);
@@ -216,17 +226,104 @@ function ChessBoard({
   const topSide: "w" | "b" = flipped ? "w" : "b";
   const bottomSide: "w" | "b" = flipped ? "b" : "w";
 
-  return (
-    <div className="flex flex-col items-center gap-5">
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-        You are{" "}
-        <span className="font-bold text-base-content">
-          {myColor === "w" ? "White" : myColor === "b" ? "Black" : "Spectator"}
-        </span>
-      </div>
+  // Resolve seat names so the rails read like a real game label
+  // ("Smoke (you) — White" / "Debug 2 — Black") instead of a generic
+  // "You are White".
+  const opponentId =
+    Object.keys(view.colors).find((id) => id !== me) ?? null;
+  const myName = playersById[me]?.name ?? "You";
+  const opponentName = opponentId
+    ? playersById[opponentId]?.name ?? opponentId
+    : "Opponent";
+  const opponentColor: Color | null =
+    myColor === "w" ? "b" : myColor === "b" ? "w" : null;
 
+  // Side panel for one seat. The on-screen "top" rail is the opponent
+  // (board is flipped so my pieces sit on the near rank), so material
+  // captured FROM that side appears in their rail under their name.
+  const sidePanel = (
+    side: "top" | "bottom",
+    color: Color | null,
+    name: string,
+    isYou: boolean,
+  ) => {
+    if (!color) return null;
+    const captures = captured[color];
+    const total = Object.values(captures).reduce((s, n) => s + n, 0);
+    const advantage =
+      (color === "w" && materialDiff < 0)
+        ? -materialDiff
+        : color === "b" && materialDiff > 0
+          ? materialDiff
+          : 0;
+    const isTheirTurn =
+      !isOver && view.colors[view.current] === color;
+    return (
       <div
-        className="relative rounded-2xl p-3 md:p-4 flex flex-col gap-2"
+        className="rounded-2xl p-4 flex flex-col gap-3"
+        style={{
+          background:
+            "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
+          boxShadow: isTheirTurn
+            ? "inset 0 0 0 2px var(--color-primary), 0 6px 16px color-mix(in oklch, var(--color-primary) 18%, transparent)"
+            : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
+        }}
+      >
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+            {color === "w" ? "White" : "Black"}
+            {isTheirTurn ? " · to move" : ""}
+          </span>
+          <span
+            className="font-display tracking-tight truncate"
+            style={{ fontSize: "1.125rem", lineHeight: 1.1 }}
+          >
+            {name}
+            {isYou && (
+              <span className="text-base-content/55 font-sans text-sm ml-1">
+                (you)
+              </span>
+            )}
+          </span>
+        </div>
+        {(total > 0 || advantage > 0) && (
+          <div className="flex flex-col gap-1.5">
+            <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/45">
+              Captured by {color === "w" ? "Black" : "White"}
+            </div>
+            <div className="flex flex-wrap gap-[2px]">
+              {CAPTURED_ORDER.flatMap((kind) => {
+                const n = captures[kind] ?? 0;
+                const piece: Piece = (color === "w"
+                  ? kind.toUpperCase()
+                  : kind) as Piece;
+                return Array.from({ length: n }).map((_, i) => (
+                  <span
+                    key={`${kind}-${i}`}
+                    className="inline-flex items-center justify-center"
+                    style={{ width: "1.4rem", height: "1.4rem" }}
+                  >
+                    <PieceGlyph piece={piece} size="captured" />
+                  </span>
+                ));
+              })}
+            </div>
+            {advantage > 0 && (
+              <div className="text-[11px] font-mono tabular-nums font-semibold text-base-content/70">
+                +{advantage}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+    void side;
+  };
+
+  const board = (
+    <div className="w-full flex flex-col items-center">
+      <div
+        className="relative rounded-2xl p-3 md:p-4 flex flex-col gap-2 w-full"
         style={{
           background:
             "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
@@ -252,7 +349,7 @@ function ChessBoard({
         />
 
         <div
-          className="grid gap-0 rounded-lg overflow-hidden"
+          className="grid gap-0 rounded-lg overflow-hidden w-full"
           style={{
             gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
             boxShadow: "inset 0 0 0 2px oklch(0% 0 0 / 0.25)",
@@ -300,7 +397,6 @@ function ChessBoard({
                 onClick={() => handleSquareClick(row, col)}
                 className={[
                   "relative aspect-square",
-                  "h-10 w-10 md:h-14 md:w-14",
                   "flex items-center justify-center",
                   "transition-colors",
                   interactive ? "cursor-pointer" : "cursor-default",
@@ -423,10 +519,44 @@ function ChessBoard({
           }
         />
       </div>
+    </div>
+  );
 
-      <div className="text-xs text-base-content/55 tracking-wide">
-        {statusLine}
-      </div>
+  return (
+    <>
+      <BoardLayout
+        statusBar={
+          <div className="flex items-center justify-center gap-3 text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+            {!isOver && (
+              <span>
+                {isMyTurn ? (
+                  <span className="text-primary">
+                    {view.inCheck ? "Check — defend your king" : "Your move"}
+                  </span>
+                ) : (
+                  <span>
+                    {view.inCheck
+                      ? "Opponent in check"
+                      : "Opponent thinking…"}
+                  </span>
+                )}
+              </span>
+            )}
+            {isOver && <span>{statusLine}</span>}
+          </div>
+        }
+        leftRail={sidePanel(
+          "top",
+          opponentColor,
+          opponentName,
+          false,
+        )}
+        board={board}
+        rightRail={sidePanel("bottom", myColor ?? null, myName, true)}
+        boardMaxSize="min(75vh, 90vw)"
+        leftRailWidth={220}
+        rightRailWidth={220}
+      />
 
       {pendingPromo && myColor && (
         <PromotionPicker
@@ -435,7 +565,7 @@ function ChessBoard({
           onCancel={() => setPendingPromo(null)}
         />
       )}
-    </div>
+    </>
   );
 }
 
