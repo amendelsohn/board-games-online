@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Card as CardShell,
+  HandActionLayout,
   PlayingCard as PlayingCardFace,
   type Rank as DeckRank,
   type Suit as DeckSuit,
@@ -175,10 +176,12 @@ function GoFishBoard({
     }
   };
 
-  return (
-    <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto">
+  // Opponents are the target picker — pick one before you can ask.
+  // Their hand counts hint at what they might be holding, so this strip
+  // is both context and decision input at the same time.
+  const opponentsBlock = (
+    <div className="flex flex-col gap-3 w-full">
       <TopRibbon view={view} playersById={playersById} me={me} />
-
       {view.lastAction && (
         <LastActionLine
           entry={view.lastAction}
@@ -186,7 +189,6 @@ function GoFishBoard({
           me={me}
         />
       )}
-
       <OpponentsRow
         view={view}
         me={me}
@@ -195,24 +197,38 @@ function GoFishBoard({
         selectedTarget={selectedTarget}
         onPickTarget={setSelectedTarget}
       />
+    </div>
+  );
 
-      {isOver ? (
-        <GameOverPanel view={view} playersById={playersById} me={me} />
-      ) : (
-        <YourSeat
+  return (
+    <HandActionLayout
+      opponents={opponentsBlock}
+      hand={
+        <YourHandPanel
           hand={sortedHand}
           books={myState?.books ?? []}
           isMyTurn={isMyTurn}
-          availableRanks={availableRanks}
-          selectedRank={selectedRank}
-          onPickRank={setSelectedRank}
-          onAsk={askNow}
-          canSubmit={canSubmit}
-          hasTarget={!!selectedTarget}
-          submitting={submitting}
         />
-      )}
-    </div>
+      }
+      actions={
+        isOver ? (
+          <GameOverPanel view={view} playersById={playersById} me={me} />
+        ) : (
+          <AskPicker
+            isMyTurn={isMyTurn}
+            availableRanks={availableRanks}
+            selectedRank={selectedRank}
+            onPickRank={setSelectedRank}
+            onAsk={askNow}
+            canSubmit={canSubmit}
+            hasTarget={!!selectedTarget}
+            submitting={submitting}
+          />
+        )
+      }
+      splitRatio={[60, 40]}
+      containerMaxWidth={1200}
+    />
   );
 }
 
@@ -448,28 +464,14 @@ function OpponentsRow({
   );
 }
 
-function YourSeat({
+function YourHandPanel({
   hand,
   books,
   isMyTurn,
-  availableRanks,
-  selectedRank,
-  onPickRank,
-  onAsk,
-  canSubmit,
-  hasTarget,
-  submitting,
 }: {
   hand: Card[];
   books: Rank[];
   isMyTurn: boolean;
-  availableRanks: Rank[];
-  selectedRank: Rank | null;
-  onPickRank: (r: Rank | null) => void;
-  onAsk: () => void;
-  canSubmit: boolean;
-  hasTarget: boolean;
-  submitting: boolean;
 }) {
   return (
     <div
@@ -514,76 +516,98 @@ function YourSeat({
           ))}
         </div>
       )}
+    </div>
+  );
+}
 
-      <div
-        className="rounded-xl p-3 flex flex-col gap-2"
-        style={{
-          background:
-            "color-mix(in oklch, var(--color-base-200) 70%, var(--color-base-100))",
-        }}
-      >
-        <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
-          Ask for a rank
+function AskPicker({
+  isMyTurn,
+  availableRanks,
+  selectedRank,
+  onPickRank,
+  onAsk,
+  canSubmit,
+  hasTarget,
+  submitting,
+}: {
+  isMyTurn: boolean;
+  availableRanks: Rank[];
+  selectedRank: Rank | null;
+  onPickRank: (r: Rank | null) => void;
+  onAsk: () => void;
+  canSubmit: boolean;
+  hasTarget: boolean;
+  submitting: boolean;
+}) {
+  return (
+    <div
+      className="rounded-2xl p-4 flex flex-col gap-2"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-200) 70%, var(--color-base-100))",
+      }}
+    >
+      <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+        Ask for a rank
+      </div>
+      {availableRanks.length === 0 ? (
+        <div className="text-xs text-base-content/55 italic">
+          You have no cards to ask for.
         </div>
-        {availableRanks.length === 0 ? (
-          <div className="text-xs text-base-content/55 italic">
-            You have no cards to ask for.
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {availableRanks.map((r) => {
-              const active = selectedRank === r;
-              return (
-                <button
-                  key={r}
-                  type="button"
-                  disabled={!isMyTurn}
-                  onClick={() => onPickRank(active ? null : r)}
-                  className={[
-                    "px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors tabular min-w-[2.5rem]",
-                    active
-                      ? "text-primary-content"
-                      : "text-base-content hover:bg-base-200",
-                    !isMyTurn ? "opacity-60 cursor-not-allowed" : "",
-                  ].join(" ")}
-                  style={
-                    active
-                      ? {
-                          background: "var(--color-primary)",
-                          boxShadow: "inset 0 -1px 0 oklch(0% 0 0 / 0.2)",
-                        }
-                      : {
-                          border:
-                            "1px solid color-mix(in oklch, var(--color-base-content) 15%, transparent)",
-                        }
-                  }
-                  aria-pressed={active}
-                >
-                  {r}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            className="btn btn-primary rounded-full px-5 font-semibold"
-            disabled={!canSubmit}
-            onClick={onAsk}
-          >
-            {submitting ? "Asking…" : "Ask"}
-          </button>
-          <span className="text-xs text-base-content/55">
-            {!isMyTurn
-              ? "Not your turn."
-              : !hasTarget
-                ? "Pick a player above, then a rank."
-                : !selectedRank
-                  ? "Pick a rank."
-                  : "Ready — go for it."}
-          </span>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {availableRanks.map((r) => {
+            const active = selectedRank === r;
+            return (
+              <button
+                key={r}
+                type="button"
+                disabled={!isMyTurn}
+                onClick={() => onPickRank(active ? null : r)}
+                className={[
+                  "px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors tabular min-w-[2.5rem]",
+                  active
+                    ? "text-primary-content"
+                    : "text-base-content hover:bg-base-200",
+                  !isMyTurn ? "opacity-60 cursor-not-allowed" : "",
+                ].join(" ")}
+                style={
+                  active
+                    ? {
+                        background: "var(--color-primary)",
+                        boxShadow: "inset 0 -1px 0 oklch(0% 0 0 / 0.2)",
+                      }
+                    : {
+                        border:
+                          "1px solid color-mix(in oklch, var(--color-base-content) 15%, transparent)",
+                      }
+                }
+                aria-pressed={active}
+              >
+                {r}
+              </button>
+            );
+          })}
         </div>
+      )}
+      <div className="flex items-center gap-2 flex-wrap pt-1">
+        <button
+          type="button"
+          className="btn btn-primary rounded-full px-5 font-semibold"
+          disabled={!canSubmit}
+          onClick={onAsk}
+        >
+          {submitting ? "Asking…" : "Ask"}
+        </button>
+        <span className="text-xs text-base-content/55">
+          {!isMyTurn
+            ? "Not your turn."
+            : !hasTarget
+              ? "Pick a player above, then a rank."
+              : !selectedRank
+                ? "Pick a rank."
+                : "Ready — go for it."}
+        </span>
       </div>
     </div>
   );

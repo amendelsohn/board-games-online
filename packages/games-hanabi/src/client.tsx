@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Card as CardShell,
+  PlayerUILayout,
   type BoardProps,
   type CardSize,
   type ClientGameModule,
@@ -441,16 +442,19 @@ function HanabiBoard({
     sendMove({ kind: "hintRank", target, rank });
   };
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full max-w-6xl">
+  // Top ribbon: turn/score/tokens/deck. Coalesced into one line so the
+  // player can survey the whole game state in a glance before scanning
+  // hands. Fireworks live here too — they're permanent context, not a
+  // decision surface.
+  const topRibbon = (
+    <div className="flex flex-col items-center gap-3 w-full">
       <Header
         view={view}
         nameOf={nameOf}
         isMyTurn={isMyTurn}
         score={fireworksScore}
       />
-
-      <div className="flex flex-wrap items-center justify-center gap-6 w-full">
+      <div className="flex flex-wrap items-center justify-center gap-5">
         <StacksView played={view.played} />
         <div className="flex flex-col gap-1 items-start">
           <TokenRow
@@ -468,109 +472,131 @@ function HanabiBoard({
           <div className="text-[10px] uppercase tracking-[0.16em] text-base-content/55">
             Deck: {view.deckCount}
             {view.finalRoundTurnsLeft >= 0 && (
-              <> · {view.finalRoundTurnsLeft} turn{view.finalRoundTurnsLeft === 1 ? "" : "s"} left</>
+              <>
+                {" "}· {view.finalRoundTurnsLeft} turn
+                {view.finalRoundTurnsLeft === 1 ? "" : "s"} left
+              </>
             )}
           </div>
         </div>
-        <DiscardSummary discard={view.discard} />
       </div>
+    </div>
+  );
 
-      {/* Other seats — visible identities */}
-      <div className="flex flex-col gap-3 w-full">
-        {view.players
-          .filter((id) => id !== me)
-          .map((id) => {
-            const isTarget = hintTarget === id;
-            const isCurrent = view.current === id;
-            return (
-              <SeatStrip
-                key={id}
-                id={id}
-                view={view}
-                playersById={playersById}
-                me={me}
-                isMyTurn={isMyTurn}
-                isOver={isOver}
-                hintTarget={hintTarget}
-                setHintTarget={setHintTarget}
-                isCurrent={isCurrent}
-                isTarget={isTarget}
-                giveColor={giveColor}
-                giveRank={giveRank}
-              />
-            );
-          })}
-      </div>
+  // Opponents' visible hands — the heart of Hanabi. You can see what's
+  // in everyone else's hand and decide whether to clue, play your own,
+  // or discard. Each row is a player; clicking "hint" opens a color/rank
+  // picker inline so the player never loses their visual reference for
+  // what they're about to point at.
+  const opponentSeats = (
+    <div className="flex flex-col gap-3 w-full">
+      {view.players
+        .filter((id) => id !== me)
+        .map((id) => {
+          const isTarget = hintTarget === id;
+          const isCurrent = view.current === id;
+          return (
+            <OpponentSeat
+              key={id}
+              id={id}
+              view={view}
+              playersById={playersById}
+              me={me}
+              isMyTurn={isMyTurn}
+              isOver={isOver}
+              hintTarget={hintTarget}
+              setHintTarget={setHintTarget}
+              isCurrent={isCurrent}
+              isTarget={isTarget}
+              giveColor={giveColor}
+              giveRank={giveRank}
+            />
+          );
+        })}
+    </div>
+  );
 
-      {/* Own hand — face-down except for knowledge */}
-      <div
-        className="w-full rounded-2xl p-4 flex flex-col gap-3"
-        style={{
-          background:
-            "color-mix(in oklch, var(--color-base-300) 70%, transparent)",
-          boxShadow:
-            "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
-        }}
-      >
-        <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/60">
-          <span className="inline-block h-2 w-2 rounded-full bg-primary/70" />
-          Your hand — you can't see your own cards. Hints &amp; intuition only.
-          {isMyTurn && !isOver && (
-            <span className="ml-2 text-primary">your turn</span>
-          )}
-        </div>
-        {myHand.length === 0 ? (
-          <div className="text-sm italic text-base-content/55 py-3 text-center">
-            empty
-          </div>
-        ) : (
-          <div className="flex gap-2 flex-wrap justify-center">
-            {myHand.map((c, slot) => (
-              <div key={c.id} className="flex flex-col items-center gap-1">
-                <HandCard
-                  card={c}
-                  size="lg"
-                  showIdentity={false}
-                />
-                {isMyTurn && !isOver && (
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => playSlot(slot)}
-                      className="btn btn-xs btn-primary rounded-full px-2 font-semibold"
-                      title="Play this slot"
-                    >
-                      play
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => discardSlot(slot)}
-                      disabled={view.info >= INFO_TOKENS_MAX}
-                      className="btn btn-xs btn-ghost rounded-full px-2 font-semibold"
-                      title={
-                        view.info >= INFO_TOKENS_MAX
-                          ? "All info tokens are available"
-                          : "Discard for an info token"
-                      }
-                    >
-                      drop
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+  // Your own hand — face-down to you. Knowledge pips on each card record
+  // what you've been told (or eliminated). Action buttons sit per-card so
+  // play/discard always feel attached to the slot.
+  const myHandPanel = (
+    <div
+      className="w-full rounded-2xl p-4 flex flex-col gap-3"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-300) 70%, transparent)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
+      }}
+    >
+      <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/60">
+        <span className="inline-block h-2 w-2 rounded-full bg-primary/70" />
+        Your hand — you can't see your own cards. Hints &amp; intuition only.
+        {isMyTurn && !isOver && (
+          <span className="ml-2 text-primary">your turn</span>
         )}
       </div>
-
-      {/* Last action banner */}
-      {view.lastAction && <LastActionLine action={view.lastAction} nameOf={nameOf} />}
-
-      {/* Game over */}
-      {isOver && (
-        <GameOverPanel view={view} score={fireworksScore} />
+      {myHand.length === 0 ? (
+        <div className="text-sm italic text-base-content/55 py-3 text-center">
+          empty
+        </div>
+      ) : (
+        <div className="flex gap-2 flex-wrap justify-center">
+          {myHand.map((c, slot) => (
+            <div key={c.id} className="flex flex-col items-center gap-1">
+              <HandCard card={c} size="lg" showIdentity={false} />
+              {isMyTurn && !isOver && (
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => playSlot(slot)}
+                    className="btn btn-xs btn-primary rounded-full px-2 font-semibold"
+                    title="Play this slot"
+                  >
+                    play
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => discardSlot(slot)}
+                    disabled={view.info >= INFO_TOKENS_MAX}
+                    className="btn btn-xs btn-ghost rounded-full px-2 font-semibold"
+                    title={
+                      view.info >= INFO_TOKENS_MAX
+                        ? "All info tokens are available"
+                        : "Discard for an info token"
+                    }
+                  >
+                    drop
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </div>
+  );
+
+  return (
+    <PlayerUILayout
+      topStrip={topRibbon}
+      main={opponentSeats}
+      // Discard pile is a persistent memory aid — not a decision surface,
+      // but the strongest deduction signal in the game ("which 5s are gone?").
+      // Goes on the right rail so it never has to be hunted for.
+      rightRail={<DiscardSummary discard={view.discard} />}
+      rightRailWidth={280}
+      bottomStrip={
+        <div className="flex flex-col gap-3 w-full">
+          {myHandPanel}
+          {view.lastAction && (
+            <LastActionLine action={view.lastAction} nameOf={nameOf} />
+          )}
+          {isOver && <GameOverPanel view={view} score={fireworksScore} />}
+        </div>
+      }
+      containerMaxWidth={1400}
+    />
   );
 }
 
@@ -598,7 +624,7 @@ function Header({
   );
 }
 
-function SeatStrip({
+function OpponentSeat({
   id,
   view,
   playersById,

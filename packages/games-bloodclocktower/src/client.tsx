@@ -11,10 +11,11 @@ import {
   type ReactNode,
 } from "react";
 import type { GameEvent } from "@bgo/sdk";
-import type {
-  BoardProps,
-  ClientGameModule,
-  LobbyPanelProps,
+import {
+  PlayerUILayout,
+  type BoardProps,
+  type ClientGameModule,
+  type LobbyPanelProps,
 } from "@bgo/sdk-client";
 import {
   BOTC_TYPE,
@@ -2708,8 +2709,14 @@ function PlayerSurface({
 
   const isFinished = view.phase === "finished";
 
-  return (
-    <div className="surface-ivory w-full max-w-md flex flex-col gap-3 p-4 sm:p-6">
+  // The tabbed surface stays as the player's primary working area —
+  // BotC sessions involve checking your role, seat status, and the script
+  // pool in distinct contexts, and tabs preserve that focus discipline on
+  // mobile. On desktop, the layout shell adds a sticky seats peek so a
+  // player working in the You tab can still glance at who's alive without
+  // tab-switching mid-decision.
+  const playerCard = (
+    <div className="surface-ivory w-full max-w-md mx-auto flex flex-col gap-3 p-4 sm:p-6">
       <header className="flex flex-col gap-1">
         <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
           {scriptDisplayName(view.scriptId)} ·{" "}
@@ -2806,6 +2813,89 @@ function PlayerSurface({
         />
       )}
     </div>
+  );
+
+  // Desktop-only context rail: a compact alive-or-dead seat list, so the
+  // player can survey town on every turn without leaving the You tab.
+  // Hidden on mobile (the dedicated Seats tab covers that case).
+  const seatsRail =
+    view.phase !== "setup" && view.seatOrder.length > 0 ? (
+      <div className="hidden xl:block">
+        <CompactSeatRail
+          view={view}
+          playerById={playerById}
+        />
+      </div>
+    ) : undefined;
+
+  return (
+    <PlayerUILayout
+      main={playerCard}
+      rightRail={seatsRail}
+      rightRailWidth={240}
+      // The seats rail only unfolds at xl — at lg the player card already
+      // wants room to breathe, and squeezing 240px of seats in cramps it.
+      unfoldAt="xl"
+      containerMaxWidth={1100}
+    />
+  );
+}
+
+function CompactSeatRail({
+  view,
+  playerById,
+}: {
+  view: Extract<BotCView, { viewer: "player" }>;
+  playerById: Record<string, SeatPlayer>;
+}) {
+  const livingCount = view.seatOrder.reduce(
+    (acc, id) => acc + (view.seats[id]?.isAlive ? 1 : 0),
+    0,
+  );
+  return (
+    <aside
+      className="surface-ivory p-4 flex flex-col gap-2 sticky"
+      style={{ top: "1rem" }}
+    >
+      <div className="flex items-baseline justify-between">
+        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+          Town
+        </span>
+        <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55 font-mono tabular-nums">
+          {livingCount}/{view.seatOrder.length} alive
+        </span>
+      </div>
+      <ul className="flex flex-col gap-1">
+        {view.seatOrder.map((seatId, i) => {
+          const seatPub = view.seats[seatId];
+          const isMe = view.me?.seatId === seatId;
+          const playerName = playerById[seatId]?.name ?? seatId;
+          const dead = !seatPub?.isAlive;
+          return (
+            <li
+              key={seatId}
+              className={[
+                "flex items-center gap-2 px-2 py-1 rounded-md text-sm",
+                isMe ? "bg-primary/10 text-primary" : "",
+                dead ? "opacity-40 line-through" : "",
+              ].join(" ")}
+            >
+              <span className="font-mono tabular-nums text-[10px] text-base-content/45 w-5">
+                {i + 1}.
+              </span>
+              <span className="font-display tracking-tight truncate">
+                {playerName}
+              </span>
+              {isMe && (
+                <span className="text-[9px] uppercase tracking-[0.2em] ml-auto">
+                  you
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </aside>
   );
 }
 

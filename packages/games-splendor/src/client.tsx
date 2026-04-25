@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  PlayerUILayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   GEMS,
   POINTS_TO_WIN,
@@ -403,106 +407,121 @@ function SplendorBoard({
     });
   };
 
-  return (
-    <div className="flex flex-col gap-4 w-full max-w-6xl">
-      <StatusBar
-        view={view}
-        me={me}
-        isMyTurn={isMyTurn}
-        playersById={playersById}
+  // Order seats so I'm first in the rail — your own engine state is the
+  // single thing you check before every decision (do I have the gems?
+  // bonuses? am I close to a noble?), so it goes at the top.
+  const orderedSeats = [me, ...view.players.filter((id) => id !== me)];
+
+  // Three-tier card market plus the noble row, the gem bank, and any
+  // active take-tokens action. This is the player's primary working
+  // surface — every turn you scan the cards, decide on a path, then act.
+  const market = (
+    <div className="flex flex-col gap-3 w-full">
+      <NobleRow nobles={view.nobles} bonuses={myBonuses} />
+
+      <TierRow
+        tier={3}
+        slots={view.display[3]}
+        deckCount={view.deckCounts[3]}
+        canAct={isMyTurn && !isOver}
+        canAfford={(c) => canAfford(c, mySeat)}
+        canReserve={(mySeat?.reservedCount ?? 0) < RESERVE_LIMIT}
+        bonuses={myBonuses}
+        onBuy={(slot) => buyDisplay(3, slot)}
+        onReserveSlot={(slot) => reserveDisplay(3, slot)}
+        onReserveDeck={() => reserveDeck(3)}
+      />
+      <TierRow
+        tier={2}
+        slots={view.display[2]}
+        deckCount={view.deckCounts[2]}
+        canAct={isMyTurn && !isOver}
+        canAfford={(c) => canAfford(c, mySeat)}
+        canReserve={(mySeat?.reservedCount ?? 0) < RESERVE_LIMIT}
+        bonuses={myBonuses}
+        onBuy={(slot) => buyDisplay(2, slot)}
+        onReserveSlot={(slot) => reserveDisplay(2, slot)}
+        onReserveDeck={() => reserveDeck(2)}
+      />
+      <TierRow
+        tier={1}
+        slots={view.display[1]}
+        deckCount={view.deckCounts[1]}
+        canAct={isMyTurn && !isOver}
+        canAfford={(c) => canAfford(c, mySeat)}
+        canReserve={(mySeat?.reservedCount ?? 0) < RESERVE_LIMIT}
+        bonuses={myBonuses}
+        onBuy={(slot) => buyDisplay(1, slot)}
+        onReserveSlot={(slot) => reserveDisplay(1, slot)}
+        onReserveDeck={() => reserveDeck(1)}
       />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 w-full">
-        {/* Main play area */}
-        <div className="flex flex-col gap-3">
-          <NobleRow nobles={view.nobles} bonuses={myBonuses} />
+      <TokenBank
+        tokens={view.tokens}
+        selected={selected}
+        onGemClick={(g) => isMyTurn && !isOver && onGemClick(g)}
+      />
 
-          <TierRow
-            tier={3}
-            slots={view.display[3]}
-            deckCount={view.deckCounts[3]}
-            canAct={isMyTurn && !isOver}
-            canAfford={(c) => canAfford(c, mySeat)}
-            canReserve={(mySeat?.reservedCount ?? 0) < RESERVE_LIMIT}
-            bonuses={myBonuses}
-            onBuy={(slot) => buyDisplay(3, slot)}
-            onReserveSlot={(slot) => reserveDisplay(3, slot)}
-            onReserveDeck={() => reserveDeck(3)}
-          />
-          <TierRow
-            tier={2}
-            slots={view.display[2]}
-            deckCount={view.deckCounts[2]}
-            canAct={isMyTurn && !isOver}
-            canAfford={(c) => canAfford(c, mySeat)}
-            canReserve={(mySeat?.reservedCount ?? 0) < RESERVE_LIMIT}
-            bonuses={myBonuses}
-            onBuy={(slot) => buyDisplay(2, slot)}
-            onReserveSlot={(slot) => reserveDisplay(2, slot)}
-            onReserveDeck={() => reserveDeck(2)}
-          />
-          <TierRow
-            tier={1}
-            slots={view.display[1]}
-            deckCount={view.deckCounts[1]}
-            canAct={isMyTurn && !isOver}
-            canAfford={(c) => canAfford(c, mySeat)}
-            canReserve={(mySeat?.reservedCount ?? 0) < RESERVE_LIMIT}
-            bonuses={myBonuses}
-            onBuy={(slot) => buyDisplay(1, slot)}
-            onReserveSlot={(slot) => reserveDisplay(1, slot)}
-            onReserveDeck={() => reserveDeck(1)}
-          />
-
-          <TokenBank
-            tokens={view.tokens}
-            selected={selected}
-            onGemClick={(g) => isMyTurn && !isOver && onGemClick(g)}
-          />
-
-          {isMyTurn && !isOver && selected.length > 0 && (
-            <TokenActionRow
-              canTakeThree={canTakeThree}
-              canTakeTwo={canTakeTwo}
-              overflow={overflow}
-              returnTotal={returnTotal}
-              returnSel={returnSel}
-              onReturnAdjust={adjustReturn}
-              onClear={() => {
-                clearSelection();
-                resetReturn();
-              }}
-              onTakeThree={submitTakeThree}
-              onTakeTwo={submitTakeTwo}
-              myTokens={myTokens}
-            />
-          )}
-        </div>
-
-        {/* Side panel: seats */}
-        <aside className="flex flex-col gap-3">
-          <LastActionLine
-            action={view.lastAction}
-            playersById={playersById}
-          />
-          {view.players.map((id) => (
-            <SeatCard
-              key={id}
-              view={view}
-              seatId={id}
-              playersById={playersById}
-              me={me}
-              onBuyReserve={buyReserve}
-              canAct={isMyTurn && !isOver && id === me}
-            />
-          ))}
-        </aside>
-      </div>
-
-      {isOver && (
-        <GameOver view={view} playersById={playersById} me={me} />
+      {isMyTurn && !isOver && selected.length > 0 && (
+        <TokenActionRow
+          canTakeThree={canTakeThree}
+          canTakeTwo={canTakeTwo}
+          overflow={overflow}
+          returnTotal={returnTotal}
+          returnSel={returnSel}
+          onReturnAdjust={adjustReturn}
+          onClear={() => {
+            clearSelection();
+            resetReturn();
+          }}
+          onTakeThree={submitTakeThree}
+          onTakeTwo={submitTakeTwo}
+          myTokens={myTokens}
+        />
       )}
     </div>
+  );
+
+  const seatRail = (
+    <div className="flex flex-col gap-3">
+      <LastActionLine action={view.lastAction} playersById={playersById} />
+      {orderedSeats.map((id) => (
+        <SeatCard
+          key={id}
+          view={view}
+          seatId={id}
+          playersById={playersById}
+          me={me}
+          onBuyReserve={buyReserve}
+          canAct={isMyTurn && !isOver && id === me}
+        />
+      ))}
+    </div>
+  );
+
+  return (
+    <PlayerUILayout
+      topStrip={
+        <StatusBar
+          view={view}
+          me={me}
+          isMyTurn={isMyTurn}
+          playersById={playersById}
+        />
+      }
+      main={market}
+      rightRail={seatRail}
+      rightRailWidth={320}
+      bottomStrip={
+        isOver ? <GameOver view={view} playersById={playersById} me={me} /> : undefined
+      }
+      // Splendor wants room — three rows of four cards plus the rail.
+      containerMaxWidth={1500}
+      // The rail makes mobile cramped if it stacks too early. Push the
+      // unfold to xl so phone+tablet land on the single column with the
+      // rail underneath the market.
+      unfoldAt="xl"
+    />
   );
 }
 
