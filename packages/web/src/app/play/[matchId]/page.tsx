@@ -273,6 +273,11 @@ function useOfflineElapsed(
 ): boolean {
   const [elapsed, setElapsed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Timestamp of when the socket first entered an offline state. Persists
+  // across offline→offline transitions (e.g. reconnecting↔disconnected) so
+  // the 10s debounce reflects continuous offline time, not time-since-the
+  // -last-state-change.
+  const offlineSinceRef = useRef<number | null>(null);
 
   useEffect(() => {
     const isOffline = OFFLINE_STATES.includes(state);
@@ -281,16 +286,27 @@ function useOfflineElapsed(
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
+      offlineSinceRef.current = null;
       setElapsed(false);
       return;
     }
-    // Already in an offline state: start a debounce timer. If we leave
-    // the offline states before it fires, the cleanup clears it.
-    if (timerRef.current) return;
+    // Mark when we first went offline (only if we weren't already
+    // tracking an offline streak).
+    if (offlineSinceRef.current === null) {
+      offlineSinceRef.current = Date.now();
+    }
+    const remaining = delayMs - (Date.now() - offlineSinceRef.current);
+    if (remaining <= 0) {
+      setElapsed(true);
+      return;
+    }
+    // Re-arm a timer for the *remaining* offline budget. Cleanup below
+    // clears it on every effect re-run, but the next run reschedules
+    // with a correctly-shrunk delay because offlineSinceRef persists.
     timerRef.current = setTimeout(() => {
       setElapsed(true);
       timerRef.current = null;
-    }, delayMs);
+    }, remaining);
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
