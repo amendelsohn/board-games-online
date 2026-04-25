@@ -25,9 +25,17 @@ interface PendingPromotion {
 // by CSS fill + stroke, not by Unicode, so white pieces don't collapse into
 // their outlined cousins against cream squares. Filled silhouettes are also
 // what chess.com / lichess ship.
+//
+// The trailing U+FE0E (Variation Selector-15) forces *text* presentation.
+// Without it, some platforms (notably Linux + Noto Color Emoji) render the
+// pawn ♟ as a 3D color emoji that ignores CSS `color`/`-webkit-text-stroke`,
+// so both white and black pawns end up looking identical.
+const VS_TEXT = "︎";
 const PIECE_GLYPH: Record<Piece, string> = {
-  K: "♚", Q: "♛", R: "♜", B: "♝", N: "♞", P: "♟",
-  k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟",
+  K: "♚" + VS_TEXT, Q: "♛" + VS_TEXT, R: "♜" + VS_TEXT,
+  B: "♝" + VS_TEXT, N: "♞" + VS_TEXT, P: "♟" + VS_TEXT,
+  k: "♚" + VS_TEXT, q: "♛" + VS_TEXT, r: "♜" + VS_TEXT,
+  b: "♝" + VS_TEXT, n: "♞" + VS_TEXT, p: "♟" + VS_TEXT,
 };
 
 // Standard starting piece counts, for deriving captured material from the
@@ -41,6 +49,16 @@ const PIECE_VALUE: Record<string, number> = {
 };
 // Render order inside the captured strip: pawns → knights → bishops → rooks → queens.
 const CAPTURED_ORDER: ReadonlyArray<string> = ["p", "n", "b", "r", "q"];
+
+// Chess-board palette is pinned to absolute colors so the board reads the
+// same in both parlor-day and parlor-night themes. Theme-derived tokens
+// collapse to similar mid-dark values in night mode and destroy contrast.
+const SQUARE_LIGHT = "oklch(86% 0.035 78)";   // warm cream
+const SQUARE_DARK = "oklch(40% 0.04 60)";     // walnut
+const PIECE_WHITE_FILL = "oklch(96% 0.014 80)";
+const PIECE_WHITE_STROKE = "oklch(18% 0.012 60)";
+const PIECE_BLACK_FILL = "oklch(18% 0.012 60)";
+const PIECE_BLACK_STROKE = "oklch(92% 0.014 80)";
 
 function ChessBoard({
   view,
@@ -202,17 +220,7 @@ function ChessBoard({
     <div className="flex flex-col items-center gap-5">
       <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
         You are{" "}
-        <span
-          className="font-bold"
-          style={{
-            color:
-              myColor === "w"
-                ? "var(--color-base-content)"
-                : myColor === "b"
-                  ? "var(--color-neutral)"
-                  : undefined,
-          }}
-        >
+        <span className="font-bold text-base-content">
           {myColor === "w" ? "White" : myColor === "b" ? "Black" : "Spectator"}
         </span>
       </div>
@@ -276,9 +284,7 @@ function ChessBoard({
               !!myColor &&
               (cell || dest || isSelected);
 
-            const squareBg = isLightSquare
-              ? "color-mix(in oklch, var(--color-base-100) 78%, var(--color-warning) 8%)"
-              : "color-mix(in oklch, var(--color-neutral) 45%, var(--color-base-300))";
+            const squareBg = isLightSquare ? SQUARE_LIGHT : SQUARE_DARK;
 
             const isKingInCheck =
               view.inCheck &&
@@ -321,11 +327,11 @@ function ChessBoard({
                 {dispRow === BOARD_SIZE - 1 && (
                   <span
                     aria-hidden
-                    className="absolute bottom-0.5 right-1 font-mono text-[9px] leading-none uppercase tracking-wider"
+                    className="absolute bottom-0.5 right-1 font-mono text-[10px] leading-none uppercase tracking-wider font-semibold"
                     style={{
                       color: isLightSquare
-                        ? "color-mix(in oklch, var(--color-neutral) 60%, transparent)"
-                        : "color-mix(in oklch, var(--color-base-100) 70%, transparent)",
+                        ? "color-mix(in oklch, " + SQUARE_DARK + " 80%, transparent)"
+                        : "color-mix(in oklch, " + SQUARE_LIGHT + " 85%, transparent)",
                     }}
                   >
                     {"abcdefgh"[col]}
@@ -334,11 +340,11 @@ function ChessBoard({
                 {dispCol === 0 && (
                   <span
                     aria-hidden
-                    className="absolute top-0.5 left-1 font-mono text-[9px] leading-none tabular-nums"
+                    className="absolute top-0.5 left-1 font-mono text-[10px] leading-none tabular-nums font-semibold"
                     style={{
                       color: isLightSquare
-                        ? "color-mix(in oklch, var(--color-neutral) 60%, transparent)"
-                        : "color-mix(in oklch, var(--color-base-100) 70%, transparent)",
+                        ? "color-mix(in oklch, " + SQUARE_DARK + " 80%, transparent)"
+                        : "color-mix(in oklch, " + SQUARE_LIGHT + " 85%, transparent)",
                     }}
                   >
                     {8 - row}
@@ -502,12 +508,8 @@ function PieceGlyph({
   // `color` and `-webkit-text-stroke`. White = ivory with a dark stroke,
   // black = near-ink with a thin warm-ivory stroke (so the silhouette still
   // reads on the dark square without looking outlined).
-  const fillColor = isWhite
-    ? "color-mix(in oklch, var(--color-base-100) 92%, white)"
-    : "oklch(18% 0.012 60)";
-  const strokeColor = isWhite
-    ? "oklch(15% 0.012 60)"
-    : "color-mix(in oklch, var(--color-base-100) 55%, transparent)";
+  const fillColor = isWhite ? PIECE_WHITE_FILL : PIECE_BLACK_FILL;
+  const strokeColor = isWhite ? PIECE_WHITE_STROKE : PIECE_BLACK_STROKE;
 
   const dimensions =
     size === "captured"
@@ -585,26 +587,39 @@ function PromotionPicker({
             <button
               key={o.kind}
               type="button"
-              className="flex flex-col items-center gap-1 rounded-xl p-3 transition-colors hover:bg-base-200"
+              className="flex flex-col items-center gap-1 rounded-xl p-3 transition-transform hover:scale-105"
               onClick={() => onPick(o.kind)}
               aria-label={o.label}
               style={{
+                background: color === "w" ? SQUARE_DARK : SQUARE_LIGHT,
                 boxShadow:
-                  "inset 0 0 0 1px color-mix(in oklch, var(--color-base-content) 12%, transparent)",
+                  "inset 0 0 0 1px color-mix(in oklch, " +
+                  (color === "w" ? SQUARE_LIGHT : SQUARE_DARK) +
+                  " 30%, transparent)",
               }}
             >
               <span
                 className="text-3xl leading-none"
                 style={{
                   color:
-                    color === "w"
-                      ? "var(--color-base-content)"
-                      : "var(--color-neutral)",
+                    color === "w" ? PIECE_WHITE_FILL : PIECE_BLACK_FILL,
+                  WebkitTextStroke: `${
+                    color === "w" ? 1.1 : 0.7
+                  }px ${color === "w" ? PIECE_WHITE_STROKE : PIECE_BLACK_STROKE}`,
+                  paintOrder: "stroke fill",
                 }}
               >
                 {PIECE_GLYPH[o.piece]}
               </span>
-              <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+              <span
+                className="text-[10px] uppercase tracking-[0.18em] font-semibold"
+                style={{
+                  color:
+                    "color-mix(in oklch, " +
+                    (color === "w" ? SQUARE_LIGHT : SQUARE_DARK) +
+                    " 80%, transparent)",
+                }}
+              >
                 {o.label}
               </span>
             </button>
