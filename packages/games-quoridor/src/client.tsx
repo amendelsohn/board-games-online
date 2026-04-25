@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  BoardLayout,
+  SeatChip,
+  SeatStrip,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   BOARD_SIZE,
   QUORIDOR_TYPE,
@@ -112,45 +118,22 @@ function QuoridorBoard({
 
   const nameOf = (id: string) => playersById[id]?.name ?? id;
 
-  return (
-    <div className="flex flex-col items-center gap-4 w-full">
-      <StatusBar
-        view={view}
-        isMyTurn={isMyTurn}
-        me={me}
-        playersById={playersById}
-      />
+  const opponentId = view.players.find((id) => id !== me) ?? null;
+  const isP1Me = amP1;
+  const myAccent = isP1Me ? "var(--color-primary)" : "var(--color-error)";
+  const oppAccent = isP1Me ? "var(--color-error)" : "var(--color-primary)";
+  const myWalls = myWallsLeft;
+  const oppWalls = opponentId ? view.wallsLeft[opponentId] ?? 0 : 0;
+  const oppName = opponentId ? nameOf(opponentId) : "Opponent";
 
-      <PlayerCards
-        view={view}
-        playersById={playersById}
-        me={me}
-      />
+  const wallsMeta = (n: number) => (
+    <span className="font-mono tabular-nums text-xs text-base-content/70">
+      {n} walls
+    </span>
+  );
 
-      {/* Tool toggle */}
-      {!isOver && (
-        <div className="inline-flex rounded-full bg-base-200 p-1 ring-1 ring-base-300">
-          <ToolBtn
-            active={tool === "move"}
-            onClick={() => setTool("move")}
-            label="Move"
-          />
-          <ToolBtn
-            active={tool === "wall-h"}
-            onClick={() => setTool("wall-h")}
-            label="─ Wall"
-            disabled={myWallsLeft <= 0}
-          />
-          <ToolBtn
-            active={tool === "wall-v"}
-            onClick={() => setTool("wall-v")}
-            label="│ Wall"
-            disabled={myWallsLeft <= 0}
-          />
-        </div>
-      )}
-
-      {/* Board */}
+  const board = (
+    <div className="flex flex-col items-center w-full">
       <div
         className="relative rounded-2xl p-3"
         style={{
@@ -285,108 +268,106 @@ function QuoridorBoard({
             )}
         </div>
       </div>
-
-      {isOver && view.winner && (
-        <div className="text-sm text-base-content/80">
-          <span className="font-semibold text-success">
-            {nameOf(view.winner)}
-          </span>{" "}
-          reached the far side.
-        </div>
-      )}
     </div>
   );
-}
 
-function StatusBar({
-  view,
-  isMyTurn,
-  me,
-  playersById,
-}: {
-  view: QuoridorView;
-  isMyTurn: boolean;
-  me: string;
-  playersById: Record<string, { id: string; name: string }>;
-}) {
-  const isOver = view.winner !== null;
-  const currentName = playersById[view.current]?.name ?? view.current;
-  return (
-    <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-      {isOver ? (
-        view.winner === me ? (
-          <span className="text-success font-bold">You reached the edge</span>
-        ) : (
-          <span>
-            <span className="text-base-content font-bold">
-              {playersById[view.winner!]?.name ?? view.winner}
-            </span>{" "}
-            reached the edge
-          </span>
-        )
-      ) : isMyTurn ? (
-        <span className="text-primary font-bold">Your turn</span>
-      ) : (
-        <span>
-          Waiting on{" "}
-          <span className="text-base-content font-bold">{currentName}</span>
-        </span>
-      )}
+  const toolToggle = !isOver ? (
+    <div className="flex justify-center">
+      <div className="inline-flex rounded-full bg-base-200 p-1 ring-1 ring-base-300">
+        <ToolBtn
+          active={tool === "move"}
+          onClick={() => setTool("move")}
+          label="Move"
+        />
+        <ToolBtn
+          active={tool === "wall-h"}
+          onClick={() => setTool("wall-h")}
+          label="─ Wall"
+          disabled={myWallsLeft <= 0}
+        />
+        <ToolBtn
+          active={tool === "wall-v"}
+          onClick={() => setTool("wall-v")}
+          label="│ Wall"
+          disabled={myWallsLeft <= 0}
+        />
+      </div>
     </div>
-  );
-}
+  ) : view.winner ? (
+    <div className="text-sm text-base-content/80 text-center">
+      <span className="font-semibold text-success">
+        {nameOf(view.winner)}
+      </span>{" "}
+      reached the far side.
+    </div>
+  ) : undefined;
 
-function PlayerCards({
-  view,
-  playersById,
-  me,
-}: {
-  view: QuoridorView;
-  playersById: Record<string, { id: string; name: string }>;
-  me: string;
-}) {
   return (
-    <div className="flex gap-2 flex-wrap justify-center">
-      {view.players.map((id, idx) => {
-        const p = playersById[id] ?? { id, name: id };
-        const active = view.current === id && view.winner === null;
-        const isMe = id === me;
-        return (
-          <div
-            key={id}
-            className={[
-              "rounded-xl px-3 py-2 flex items-center gap-2 min-w-[160px]",
-              "border transition-colors",
-              active
-                ? "border-primary/55 bg-primary/10"
-                : "border-base-300/80 bg-base-100",
-            ].join(" ")}
-          >
-            <PawnGlyph seat={idx === 0 ? "p1" : "p2"} />
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1">
-                <span
-                  className={[
-                    "text-xs font-semibold truncate max-w-[140px]",
-                    active ? "text-primary" : "",
-                  ].join(" ")}
-                >
-                  {p.name}
-                </span>
-                {isMe && (
-                  <span className="text-[9px] uppercase tracking-[0.18em] text-base-content/50">
-                    you
-                  </span>
-                )}
-              </div>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
-                {view.wallsLeft[id] ?? 0} walls
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <BoardLayout
+      statusBar={
+        <SeatStrip
+          left={
+            <SeatChip
+              swatch={<PawnGlyph seat={isP1Me ? "p2" : "p1"} />}
+              label={
+                <>
+                  Pawn
+                  {!isOver && view.current === opponentId
+                    ? " · to move"
+                    : ""}
+                </>
+              }
+              name={oppName}
+              meta={wallsMeta(oppWalls)}
+              active={!isOver && view.current === opponentId}
+              accent={oppAccent}
+              align="start"
+            />
+          }
+          center={
+            <span
+              style={{
+                color: isOver
+                  ? "var(--color-success)"
+                  : isMyTurn
+                    ? "var(--color-primary)"
+                    : "var(--color-base-content)",
+              }}
+            >
+              {isOver
+                ? `${view.winner === me ? "You" : nameOf(view.winner!)} reached the edge`
+                : isMyTurn
+                  ? tool === "move"
+                    ? "Your move"
+                    : "Place a wall"
+                  : `${nameOf(view.current)} thinking…`}
+            </span>
+          }
+          right={
+            <SeatChip
+              swatch={<PawnGlyph seat={isP1Me ? "p1" : "p2"} />}
+              label={
+                <>
+                  Pawn
+                  {!isOver && isMyTurn ? " · to move" : ""}
+                </>
+              }
+              name={nameOf(me)}
+              isYou
+              meta={wallsMeta(myWalls)}
+              active={!isOver && isMyTurn}
+              accent={myAccent}
+              align="end"
+            />
+          }
+        />
+      }
+      board={board}
+      toolbar={toolToggle}
+      // Quoridor's board is intrinsically pixel-sized for wall precision —
+      // don't try to scale it; just let it sit centered with rails removed.
+      boardMaxSize="none"
+    />
   );
 }
 
