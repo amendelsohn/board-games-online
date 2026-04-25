@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Card as CardShell,
+  PlayerUILayout,
   type BoardProps,
   type CardSize,
   type ClientGameModule,
@@ -357,119 +358,128 @@ function SushiBoard({
     }
   };
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full max-w-6xl">
-      <Header view={view} playersById={playersById} />
+  const tableaus = (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
+      {view.players.map((id) => (
+        <Tableau
+          key={id}
+          id={id}
+          view={view}
+          playersById={playersById}
+          isMe={id === me}
+        />
+      ))}
+    </div>
+  );
 
-      {/* Tableaus */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
-        {view.players.map((id) => (
-          <Tableau
-            key={id}
-            id={id}
-            view={view}
-            playersById={playersById}
-            isMe={id === me}
-          />
-        ))}
+  const handPanel = !isOver ? (
+    <div
+      className="w-full rounded-2xl p-4 flex flex-col gap-3 items-center"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-300) 70%, transparent)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.15)",
+      }}
+    >
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/60">
+        <span className="inline-block h-2 w-2 rounded-full bg-primary/70" />
+        Your hand — round {view.round}, {myHand.length} card{myHand.length === 1 ? "" : "s"}
+        {iPicked && (
+          <span className="ml-2 text-success">✓ locked in</span>
+        )}
       </div>
-
-      {/* Hand */}
-      {!isOver && (
-        <div className="w-full rounded-2xl p-4 flex flex-col gap-3 items-center"
-          style={{
-            background:
-              "color-mix(in oklch, var(--color-base-300) 70%, transparent)",
-            boxShadow:
-              "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.15)",
-          }}
-        >
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/60">
-            <span className="inline-block h-2 w-2 rounded-full bg-primary/70" />
-            Your hand — round {view.round}, {myHand.length} card{myHand.length === 1 ? "" : "s"}
-            {iPicked && (
-              <span className="ml-2 text-success">✓ locked in</span>
-            )}
-          </div>
-          {myHand.length === 0 ? (
-            <div className="text-sm italic text-base-content/55 py-3">
-              empty — waiting on next deal
-            </div>
-          ) : (
-            <div className="flex gap-2 flex-wrap justify-center">
-              {myHand.map((c) => {
-                const isPrim = primary === c.id;
-                const isSec = secondary === c.id;
-                return (
-                  <CardFace
-                    key={c.id}
-                    card={c}
-                    selectable={!iPicked && isMyTurn}
-                    selected={isPrim}
-                    secondarySelected={isSec}
-                    bonus={bonusText(c, view)}
-                    onClick={() => {
-                      if (iPicked) return;
-                      if (!isMyTurn) return;
-                      if (isPrim) {
-                        setPrimary(null);
-                        return;
-                      }
-                      if (isSec) {
-                        setSecondary(null);
-                        return;
-                      }
-                      if (primary === null) {
-                        setPrimary(c.id);
-                      } else if (useChopsticks && secondary === null) {
-                        setSecondary(c.id);
-                      } else {
-                        // Replace primary
-                        setPrimary(c.id);
-                        setSecondary(null);
-                      }
-                    }}
-                  />
-                );
-              })}
-            </div>
-          )}
-          {!iPicked && (
-            <div className="flex items-center gap-3 flex-wrap justify-center">
-              {useChopsticks && (
-                <span className="text-[10px] uppercase tracking-[0.22em] text-warning font-semibold">
-                  Chopsticks ready — pick a 2nd card to use
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={submit}
-                disabled={!primary || !isMyTurn}
-                className="btn btn-primary rounded-full px-5 font-semibold"
-              >
-                {useChopsticks && secondary
-                  ? "Lock in 2 cards"
-                  : "Lock in pick"}
-              </button>
-            </div>
-          )}
-          {iPicked && (
-            <div className="text-xs text-base-content/55 italic">
-              Waiting on others to pick…
-            </div>
-          )}
+      {myHand.length === 0 ? (
+        <div className="text-sm italic text-base-content/55 py-3">
+          empty — waiting on next deal
+        </div>
+      ) : (
+        <div className="flex gap-2 flex-wrap justify-center">
+          {myHand.map((c) => {
+            const isPrim = primary === c.id;
+            const isSec = secondary === c.id;
+            return (
+              <CardFace
+                key={c.id}
+                card={c}
+                selectable={!iPicked && isMyTurn}
+                selected={isPrim}
+                secondarySelected={isSec}
+                bonus={bonusText(c, view)}
+                onClick={() => {
+                  if (iPicked) return;
+                  if (!isMyTurn) return;
+                  if (isPrim) {
+                    setPrimary(null);
+                    return;
+                  }
+                  if (isSec) {
+                    setSecondary(null);
+                    return;
+                  }
+                  if (primary === null) {
+                    setPrimary(c.id);
+                  } else if (useChopsticks && secondary === null) {
+                    setSecondary(c.id);
+                  } else {
+                    // Replace primary
+                    setPrimary(c.id);
+                    setSecondary(null);
+                  }
+                }}
+              />
+            );
+          })}
         </div>
       )}
-
-      {/* End of round / game */}
-      {view.lastRoundResult &&
-        (view.phase === "gameOver" || view.phase === "scoring") && (
-          <RoundResultPanel
-            view={view}
-            playersById={playersById}
-          />
-        )}
+      {!iPicked && (
+        <div className="flex items-center gap-3 flex-wrap justify-center">
+          {useChopsticks && (
+            <span className="text-[10px] uppercase tracking-[0.22em] text-warning font-semibold">
+              Chopsticks ready — pick a 2nd card to use
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!primary || !isMyTurn}
+            className="btn btn-primary rounded-full px-5 font-semibold"
+          >
+            {useChopsticks && secondary
+              ? "Lock in 2 cards"
+              : "Lock in pick"}
+          </button>
+        </div>
+      )}
+      {iPicked && (
+        <div className="text-xs text-base-content/55 italic">
+          Waiting on others to pick…
+        </div>
+      )}
     </div>
+  ) : undefined;
+
+  const showResults =
+    view.lastRoundResult &&
+    (view.phase === "gameOver" || view.phase === "scoring");
+
+  const topStrip = (
+    <div className="flex flex-col items-center gap-3">
+      <Header view={view} playersById={playersById} />
+      {showResults && (
+        <RoundResultPanel view={view} playersById={playersById} />
+      )}
+    </div>
+  );
+
+  return (
+    <PlayerUILayout
+      topStrip={topStrip}
+      main={tableaus}
+      bottomStrip={handPanel}
+      containerMaxWidth={1500}
+      gap={1.25}
+    />
   );
 }
 

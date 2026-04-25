@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import { PlayerUILayout } from "@bgo/sdk-client";
 import {
   RPS_TYPE,
   THROWS,
@@ -65,19 +66,24 @@ function RpsBoard({
     await sendMove({ kind: "throw", throw: t });
   };
 
-  return (
-    <div className="flex flex-col items-center gap-6 w-full">
-      <Scoreboard
-        meName={playersById[me]?.name ?? "You"}
-        oppName={(opponentId && playersById[opponentId]?.name) || "Opponent"}
-        myScore={myScore}
-        oppScore={oppScore}
-        round={view.round}
-        winsToClinch={view.winsToClinch}
-        isOver={isOver}
-        didIWin={didIWin}
-      />
+  const meName = playersById[me]?.name ?? "You";
+  const oppName = (opponentId && playersById[opponentId]?.name) || "Opponent";
 
+  const scoreboard = (
+    <Scoreboard
+      meName={meName}
+      oppName={oppName}
+      myScore={myScore}
+      oppScore={oppScore}
+      round={view.round}
+      winsToClinch={view.winsToClinch}
+      isOver={isOver}
+      didIWin={didIWin}
+    />
+  );
+
+  const action = (
+    <div className="flex flex-col items-center gap-5 w-full">
       {!isOver && iAmInMatch && (
         <div className="flex flex-col items-center gap-3 w-full">
           <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
@@ -133,18 +139,10 @@ function RpsBoard({
         </div>
       )}
 
-      <RoundHistory
-        history={view.roundHistory}
-        me={me}
-        opponentId={opponentId ?? null}
-        meName={playersById[me]?.name ?? "You"}
-        oppName={(opponentId && playersById[opponentId]?.name) || "Opponent"}
-      />
-
       {isOver && (
         <div
           className={[
-            "mt-2 rounded-2xl px-5 py-3 parlor-rise",
+            "rounded-2xl px-5 py-3 parlor-rise",
             didIWin
               ? "bg-success/15 ring-1 ring-success text-success"
               : iAmInMatch
@@ -162,6 +160,29 @@ function RpsBoard({
         </div>
       )}
     </div>
+  );
+
+  const history = view.roundHistory.length > 0 ? (
+    <div className="flex justify-center">
+      <RoundHistory
+        history={view.roundHistory}
+        me={me}
+        opponentId={opponentId ?? null}
+        meName={meName}
+        oppName={oppName}
+      />
+    </div>
+  ) : undefined;
+
+  return (
+    <PlayerUILayout
+      topStrip={<div className="flex justify-center">{scoreboard}</div>}
+      main={action}
+      bottomStrip={history}
+      containerMaxWidth={900}
+      mainMaxWidth={640}
+      gap={1.25}
+    />
   );
 }
 

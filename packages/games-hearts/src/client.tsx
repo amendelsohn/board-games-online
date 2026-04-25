@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Card as CardShell,
+  PlayerUILayout,
   PlayingCard as PlayingCardFace,
   type Rank as DeckRank,
   type Suit as DeckSuit,
@@ -112,75 +113,88 @@ function HeartsBoard({
     }
   };
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full">
+  const table = (
+    <div className="grid grid-cols-[1fr_2fr_1fr] grid-rows-[auto_auto_auto] gap-4 w-full">
+      {/* Top: north opponent */}
+      <div className="col-start-2 row-start-1 flex justify-center">
+        <OpponentCard
+          seat="top"
+          view={view}
+          playersById={playersById}
+          pid={seating.top}
+        />
+      </div>
+      {/* Left opponent */}
+      <div className="col-start-1 row-start-2 flex items-center justify-center">
+        <OpponentCard
+          seat="left"
+          view={view}
+          playersById={playersById}
+          pid={seating.left}
+        />
+      </div>
+      {/* Right opponent */}
+      <div className="col-start-3 row-start-2 flex items-center justify-center">
+        <OpponentCard
+          seat="right"
+          view={view}
+          playersById={playersById}
+          pid={seating.right}
+        />
+      </div>
+      {/* Center trick area */}
+      <div className="col-start-2 row-start-2 flex items-center justify-center">
+        <TrickArea view={view} seating={seating} />
+      </div>
+      {/* Bottom: self zone spans all columns */}
+      <div className="col-span-3 row-start-3 flex flex-col items-center gap-3">
+        <SelfPanel
+          view={view}
+          me={me}
+          selected={selected}
+          isPassing={isPassing}
+          iPassed={iPassed}
+          isPlaying={isPlaying}
+          isOver={isOver}
+          onToggle={toggleSelect}
+          onPlay={playCard}
+          legalToPlay={legalToPlay}
+          onSubmitPass={submitPass}
+          submitting={submitting}
+        />
+      </div>
+    </div>
+  );
+
+  const status = (
+    <div className="flex justify-center">
       <StatusBar
         view={view}
         me={me}
         playersById={playersById}
         isMyTurn={isMyTurn}
       />
-
-      <div className="w-full max-w-4xl grid grid-cols-[1fr_2fr_1fr] grid-rows-[auto_auto_auto] gap-4">
-        {/* Top: north opponent */}
-        <div className="col-start-2 row-start-1 flex justify-center">
-          <OpponentCard
-            seat="top"
-            view={view}
-            playersById={playersById}
-            pid={seating.top}
-          />
-        </div>
-        {/* Left opponent */}
-        <div className="col-start-1 row-start-2 flex items-center justify-center">
-          <OpponentCard
-            seat="left"
-            view={view}
-            playersById={playersById}
-            pid={seating.left}
-          />
-        </div>
-        {/* Right opponent */}
-        <div className="col-start-3 row-start-2 flex items-center justify-center">
-          <OpponentCard
-            seat="right"
-            view={view}
-            playersById={playersById}
-            pid={seating.right}
-          />
-        </div>
-        {/* Center trick area */}
-        <div className="col-start-2 row-start-2 flex items-center justify-center">
-          <TrickArea view={view} seating={seating} />
-        </div>
-        {/* Bottom: self zone spans all columns */}
-        <div className="col-span-3 row-start-3 flex flex-col items-center gap-3">
-          <SelfPanel
-            view={view}
-            me={me}
-            selected={selected}
-            isPassing={isPassing}
-            iPassed={iPassed}
-            isPlaying={isPlaying}
-            isOver={isOver}
-            onToggle={toggleSelect}
-            onPlay={playCard}
-            legalToPlay={legalToPlay}
-            onSubmitPass={submitPass}
-            submitting={submitting}
-          />
-        </div>
-      </div>
-
-      {isPassing && (
-        <PassingHint
-          iPassed={iPassed}
-          selectedCount={selected.length}
-          view={view}
-          playersById={playersById}
-        />
-      )}
     </div>
+  );
+
+  const passingHint = isPassing ? (
+    <PassingHint
+      iPassed={iPassed}
+      selectedCount={selected.length}
+      view={view}
+      playersById={playersById}
+    />
+  ) : undefined;
+
+  return (
+    <PlayerUILayout
+      topStrip={status}
+      main={table}
+      bottomStrip={passingHint}
+      containerMaxWidth={1100}
+      mainMaxWidth={960}
+      gap={1.25}
+    />
   );
 }
 

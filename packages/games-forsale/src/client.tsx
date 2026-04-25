@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Card as CardShell,
+  PlayerUILayout,
   type BoardProps,
   type CardSize,
   type ClientGameModule,
@@ -424,16 +425,15 @@ function ForSaleBoard({
     await sendMove({ kind: "playProperty", card });
   };
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full max-w-5xl">
+  const topStrip = (
+    <div className="flex flex-col items-center gap-3">
       <PhaseHeader view={view} />
+      <Scoreboard view={view} playersById={playersById} me={me} />
+    </div>
+  );
 
-      <Scoreboard
-        view={view}
-        playersById={playersById}
-        me={me}
-      />
-
+  const mainContent = (
+    <div className="flex flex-col items-center gap-5 w-full">
       {inProperty && (
         <div className="flex flex-col items-center gap-4 w-full">
           <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
@@ -543,21 +543,30 @@ function ForSaleBoard({
           me={me}
         />
       )}
-
-      {/* Non-current-player's hand always visible to them */}
-      {!isOver && view.myProperties.length > 0 && !inCheque && (
-        <div className="flex flex-col items-center gap-1">
-          <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/50">
-            Your hand
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap justify-center">
-            {view.myProperties.map((c) => (
-              <PropertyCard key={c} value={c} size="sm" />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
+  );
+
+  const handStrip = !isOver && view.myProperties.length > 0 && !inCheque ? (
+    <div className="flex flex-col items-center gap-1">
+      <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/50">
+        Your hand
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap justify-center">
+        {view.myProperties.map((c) => (
+          <PropertyCard key={c} value={c} size="sm" />
+        ))}
+      </div>
+    </div>
+  ) : undefined;
+
+  return (
+    <PlayerUILayout
+      topStrip={topStrip}
+      main={mainContent}
+      bottomStrip={handStrip}
+      containerMaxWidth={1280}
+      gap={1.25}
+    />
   );
 }
 

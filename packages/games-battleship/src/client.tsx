@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PlayerUILayout } from "@bgo/sdk-client";
 import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
 import type { PlayerId } from "@bgo/sdk";
 import {
@@ -203,141 +204,159 @@ function PlacementView({
 
   if (alreadyLocked) {
     return (
-      <div className="flex flex-col items-center gap-4">
-        <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-          Fleet locked in
-        </div>
-        <FleetGrid
-          board={mySide?.board ?? null}
-          preview={null}
-          incoming={mySide?.incoming ?? []}
-          hover={null}
-          setHover={() => {}}
-          onClickCell={() => {}}
-          placementSelection={null}
-        />
-        <div className="text-sm text-base-content/65">
-          Waiting for opponent to place their fleet…
-        </div>
-      </div>
+      <PlayerUILayout
+        topStrip={
+          <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold text-center">
+            Fleet locked in
+          </div>
+        }
+        main={
+          <div className="flex justify-center">
+            <FleetGrid
+              board={mySide?.board ?? null}
+              preview={null}
+              incoming={mySide?.incoming ?? []}
+              hover={null}
+              setHover={() => {}}
+              onClickCell={() => {}}
+              placementSelection={null}
+            />
+          </div>
+        }
+        bottomStrip={
+          <div className="text-sm text-base-content/65 text-center">
+            Waiting for opponent to place their fleet…
+          </div>
+        }
+        containerMaxWidth={900}
+        gap={1.25}
+      />
     );
   }
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full">
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-        Place your fleet
-      </div>
-
-      <div className="flex flex-col md:flex-row items-start gap-6 w-full justify-center">
-        <FleetGrid
-          board={null}
-          preview={
-            preview && preview.cells
-              ? { cells: preview.cells, ok: preview.ok }
-              : null
-          }
-          placementSelection={placements}
-          incoming={[]}
-          hover={hover}
-          setHover={setHover}
-          onClickCell={clickCell}
-        />
-
-        <div className="flex flex-col gap-3 min-w-[14rem]">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
-              Ships
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                setOrient((o) => (o === "h" ? "v" : "h"))
-              }
-              className="btn btn-xs btn-ghost rounded-full"
-              aria-label="toggle orientation"
-            >
-              {orient === "h" ? "Horizontal" : "Vertical"}
-            </button>
-          </div>
-
-          {SHIP_TYPES.map((ship) => {
-            const placed = Boolean(placements[ship]);
-            const isSel = selected === ship;
-            return (
-              <div
-                key={ship}
-                className={[
-                  "flex items-center gap-3 px-3 py-2 rounded-lg",
-                  "border transition-colors",
-                  isSel
-                    ? "border-primary bg-primary/10"
-                    : placed
-                      ? "border-success/40 bg-success/5"
-                      : "border-base-300/70 bg-base-100",
-                ].join(" ")}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelected(ship)}
-                  className="flex-1 text-left"
-                >
-                  <div className="text-sm font-semibold">
-                    {SHIP_DISPLAY[ship]}
-                  </div>
-                  <div className="flex gap-[2px] mt-1">
-                    {Array.from({ length: SHIP_LENGTHS[ship] }).map((_, i) => (
-                      <span
-                        key={i}
-                        className="h-2.5 w-4 rounded-sm"
-                        style={{
-                          background: placed
-                            ? "var(--color-success)"
-                            : "var(--color-neutral)",
-                          opacity: placed ? 0.8 : 0.55,
-                        }}
-                      />
-                    ))}
-                  </div>
-                </button>
-                {placed && (
-                  <button
-                    type="button"
-                    onClick={() => removeShip(ship)}
-                    className="text-xs text-base-content/50 hover:text-error"
-                    aria-label={`remove ${ship}`}
-                  >
-                    reset
-                  </button>
-                )}
-              </div>
-            );
-          })}
-
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={randomize}
-              className="btn btn-sm btn-ghost rounded-full flex-1"
-            >
-              Randomize
-            </button>
-            <button
-              type="button"
-              disabled={!allPlaced || submitting}
-              onClick={confirm}
-              className="btn btn-sm btn-primary rounded-full flex-1 font-semibold"
-            >
-              Ready
-            </button>
-          </div>
-
-          {error && (
-            <div className="text-xs text-error">{error}</div>
-          )}
-        </div>
-      </div>
+  const placementGrid = (
+    <div className="flex justify-center">
+      <FleetGrid
+        board={null}
+        preview={
+          preview && preview.cells
+            ? { cells: preview.cells, ok: preview.ok }
+            : null
+        }
+        placementSelection={placements}
+        incoming={[]}
+        hover={hover}
+        setHover={setHover}
+        onClickCell={clickCell}
+      />
     </div>
+  );
+
+  const shipPicker = (
+    <div className="flex flex-col gap-3 min-w-[14rem]">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+          Ships
+        </span>
+        <button
+          type="button"
+          onClick={() => setOrient((o) => (o === "h" ? "v" : "h"))}
+          className="btn btn-xs btn-ghost rounded-full"
+          aria-label="toggle orientation"
+        >
+          {orient === "h" ? "Horizontal" : "Vertical"}
+        </button>
+      </div>
+
+      {SHIP_TYPES.map((ship) => {
+        const placed = Boolean(placements[ship]);
+        const isSel = selected === ship;
+        return (
+          <div
+            key={ship}
+            className={[
+              "flex items-center gap-3 px-3 py-2 rounded-lg",
+              "border transition-colors",
+              isSel
+                ? "border-primary bg-primary/10"
+                : placed
+                  ? "border-success/40 bg-success/5"
+                  : "border-base-300/70 bg-base-100",
+            ].join(" ")}
+          >
+            <button
+              type="button"
+              onClick={() => setSelected(ship)}
+              className="flex-1 text-left"
+            >
+              <div className="text-sm font-semibold">
+                {SHIP_DISPLAY[ship]}
+              </div>
+              <div className="flex gap-[2px] mt-1">
+                {Array.from({ length: SHIP_LENGTHS[ship] }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="h-2.5 w-4 rounded-sm"
+                    style={{
+                      background: placed
+                        ? "var(--color-success)"
+                        : "var(--color-neutral)",
+                      opacity: placed ? 0.8 : 0.55,
+                    }}
+                  />
+                ))}
+              </div>
+            </button>
+            {placed && (
+              <button
+                type="button"
+                onClick={() => removeShip(ship)}
+                className="text-xs text-base-content/50 hover:text-error"
+                aria-label={`remove ${ship}`}
+              >
+                reset
+              </button>
+            )}
+          </div>
+        );
+      })}
+
+      <div className="flex gap-2 pt-1">
+        <button
+          type="button"
+          onClick={randomize}
+          className="btn btn-sm btn-ghost rounded-full flex-1"
+        >
+          Randomize
+        </button>
+        <button
+          type="button"
+          disabled={!allPlaced || submitting}
+          onClick={confirm}
+          className="btn btn-sm btn-primary rounded-full flex-1 font-semibold"
+        >
+          Ready
+        </button>
+      </div>
+
+      {error && <div className="text-xs text-error">{error}</div>}
+    </div>
+  );
+
+  return (
+    <PlayerUILayout
+      topStrip={
+        <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold text-center">
+          Place your fleet
+        </div>
+      }
+      main={placementGrid}
+      rightRail={shipPicker}
+      rightRailWidth={260}
+      containerMaxWidth={1100}
+      unfoldAt="md"
+      gap={1.25}
+    />
   );
 }
 
@@ -399,51 +418,63 @@ function FiringView({
     return `${who} fired ${coord} — hit!`;
   })();
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full">
+  const status = (
+    <div className="flex flex-col items-center gap-1.5">
       <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
         {statusLine}
       </div>
       {lastShotLine && (
         <div className="text-sm text-base-content/65">{lastShotLine}</div>
       )}
+    </div>
+  );
 
-      <div className="flex flex-col lg:flex-row items-start gap-6 justify-center w-full">
-        {/* Your fleet */}
-        <div className="flex flex-col items-center gap-2">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-            Your fleet
-          </div>
-          <FleetGrid
-            board={mySide?.board ?? null}
-            incoming={mySide?.incoming ?? []}
-            preview={null}
-            placementSelection={null}
-            hover={null}
-            setHover={() => {}}
-            onClickCell={() => {}}
-            compact
-          />
-          <FleetStatus side={mySide} showSunkOnly={false} />
+  const grids = (
+    <div className="flex flex-col lg:flex-row items-start gap-6 justify-center w-full">
+      {/* Your fleet */}
+      <div className="flex flex-col items-center gap-2">
+        <div className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+          Your fleet
         </div>
-
-        {/* Opponent */}
-        <div className="flex flex-col items-center gap-2">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-            {nameFor(opp!)}'s waters
-          </div>
-          <AttackGrid
-            marks={attackMarks}
-            clickable={isMyTurn && !isOver}
-            onFire={fireOnCell}
-            revealedBoard={isOver ? oppSide?.board ?? null : null}
-          />
-          <FleetStatus side={oppSide} showSunkOnly={!isOver} />
-        </div>
+        <FleetGrid
+          board={mySide?.board ?? null}
+          incoming={mySide?.incoming ?? []}
+          preview={null}
+          placementSelection={null}
+          hover={null}
+          setHover={() => {}}
+          onClickCell={() => {}}
+          compact
+        />
+        <FleetStatus side={mySide} showSunkOnly={false} />
       </div>
 
-      {error && <div className="text-xs text-error">{error}</div>}
+      {/* Opponent */}
+      <div className="flex flex-col items-center gap-2">
+        <div className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+          {nameFor(opp!)}'s waters
+        </div>
+        <AttackGrid
+          marks={attackMarks}
+          clickable={isMyTurn && !isOver}
+          onFire={fireOnCell}
+          revealedBoard={isOver ? oppSide?.board ?? null : null}
+        />
+        <FleetStatus side={oppSide} showSunkOnly={!isOver} />
+      </div>
     </div>
+  );
+
+  return (
+    <PlayerUILayout
+      topStrip={status}
+      main={grids}
+      bottomStrip={
+        error ? <div className="text-xs text-error text-center">{error}</div> : undefined
+      }
+      containerMaxWidth={1280}
+      gap={1.25}
+    />
   );
 }
 
