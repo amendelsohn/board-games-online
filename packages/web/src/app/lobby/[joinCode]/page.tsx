@@ -7,6 +7,7 @@ import { getClientModule } from "@bgo/sdk-client";
 import { api } from "@/lib/apiClient";
 import { ensurePlayer, getStoredName, storeName } from "@/lib/playerSession";
 import { registerAllClientGames } from "@/lib/registerClientGames";
+import { recordRecentTable } from "@/lib/recentTables";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
 import { JoinCodeDisplay } from "@/components/JoinCodeDisplay";
 
@@ -59,6 +60,11 @@ export default function LobbyPage() {
         const r = await api.joinTable(joinCode);
         if (cancelled) return;
         setTable(r.table);
+        recordRecentTable({
+          tableId: r.table.id,
+          joinCode: r.table.joinCode,
+          gameType: r.table.gameType,
+        });
         schedulePoll(r.table.id);
       } catch (err) {
         if (!cancelled) setError((err as Error).message);

@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    name: Typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm build:shared
+
+      # Game modules are resolved by the server via their dist/ output (the
+      # server's register-games.ts imports `@bgo/games-*/server`), so every
+      # game package needs to be built before the server can typecheck.
+      - name: Build game modules
+        run: pnpm --filter "@bgo/games-*" build
+
+      - name: Typecheck (all packages)
+        run: pnpm -r typecheck
+
+      - name: Build web
+        run: pnpm --filter @bgo/web build
+
+      - name: Build server
+        run: pnpm --filter @bgo/server build
