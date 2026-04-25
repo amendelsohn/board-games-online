@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   Card as CardShell,
+  HiddenRoleLayout,
   type BoardProps,
   type ClientGameModule,
   type SummaryProps,
@@ -40,54 +41,71 @@ function SecretHitlerBoard({
   const amChancellor = me === view.chancellor;
   const iHaveVoted = view.voteTally.voters.includes(me);
 
+  if (isOver) {
+    return (
+      <div className="flex flex-col items-center gap-5 w-full max-w-3xl mx-auto">
+        <PolicyTracks view={view} />
+        <GameOverPanel view={view} playersById={playersById} />
+        <PolicyHistoryStrip view={view} />
+      </div>
+    );
+  }
+
+  let phasePanel: React.ReactNode = null;
+  if (isNomination) {
+    phasePanel = (
+      <NominationPanel
+        view={view}
+        playersById={playersById}
+        amPresident={amPresident}
+        onNominate={(target) => sendMove({ kind: "nominate", target })}
+      />
+    );
+  } else if (isVote) {
+    phasePanel = (
+      <VotePanel
+        view={view}
+        playersById={playersById}
+        iHaveVoted={iHaveVoted}
+        onVote={(vote) => sendMove({ kind: "vote", vote })}
+      />
+    );
+  } else if (isPresidentDiscard) {
+    phasePanel = (
+      <PresidentDiscardPanel
+        view={view}
+        amPresident={amPresident}
+        onDiscard={(index) => sendMove({ kind: "presidentDiscard", index })}
+      />
+    );
+  } else if (isChancellorEnact) {
+    phasePanel = (
+      <ChancellorEnactPanel
+        view={view}
+        amChancellor={amChancellor}
+        onEnact={(index) => sendMove({ kind: "chancellorEnact", index })}
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center gap-5 w-full">
-      <PolicyTracks view={view} />
-
-      <RoleCard view={view} playersById={playersById} />
-
-      <RoundBanner view={view} playersById={playersById} me={me} />
-
-      <PlayerBoard view={view} playersById={playersById} me={me} />
-
-      {isNomination && (
-        <NominationPanel
-          view={view}
-          playersById={playersById}
-          amPresident={amPresident}
-          onNominate={(target) => sendMove({ kind: "nominate", target })}
-        />
-      )}
-
-      {isVote && (
-        <VotePanel
-          view={view}
-          playersById={playersById}
-          iHaveVoted={iHaveVoted}
-          onVote={(vote) => sendMove({ kind: "vote", vote })}
-        />
-      )}
-
-      {isPresidentDiscard && (
-        <PresidentDiscardPanel
-          view={view}
-          amPresident={amPresident}
-          onDiscard={(index) => sendMove({ kind: "presidentDiscard", index })}
-        />
-      )}
-
-      {isChancellorEnact && (
-        <ChancellorEnactPanel
-          view={view}
-          amChancellor={amChancellor}
-          onEnact={(index) => sendMove({ kind: "chancellorEnact", index })}
-        />
-      )}
-
-      {isOver && <GameOverPanel view={view} playersById={playersById} />}
-
-      <PolicyHistoryStrip view={view} />
-    </div>
+    <HiddenRoleLayout
+      phaseBar={
+        <div className="flex flex-col items-center gap-3">
+          <PolicyTracks view={view} />
+          <RoundBanner view={view} playersById={playersById} me={me} />
+        </div>
+      }
+      privatePanel={<RoleCard view={view} playersById={playersById} />}
+      decision={
+        <div className="flex flex-col gap-4">
+          <PlayerBoard view={view} playersById={playersById} me={me} />
+          {phasePanel}
+        </div>
+      }
+      log={<PolicyHistoryStrip view={view} />}
+      mainMaxWidth={720}
+    />
   );
 }
 
