@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  BoardLayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   BOARD_SIZE,
   CHECKERS_TYPE,
@@ -64,10 +68,33 @@ function CheckersBoard({
   view,
   me,
   isMyTurn,
+  players,
   sendMove,
 }: BoardProps<CheckersView, CheckersMove>) {
+  const playersById = useMemo(() => {
+    const m: Record<string, { id: string; name: string }> = {};
+    for (const p of players) m[p.id] = p;
+    return m;
+  }, [players]);
+
   const myColor = view.colors[me];
   const isOver = view.winner !== null;
+  const opponentId =
+    Object.keys(view.colors).find((id) => id !== me) ?? null;
+  const opponentColor = opponentId ? view.colors[opponentId] : null;
+  const opponentName = opponentId
+    ? playersById[opponentId]?.name ?? opponentId
+    : "Opponent";
+  const myName = playersById[me]?.name ?? "You";
+
+  const remainingByColor = useMemo(() => {
+    const tally: Record<"r" | "b", number> = { r: 0, b: 0 };
+    for (const c of view.cells) {
+      if (!c) continue;
+      tally[pieceColor(c)] += 1;
+    }
+    return tally;
+  }, [view.cells]);
   const [selected, setSelected] = useState<Square | null>(null);
 
   // If the server says "keep jumping with this piece", lock selection to it.
@@ -170,29 +197,70 @@ function CheckersBoard({
     return "Opponent is thinking.";
   })();
 
-  return (
-    <div className="flex flex-col items-center gap-5">
-      <style>{CHECKERS_KEYFRAMES}</style>
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-        You are{" "}
+  const colorLabel = (c: "r" | "b" | undefined | null) =>
+    c === "r" ? "Red" : c === "b" ? "Black" : "—";
+  const colorSwatch = (c: "r" | "b" | undefined | null) =>
+    c === "r" ? "var(--color-error)" : c === "b" ? PIECE_BLACK_BG : "var(--color-base-300)";
+
+  const seatChip = (
+    name: string,
+    color: "r" | "b" | undefined | null,
+    remaining: number,
+    isYou: boolean,
+    isTheirTurn: boolean,
+    align: "start" | "end",
+  ) => (
+    <div
+      className={[
+        "rounded-2xl px-3 py-2 flex items-center gap-3 min-w-0 max-w-full",
+        align === "end" ? "flex-row-reverse text-right" : "flex-row",
+      ].join(" ")}
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
+        boxShadow: isTheirTurn
+          ? "inset 0 0 0 2px var(--color-primary), 0 6px 16px color-mix(in oklch, var(--color-primary) 18%, transparent)"
+          : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
+      }}
+    >
+      <span
+        className="rounded-full shrink-0"
+        style={{
+          width: 22,
+          height: 22,
+          background: colorSwatch(color),
+          boxShadow:
+            "inset 0 -2px 0 oklch(0% 0 0 / 0.25), inset 0 1px 0 oklch(100% 0 0 / 0.22)",
+        }}
+      />
+      <div className="flex flex-col min-w-0">
+        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 leading-tight">
+          {colorLabel(color)}
+          {isTheirTurn ? " · to move" : ""}
+        </span>
         <span
-          className={
-            myColor === "r"
-              ? "text-error font-bold"
-              : "font-bold"
-          }
-          style={
-            myColor === "b"
-              ? { color: "var(--color-neutral)" }
-              : undefined
-          }
+          className="font-display tracking-tight truncate leading-tight"
+          style={{ fontSize: "1rem" }}
         >
-          {myColor === "r" ? "Red" : myColor === "b" ? "Black" : "Spectator"}
+          {name}
+          {isYou && (
+            <span className="text-base-content/55 font-sans text-xs ml-1">
+              (you)
+            </span>
+          )}
+          <span className="ml-2 font-mono tabular-nums text-sm font-semibold text-base-content/70">
+            {remaining}
+          </span>
         </span>
       </div>
+    </div>
+  );
 
+  const board = (
+    <div className="w-full flex flex-col items-center">
+      <style>{CHECKERS_KEYFRAMES}</style>
       <div
-        className="relative rounded-2xl p-3 md:p-4"
+        className="relative rounded-2xl p-3 md:p-4 w-full"
         style={{
           background:
             "color-mix(in oklch, var(--color-base-300) 85%, transparent)",
@@ -201,7 +269,7 @@ function CheckersBoard({
         }}
       >
         <div
-          className="grid gap-0 rounded-lg overflow-hidden"
+          className="grid gap-0 rounded-lg overflow-hidden w-full"
           style={{
             gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
             boxShadow: "inset 0 0 0 2px oklch(0% 0 0 / 0.25)",
@@ -239,7 +307,6 @@ function CheckersBoard({
                 onClick={() => handleSquareClick(row, col)}
                 className={[
                   "relative aspect-square",
-                  "h-10 w-10 md:h-14 md:w-14",
                   "flex items-center justify-center",
                   "transition-colors",
                   interactive ? "cursor-pointer" : "cursor-default",
@@ -300,11 +367,42 @@ function CheckersBoard({
           })}
         </div>
       </div>
-
-      <div className="text-xs text-base-content/55 tracking-wide">
-        {statusLine}
-      </div>
     </div>
+  );
+
+  return (
+    <BoardLayout
+      statusBar={
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_1fr] items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+          {seatChip(
+            opponentName,
+            opponentColor,
+            opponentColor ? remainingByColor[opponentColor] : 0,
+            false,
+            !isOver && !isMyTurn,
+            "start",
+          )}
+          <div
+            className={[
+              "text-[10px] sm:text-xs uppercase tracking-[0.22em] font-semibold text-center px-2",
+              isMyTurn && !isOver ? "text-primary" : "text-base-content/55",
+            ].join(" ")}
+          >
+            {statusLine}
+          </div>
+          {seatChip(
+            myName,
+            myColor,
+            myColor ? remainingByColor[myColor] : 0,
+            true,
+            isMyTurn && !isOver,
+            "end",
+          )}
+        </div>
+      }
+      board={board}
+      boardMaxSize="min(75vh, 100%)"
+    />
   );
 }
 
