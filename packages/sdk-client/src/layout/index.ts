@@ -17,3 +17,9 @@ export {
   HiddenRoleLayout,
   type HiddenRoleLayoutProps,
 } from "./HiddenRoleLayout";
+export {
+  SeatChip,
+  SeatStrip,
+  type SeatChipProps,
+  type SeatStripProps,
+} from "./SeatChip";
