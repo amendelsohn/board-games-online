@@ -1,5 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  BoardLayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   CONNECT_FOUR_TYPE,
   COLS,
@@ -14,11 +18,26 @@ function ConnectFourBoard({
   view,
   me,
   isMyTurn,
+  players,
   sendMove,
 }: BoardProps<ConnectFourView, ConnectFourMove>) {
+  const playersById = useMemo(() => {
+    const m: Record<string, { id: string; name: string }> = {};
+    for (const p of players) m[p.id] = p;
+    return m;
+  }, [players]);
+
   const myColor = view.colors[me];
   const isOver = view.winner !== null || view.isDraw;
   const [hoverCol, setHoverCol] = useState<number | null>(null);
+
+  const opponentId =
+    Object.keys(view.colors).find((id) => id !== me) ?? null;
+  const opponentColor = opponentId ? view.colors[opponentId] : null;
+  const opponentName = opponentId
+    ? playersById[opponentId]?.name ?? opponentId
+    : "Opponent";
+  const myName = playersById[me]?.name ?? "You";
 
   const [droppedIndex, setDroppedIndex] = useState<number | null>(null);
   const prevCellsRef = useRef<readonly Cell[]>(view.cells);
@@ -50,92 +69,201 @@ function ConnectFourBoard({
     return "transparent";
   };
 
-  return (
-    <div className="flex flex-col items-center gap-5">
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-        You are{" "}
+  const colorLabel = (c: "R" | "Y" | undefined | null): string =>
+    c === "R" ? "Red" : c === "Y" ? "Gold" : "—";
+  const colorVar = (c: "R" | "Y" | undefined | null): string =>
+    c === "R"
+      ? "var(--color-error)"
+      : c === "Y"
+        ? "var(--color-warning)"
+        : "var(--color-base-content)";
+
+  const lastFrom: string | null = view.lastMove
+    ? Object.keys(view.colors).find(
+        (id) => view.colors[id] !== view.colors[view.current],
+      ) ?? null
+    : null;
+
+  const seatPanel = (
+    name: string,
+    color: "R" | "Y" | undefined | null,
+    isYou: boolean,
+    isTheirTurn: boolean,
+    showLastMoveCol: number | null,
+  ) => (
+    <div
+      className="rounded-2xl p-4 flex flex-col gap-2"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
+        boxShadow: isTheirTurn
+          ? `inset 0 0 0 2px ${colorVar(color)}, 0 6px 16px color-mix(in oklch, ${colorVar(color)} 22%, transparent)`
+          : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
+      }}
+    >
+      <div className="flex items-center gap-2">
         <span
-          className={
-            myColor === "R" ? "text-error font-bold" : "text-warning font-bold"
-          }
+          className="rounded-full"
+          style={{
+            width: 16,
+            height: 16,
+            background: colorVar(color),
+            boxShadow: "inset 0 -1px 0 oklch(0% 0 0 / 0.2)",
+          }}
+        />
+        <span
+          className="text-[10px] uppercase tracking-[0.22em] font-semibold"
+          style={{ color: colorVar(color) }}
         >
-          {myColor === "R" ? "Red" : "Gold"}
+          {colorLabel(color)}
+          {isTheirTurn ? " · to drop" : ""}
         </span>
       </div>
-
-      <div
-        className="relative rounded-2xl p-3 md:p-4"
-        style={{
-          background: "var(--color-primary)",
-          boxShadow:
-            "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -2px 0 oklch(0% 0 0 / 0.12), 0 16px 40px color-mix(in oklch, var(--color-primary) 30%, transparent)",
-        }}
+      <span
+        className="font-display tracking-tight truncate"
+        style={{ fontSize: "1.125rem", lineHeight: 1.1 }}
       >
-        <div
-          className="grid gap-1.5"
-          style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
-        >
-          {Array.from({ length: ROWS * COLS }).map((_, i) => {
-            const row = Math.floor(i / COLS);
-            const col = i % COLS;
-            const cell = view.cells[i] ?? null;
-            const isLast =
-              view.lastMove &&
-              view.lastMove.row * COLS + view.lastMove.col === i;
-            const isWinning = view.winningCells?.includes(i) ?? false;
-            const isPreview = row === previewRow && col === hoverCol;
-            const justDropped = droppedIndex === i;
-            const clickable = !isOver && isMyTurn && nextRowForCol(col) >= 0;
+        {name}
+        {isYou && (
+          <span className="text-base-content/55 font-sans text-sm ml-1">
+            (you)
+          </span>
+        )}
+      </span>
+      {showLastMoveCol != null && (
+        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 tabular-nums">
+          last col: {showLastMoveCol + 1}
+        </span>
+      )}
+    </div>
+  );
 
-            const pieceBg =
-              cell !== null
-                ? pieceColor(cell)
-                : isPreview
-                  ? `color-mix(in oklch, ${pieceColor(myColor ?? "R")} 35%, transparent)`
-                  : "oklch(100% 0 0 / 0.08)";
+  const status = (() => {
+    if (view.winner === me) return { label: "You win", tone: "success" };
+    if (view.winner && view.winner !== me)
+      return { label: `${opponentName} wins`, tone: "error" };
+    if (view.isDraw) return { label: "Draw", tone: "neutral" };
+    if (isMyTurn) return { label: "Drop a piece", tone: "primary" };
+    return { label: `${opponentName} is choosing`, tone: "muted" };
+  })();
 
-            return (
-              <button
-                key={i}
-                type="button"
-                disabled={!clickable}
-                onMouseEnter={() => setHoverCol(col)}
-                onMouseLeave={() => setHoverCol(null)}
-                onClick={() => handleDrop(col)}
-                className="h-9 w-9 md:h-12 md:w-12 rounded-full flex items-center justify-center"
+  const board = (
+    <div
+      className="relative rounded-2xl p-3 md:p-4 w-full"
+      style={{
+        background: "var(--color-primary)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -2px 0 oklch(0% 0 0 / 0.12), 0 16px 40px color-mix(in oklch, var(--color-primary) 30%, transparent)",
+      }}
+    >
+      <div
+        className="grid gap-1.5 w-full"
+        style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
+      >
+        {Array.from({ length: ROWS * COLS }).map((_, i) => {
+          const row = Math.floor(i / COLS);
+          const col = i % COLS;
+          const cell = view.cells[i] ?? null;
+          const isLast =
+            view.lastMove &&
+            view.lastMove.row * COLS + view.lastMove.col === i;
+          const isWinning = view.winningCells?.includes(i) ?? false;
+          const isPreview = row === previewRow && col === hoverCol;
+          const justDropped = droppedIndex === i;
+          const clickable = !isOver && isMyTurn && nextRowForCol(col) >= 0;
+
+          const pieceBg =
+            cell !== null
+              ? pieceColor(cell)
+              : isPreview
+                ? `color-mix(in oklch, ${pieceColor(myColor ?? "R")} 35%, transparent)`
+                : "oklch(100% 0 0 / 0.08)";
+
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={!clickable}
+              onMouseEnter={() => setHoverCol(col)}
+              onMouseLeave={() => setHoverCol(null)}
+              onClick={() => handleDrop(col)}
+              className="aspect-square rounded-full flex items-center justify-center"
+              style={{
+                background:
+                  "color-mix(in oklch, var(--color-primary-content) 12%, transparent)",
+                boxShadow: "inset 0 2px 4px oklch(0% 0 0 / 0.25)",
+              }}
+              aria-label={`drop in column ${col}`}
+            >
+              <span
+                className={[
+                  "h-full w-full rounded-full transition-all",
+                  cell !== null
+                    ? "shadow-[inset_0_-2px_0_oklch(0%_0_0_/_0.15),inset_0_1px_0_oklch(100%_0_0_/_0.25)]"
+                    : "",
+                  isWinning ? "ring-[3px] ring-success parlor-win" : "",
+                  isLast && !isWinning
+                    ? "ring-2 ring-base-100/70"
+                    : "",
+                  justDropped ? "parlor-drop" : "",
+                ].join(" ")}
                 style={{
-                  background:
-                    "color-mix(in oklch, var(--color-primary-content) 12%, transparent)",
-                  boxShadow: "inset 0 2px 4px oklch(0% 0 0 / 0.25)",
+                  background: pieceBg,
                 }}
-                aria-label={`drop in column ${col}`}
-              >
-                <span
-                  className={[
-                    "h-full w-full rounded-full transition-all",
-                    cell !== null
-                      ? "shadow-[inset_0_-2px_0_oklch(0%_0_0_/_0.15),inset_0_1px_0_oklch(100%_0_0_/_0.25)]"
-                      : "",
-                    isWinning ? "ring-[3px] ring-success parlor-win" : "",
-                    isLast && !isWinning
-                      ? "ring-2 ring-base-100/70"
-                      : "",
-                    justDropped ? "parlor-drop" : "",
-                  ].join(" ")}
-                  style={{
-                    background: pieceBg,
-                  }}
-                />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="text-xs text-base-content/50 tracking-wide">
-        Tap a column to drop a piece.
+              />
+            </button>
+          );
+        })}
       </div>
     </div>
+  );
+
+  return (
+    <BoardLayout
+      statusBar={
+        <div
+          className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.22em] font-semibold"
+          style={{
+            color:
+              status.tone === "primary"
+                ? "var(--color-primary)"
+                : status.tone === "success"
+                  ? "var(--color-success)"
+                  : status.tone === "error"
+                    ? "var(--color-error)"
+                    : "var(--color-base-content)",
+          }}
+        >
+          {status.label}
+        </div>
+      }
+      leftRail={seatPanel(
+        opponentName,
+        opponentColor,
+        false,
+        !isOver && !isMyTurn,
+        opponentId === lastFrom ? view.lastMove?.col ?? null : null,
+      )}
+      board={board}
+      rightRail={seatPanel(
+        myName,
+        myColor,
+        true,
+        isMyTurn && !isOver,
+        me === lastFrom ? view.lastMove?.col ?? null : null,
+      )}
+      // 7x6 board grows to fill available width but stays manageable
+      boardMaxSize="min(70vh, 600px)"
+      leftRailWidth={200}
+      rightRailWidth={200}
+      toolbar={
+        !isOver ? (
+          <div className="text-xs text-base-content/50 tracking-wide text-center">
+            Tap a column to drop a piece.
+          </div>
+        ) : undefined
+      }
+    />
   );
 }
 
