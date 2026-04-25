@@ -45,14 +45,18 @@ function TicTacToeBoard({
     return { label: `${opponentName}'s move`, tone: "muted" };
   })();
 
-  const seatPanel = (
+  const seatChip = (
     name: string,
     symbol: "X" | "O" | undefined,
     isYou: boolean,
     isTheirTurn: boolean,
+    align: "start" | "end",
   ) => (
     <div
-      className="rounded-2xl p-4 flex flex-col gap-1"
+      className={[
+        "rounded-2xl px-3 py-2 flex items-center gap-3 min-w-0 max-w-full",
+        align === "end" ? "flex-row-reverse text-right" : "flex-row",
+      ].join(" ")}
       style={{
         background:
           "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
@@ -61,36 +65,36 @@ function TicTacToeBoard({
           : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
       }}
     >
-      <div className="flex items-baseline gap-2">
-        <span
-          className="font-display leading-none"
-          style={{
-            fontSize: "1.75rem",
-            color:
-              symbol === "X"
-                ? "var(--color-primary)"
-                : symbol === "O"
-                  ? "var(--color-secondary)"
-                  : undefined,
-          }}
-        >
-          {symbol ?? "?"}
-        </span>
-        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
+      <span
+        className="font-display leading-none shrink-0"
+        style={{
+          fontSize: "1.75rem",
+          color:
+            symbol === "X"
+              ? "var(--color-primary)"
+              : symbol === "O"
+                ? "var(--color-secondary)"
+                : undefined,
+        }}
+      >
+        {symbol ?? "?"}
+      </span>
+      <div className="flex flex-col min-w-0">
+        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 leading-tight">
           {isTheirTurn ? "to move" : "waiting"}
         </span>
+        <span
+          className="font-display tracking-tight truncate leading-tight"
+          style={{ fontSize: "1rem" }}
+        >
+          {name}
+          {isYou && (
+            <span className="text-base-content/55 font-sans text-xs ml-1">
+              (you)
+            </span>
+          )}
+        </span>
       </div>
-      <span
-        className="font-display tracking-tight truncate"
-        style={{ fontSize: "1.125rem", lineHeight: 1.1 }}
-      >
-        {name}
-        {isYou && (
-          <span className="text-base-content/55 font-sans text-sm ml-1">
-            (you)
-          </span>
-        )}
-      </span>
     </div>
   );
 
@@ -156,35 +160,36 @@ function TicTacToeBoard({
   return (
     <BoardLayout
       statusBar={
-        <div
-          className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.22em] font-semibold"
-          style={{
-            color:
-              status.tone === "primary"
-                ? "var(--color-primary)"
-                : status.tone === "success"
-                  ? "var(--color-success)"
-                  : status.tone === "error"
-                    ? "var(--color-error)"
-                    : "var(--color-base-content)",
-          }}
-        >
-          {status.label}
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_1fr] items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+          {seatChip(
+            opponentName,
+            opponentSymbol ?? undefined,
+            false,
+            !isOver && !isMyTurn,
+            "start",
+          )}
+          <div
+            className="text-[10px] sm:text-xs uppercase tracking-[0.22em] font-semibold text-center px-2"
+            style={{
+              color:
+                status.tone === "primary"
+                  ? "var(--color-primary)"
+                  : status.tone === "success"
+                    ? "var(--color-success)"
+                    : status.tone === "error"
+                      ? "var(--color-error)"
+                      : "var(--color-base-content)",
+            }}
+          >
+            {status.label}
+          </div>
+          {seatChip(myName, mySymbol, true, isMyTurn && !isOver, "end")}
         </div>
       }
-      leftRail={seatPanel(
-        opponentName,
-        opponentSymbol ?? undefined,
-        false,
-        !isOver && !isMyTurn,
-      )}
       board={board}
-      rightRail={seatPanel(myName, mySymbol, true, isMyTurn && !isOver)}
-      // 3x3 doesn't need much room — cap so it doesn't inflate awkwardly
-      // on widescreen, but stays full-width on mobile.
-      boardMaxSize="min(50vh, 420px)"
-      leftRailWidth={200}
-      rightRailWidth={200}
+      // 3x3 doesn't need much room even with full play area — cap so it
+      // doesn't inflate to absurdity, but lets it grow on mobile.
+      boardMaxSize="min(60vh, 480px)"
     />
   );
 }
