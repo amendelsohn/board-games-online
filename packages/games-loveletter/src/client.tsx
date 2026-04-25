@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Card as CardShell,
+  HandActionLayout,
   type BoardProps,
   type CardSize,
   type ClientGameModule,
@@ -419,65 +420,78 @@ function LoveLetterBoard({
 
   const cancelPending = () => setPending(null);
 
-  return (
-    <div className="flex flex-col gap-4 w-full max-w-5xl mx-auto">
+  const opponentsBlock = (
+    <div className="flex flex-col gap-3 w-full">
       <TopRibbon view={view} playersById={playersById} me={me} />
-
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-4">
-        <div className="flex flex-col gap-4">
-          <OpponentsRow
-            view={view}
-            me={me}
-            playersById={playersById}
-            targetable={
-              pending && needsTarget(pending.rank)
-                ? view.players.filter((id) => {
-                    if (id === me) return pending.rank === 5;
-                    const v = view.perPlayer[id]!;
-                    if (v.eliminated) return false;
-                    if (v.immune) return false;
-                    return true;
-                  })
-                : null
-            }
-            onPickTarget={(id) =>
-              setPending((p) => (p ? { ...p, target: id } : p))
-            }
-            selectedTarget={pending?.target ?? null}
-          />
-
-          {view.revealed.length > 0 && (
-            <RevealedStrip revealed={view.revealed} />
-          )}
-
-          <YourHand
-            hand={myHand}
-            isMyTurn={isMyTurn}
-            isOver={isOver}
-            mustPlayCountess={mustPlayCountess}
-            onPlay={startPlay}
-            pending={pending}
-          />
-
-          {pending && (
-            <PendingPanel
-              pending={pending}
-              setGuess={(g) => setPending((p) => (p ? { ...p, guess: g } : p))}
-              hasValidOtherTarget={hasValidOtherTarget(pending.rank)}
-              canSubmit={canSubmitPending()}
-              submit={submitPending}
-              cancel={cancelPending}
-            />
-          )}
-        </div>
-
-        <LogPanel
-          log={view.log}
-          playersById={playersById}
-          me={me}
-        />
-      </div>
+      <OpponentsRow
+        view={view}
+        me={me}
+        playersById={playersById}
+        targetable={
+          pending && needsTarget(pending.rank)
+            ? view.players.filter((id) => {
+                if (id === me) return pending.rank === 5;
+                const v = view.perPlayer[id]!;
+                if (v.eliminated) return false;
+                if (v.immune) return false;
+                return true;
+              })
+            : null
+        }
+        onPickTarget={(id) =>
+          setPending((p) => (p ? { ...p, target: id } : p))
+        }
+        selectedTarget={pending?.target ?? null}
+      />
+      {view.revealed.length > 0 && <RevealedStrip revealed={view.revealed} />}
     </div>
+  );
+
+  const handBlock = (
+    <YourHand
+      hand={myHand}
+      isMyTurn={isMyTurn}
+      isOver={isOver}
+      mustPlayCountess={mustPlayCountess}
+      onPlay={startPlay}
+      pending={pending}
+    />
+  );
+
+  const actionsBlock = pending ? (
+    <PendingPanel
+      pending={pending}
+      setGuess={(g) => setPending((p) => (p ? { ...p, guess: g } : p))}
+      hasValidOtherTarget={hasValidOtherTarget(pending.rank)}
+      canSubmit={canSubmitPending()}
+      submit={submitPending}
+      cancel={cancelPending}
+    />
+  ) : (
+    <div className="surface-ivory p-4 text-sm text-base-content/60 leading-relaxed">
+      {isMyTurn && !isOver
+        ? mustPlayCountess
+          ? "You hold the Countess with the King or Prince — you must play the Countess."
+          : "Pick a card from your hand to play it. Some cards prompt for a target or guess."
+        : isOver
+          ? "Hand complete."
+          : `Waiting on ${
+              playersById[view.current]?.name ?? "the next player"
+            }…`}
+    </div>
+  );
+
+  return (
+    <HandActionLayout
+      opponents={opponentsBlock}
+      hand={handBlock}
+      actions={actionsBlock}
+      history={
+        <LogPanel log={view.log} playersById={playersById} me={me} />
+      }
+      splitRatio={[55, 45]}
+      containerMaxWidth={1300}
+    />
   );
 }
 

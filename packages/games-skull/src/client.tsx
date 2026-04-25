@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  HandActionLayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   POINTS_TO_WIN,
   SKULL_TYPE,
@@ -305,24 +309,11 @@ function SkullBoard({
       ? (view.stackCount[me] ?? 0) - (view.flippedFromStack[me] ?? 0)
       : 0;
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full max-w-5xl">
-      <Scoreboard view={view} playersById={playersById} me={me} />
-
-      <StatusBanner
-        view={view}
-        iAmOut={iAmOut}
-        isMyTurn={isMyTurn}
-        currentName={currentName}
-        me={me}
-        playersById={playersById}
-      />
-
-      {/* Opponents */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
-        {view.players
-          .filter((id) => id !== me)
-          .map((id) => {
+  const opponentCards = (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
+      {view.players
+        .filter((id) => id !== me)
+        .map((id) => {
             const p = playersById[id] ?? { id, name: id };
             const stackLen = view.stackCount[id] ?? 0;
             const handCount = view.handCount[id] ?? 0;
@@ -410,114 +401,142 @@ function SkullBoard({
               </div>
             );
           })}
+    </div>
+  );
+
+  const myPanel = !iAmOut && (
+    <div
+      className="w-full rounded-2xl p-4 flex flex-col gap-3 items-center"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-300) 70%, transparent)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.15)",
+      }}
+    >
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/60">
+        <span className="inline-block h-2 w-2 rounded-full bg-primary/70" />
+        You — only you see what's in your hand &amp; stack
       </div>
 
-      {/* Your side */}
-      {!iAmOut && (
-        <div
-          className="w-full rounded-2xl p-4 flex flex-col gap-3 items-center"
-          style={{
-            background:
-              "color-mix(in oklch, var(--color-base-300) 70%, transparent)",
-            boxShadow:
-              "inset 0 1px 0 oklch(100% 0 0 / 0.15), inset 0 -1px 0 oklch(0% 0 0 / 0.15)",
-          }}
-        >
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/60">
-            <span className="inline-block h-2 w-2 rounded-full bg-primary/70" />
-            You — only you see what's in your hand &amp; stack
-          </div>
-
-          <div className="flex items-center gap-6 flex-wrap justify-center">
-            <div className="flex flex-col items-center gap-1">
-              <Stack
-                stackLen={view.stackCount[me] ?? 0}
-                flippedFromTop={view.flippedFromStack[me] ?? 0}
-                reveal={perStackFlips[me] ?? []}
-                ownFacedown={myStack}
-              />
-              <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
-                Your stack — {view.stackCount[me] ?? 0}
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2">
-                {myHand &&
-                  Array.from({ length: myHand.flowers }).map((_, i) => (
-                    <Disc key={`f${i}`} facedown={false} kind="flower" size={32} />
-                  ))}
-                {myHand &&
-                  Array.from({ length: myHand.skulls }).map((_, i) => (
-                    <Disc key={`s${i}`} facedown={false} kind="skull" size={32} />
-                  ))}
-                {(!myHand ||
-                  myHand.flowers + myHand.skulls === 0) && (
-                  <span className="text-xs italic text-base-content/50">
-                    empty hand
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
-                Your hand
-              </span>
-            </div>
-          </div>
-
-          {view.phase === "placing" && isMyTurn && (
-            <PlaceActions
-              onFlower={placeFlower}
-              onSkull={placeSkull}
-              canFlower={(myHand?.flowers ?? 0) > 0}
-              canSkull={(myHand?.skulls ?? 0) > 0}
-              canBid={(view.stackCount[me] ?? 0) > 0}
-              onOpenBid={openBid}
-              bidValue={currentBidCount}
-              setBidValue={(v) => setBidInput(Math.max(1, v))}
-              maxBid={totalDiscs}
-              minBid={1}
-            />
-          )}
-
-          {view.phase === "bidding" && isMyTurn && (
-            <BidActions
-              onRaise={raiseBid}
-              onPass={passBid}
-              bidValue={currentBidCount}
-              setBidValue={(v) => setBidInput(Math.max(1, v))}
-              minBid={effectiveMinBid}
-              maxBid={totalDiscs}
-            />
-          )}
-
-          {view.phase === "flipping" && view.challenger === me && (
-            <FlippingHint
-              ownRemaining={ownFlipsRemaining}
-              bid={view.currentBid?.count ?? 0}
-              flipsMade={view.flipped?.length ?? 0}
-              onFlipOwn={() => flipStack(me)}
-            />
-          )}
+      <div className="flex items-center gap-6 flex-wrap justify-center">
+        <div className="flex flex-col items-center gap-1">
+          <Stack
+            stackLen={view.stackCount[me] ?? 0}
+            flippedFromTop={view.flippedFromStack[me] ?? 0}
+            reveal={perStackFlips[me] ?? []}
+            ownFacedown={myStack}
+          />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            Your stack — {view.stackCount[me] ?? 0}
+          </span>
         </div>
-      )}
 
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex items-center gap-2">
+            {myHand &&
+              Array.from({ length: myHand.flowers }).map((_, i) => (
+                <Disc key={`f${i}`} facedown={false} kind="flower" size={32} />
+              ))}
+            {myHand &&
+              Array.from({ length: myHand.skulls }).map((_, i) => (
+                <Disc key={`s${i}`} facedown={false} kind="skull" size={32} />
+              ))}
+            {(!myHand || myHand.flowers + myHand.skulls === 0) && (
+              <span className="text-xs italic text-base-content/50">
+                empty hand
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+            Your hand
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const actionsPanel = (
+    <div className="flex flex-col items-center gap-3 w-full">
+      {!iAmOut && view.phase === "placing" && isMyTurn && (
+        <PlaceActions
+          onFlower={placeFlower}
+          onSkull={placeSkull}
+          canFlower={(myHand?.flowers ?? 0) > 0}
+          canSkull={(myHand?.skulls ?? 0) > 0}
+          canBid={(view.stackCount[me] ?? 0) > 0}
+          onOpenBid={openBid}
+          bidValue={currentBidCount}
+          setBidValue={(v) => setBidInput(Math.max(1, v))}
+          maxBid={totalDiscs}
+          minBid={1}
+        />
+      )}
+      {!iAmOut && view.phase === "bidding" && isMyTurn && (
+        <BidActions
+          onRaise={raiseBid}
+          onPass={passBid}
+          bidValue={currentBidCount}
+          setBidValue={(v) => setBidInput(Math.max(1, v))}
+          minBid={effectiveMinBid}
+          maxBid={totalDiscs}
+        />
+      )}
+      {!iAmOut && view.phase === "flipping" && view.challenger === me && (
+        <FlippingHint
+          ownRemaining={ownFlipsRemaining}
+          bid={view.currentBid?.count ?? 0}
+          flipsMade={view.flipped?.length ?? 0}
+          onFlipOwn={() => flipStack(me)}
+        />
+      )}
       {iAmOut && !isOver && (
-        <div className="text-sm text-base-content/55 italic">
+        <div className="text-sm text-base-content/55 italic text-center">
           You're out. Spectate to the finish.
         </div>
       )}
-
-      {(view.phase === "roundOver" || isOver) && view.lastResult && (
-        <RoundOverPanel
-          result={view.lastResult}
-          playersById={playersById}
-          iAmStarter={view.nextStarter === me}
-          isOver={isOver}
-          winnerName={view.winner ? nameOf(view.winner) : null}
-          onNext={startNextRound}
-        />
+      {!isMyTurn && !iAmOut && view.phase !== "roundOver" && view.phase !== "gameOver" && (
+        <div className="text-xs text-base-content/55 text-center italic">
+          Waiting on{" "}
+          <span className="font-semibold text-base-content/80">{currentName}</span>…
+        </div>
       )}
     </div>
+  );
+
+  return (
+    <HandActionLayout
+      opponents={
+        <div className="flex flex-col items-center gap-3 w-full">
+          <Scoreboard view={view} playersById={playersById} me={me} />
+          <StatusBanner
+            view={view}
+            iAmOut={iAmOut}
+            isMyTurn={isMyTurn}
+            currentName={currentName}
+            me={me}
+            playersById={playersById}
+          />
+          {opponentCards}
+        </div>
+      }
+      hand={myPanel || <div />}
+      actions={actionsPanel}
+      splitRatio={[55, 45]}
+      history={
+        (view.phase === "roundOver" || isOver) && view.lastResult ? (
+          <RoundOverPanel
+            result={view.lastResult}
+            playersById={playersById}
+            iAmStarter={view.nextStarter === me}
+            isOver={isOver}
+            winnerName={view.winner ? nameOf(view.winner) : null}
+            onNext={startNextRound}
+          />
+        ) : undefined
+      }
+      containerMaxWidth={1300}
+    />
   );
 }
 

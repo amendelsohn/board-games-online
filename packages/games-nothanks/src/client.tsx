@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   Card as CardShell,
+  PlayerUILayout,
   type BoardProps,
   type CardSize,
   type ClientGameModule,
@@ -172,128 +173,138 @@ function NoThanksBoard({
     return scoreCards(view.seats[me]?.cards ?? [], Math.max(0, myChips - 1));
   }, [view.seats, me, myChips]);
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full max-w-5xl">
-      <Scoreboard view={view} playersById={playersById} me={me} />
+  const myTableau = (
+    <Tableau id={me} view={view} playersById={playersById} isMe />
+  );
 
-      <StatusBanner
-        view={view}
-        isMyTurn={isMyTurn}
-        currentName={nameOf(view.current)}
-      />
+  const opponentTableaus = view.players
+    .filter((id) => id !== me)
+    .map((id) => (
+      <Tableau key={id} id={id} view={view} playersById={playersById} isMe={false} />
+    ));
 
-      {/* Center stage */}
-      {!isOver && offerCard !== null && (
+  const offerStage = !isOver && offerCard !== null && (
+    <div
+      className="rounded-2xl px-6 py-5 flex items-center gap-6 flex-wrap justify-center"
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-300) 65%, transparent)",
+        boxShadow:
+          "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
+      }}
+    >
+      <div className="flex flex-col items-center gap-1">
+        <CardShell size="xl" ariaLabel={`card ${offerCard} on offer`}>
+          <NoThanksFace value={offerCard} />
+        </CardShell>
+        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 mt-2">
+          On offer
+        </span>
+      </div>
+      <div className="flex flex-col items-center gap-1 min-w-[88px]">
+        <div className="flex items-center gap-1 flex-wrap justify-center max-w-[120px]">
+          {offerChips === 0 ? (
+            <span className="text-xs italic text-base-content/40">
+              no chips yet
+            </span>
+          ) : (
+            Array.from({ length: offerChips }).map((_, i) => (
+              <Chip key={i} size={14} />
+            ))
+          )}
+        </div>
+        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+          {offerChips} chip{offerChips === 1 ? "" : "s"} on top
+        </span>
+      </div>
+      <div className="flex flex-col items-center gap-1 min-w-[88px]">
         <div
-          className="rounded-2xl px-6 py-5 flex items-center gap-6 flex-wrap justify-center"
+          className="rounded-lg px-3 py-1.5 text-sm font-semibold"
           style={{
             background:
-              "color-mix(in oklch, var(--color-base-300) 65%, transparent)",
-            boxShadow:
-              "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
+              "color-mix(in oklch, var(--color-base-100) 80%, transparent)",
           }}
         >
-          <div className="flex flex-col items-center gap-1">
-            <CardShell size="xl" ariaLabel={`card ${offerCard} on offer`}>
-              <NoThanksFace value={offerCard} />
-            </CardShell>
-            <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55 mt-2">
-              On offer
-            </span>
-          </div>
-          <div className="flex flex-col items-center gap-1 min-w-[88px]">
-            <div className="flex items-center gap-1 flex-wrap justify-center max-w-[120px]">
-              {offerChips === 0 ? (
-                <span className="text-xs italic text-base-content/40">
-                  no chips yet
-                </span>
-              ) : (
-                Array.from({ length: offerChips }).map((_, i) => (
-                  <Chip key={i} size={14} />
-                ))
-              )}
-            </div>
-            <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
-              {offerChips} chip{offerChips === 1 ? "" : "s"} on top
-            </span>
-          </div>
-          <div className="flex flex-col items-center gap-1 min-w-[88px]">
-            <div
-              className="rounded-lg px-3 py-1.5 text-sm font-semibold"
-              style={{
-                background:
-                  "color-mix(in oklch, var(--color-base-100) 80%, transparent)",
-              }}
-            >
-              {view.deckCount}
-            </div>
-            <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
-              cards left
-            </span>
-          </div>
+          {view.deckCount}
         </div>
-      )}
-
-      {/* Action row */}
-      {!isOver && isMyTurn && offerCard !== null && (
-        <div className="flex items-center gap-3 flex-wrap justify-center">
-          <button
-            type="button"
-            onClick={() => sendMove({ kind: "pass" })}
-            disabled={!canPass}
-            className="btn btn-ghost rounded-full px-5 font-semibold"
-            title={
-              canPass
-                ? `Pass — pay 1 chip, score becomes ${projectedScoreIfPassed}`
-                : "No chips left — you must take"
-            }
-          >
-            No thanks (pay 1 chip)
-          </button>
-          <button
-            type="button"
-            onClick={() => sendMove({ kind: "take" })}
-            disabled={!canTake}
-            className="btn btn-primary rounded-full px-5 font-semibold"
-            title={
-              projectedScoreIfTaken !== null
-                ? `Take — score becomes ${projectedScoreIfTaken}`
-                : "Take the card and pile of chips"
-            }
-          >
-            Take card + {offerChips} chip{offerChips === 1 ? "" : "s"}
-          </button>
-        </div>
-      )}
-
-      {!isOver && !isMyTurn && (
-        <div className="text-xs text-base-content/55 italic">
-          Waiting on {nameOf(view.current)}…
-        </div>
-      )}
-
-      {/* Tableaus */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
-        {view.players.map((id) => (
-          <Tableau
-            key={id}
-            id={id}
-            view={view}
-            playersById={playersById}
-            isMe={id === me}
-          />
-        ))}
+        <span className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+          cards left
+        </span>
       </div>
-
-      {/* Game over */}
-      {isOver && view.finalScores && (
-        <GameOverPanel
-          view={view}
-          playersById={playersById}
-          me={me}
-        />
-      )}
     </div>
+  );
+
+  const actionRow = !isOver && isMyTurn && offerCard !== null && (
+    <div className="flex items-center gap-3 flex-wrap justify-center">
+      <button
+        type="button"
+        onClick={() => sendMove({ kind: "pass" })}
+        disabled={!canPass}
+        className="btn btn-ghost rounded-full px-5 font-semibold"
+        title={
+          canPass
+            ? `Pass — pay 1 chip, score becomes ${projectedScoreIfPassed}`
+            : "No chips left — you must take"
+        }
+      >
+        No thanks (pay 1 chip)
+      </button>
+      <button
+        type="button"
+        onClick={() => sendMove({ kind: "take" })}
+        disabled={!canTake}
+        className="btn btn-primary rounded-full px-5 font-semibold"
+        title={
+          projectedScoreIfTaken !== null
+            ? `Take — score becomes ${projectedScoreIfTaken}`
+            : "Take the card and pile of chips"
+        }
+      >
+        Take card + {offerChips} chip{offerChips === 1 ? "" : "s"}
+      </button>
+    </div>
+  );
+
+  const idleHint = !isOver && !isMyTurn && (
+    <div className="text-xs text-base-content/55 italic text-center">
+      Waiting on {nameOf(view.current)}…
+    </div>
+  );
+
+  return (
+    <PlayerUILayout
+      topStrip={
+        <div className="flex flex-col items-center gap-3">
+          <Scoreboard view={view} playersById={playersById} me={me} />
+          <StatusBanner
+            view={view}
+            isMyTurn={isMyTurn}
+            currentName={nameOf(view.current)}
+          />
+        </div>
+      }
+      main={
+        <div className="flex flex-col items-center gap-4 w-full">
+          {offerStage}
+          {actionRow}
+          {idleHint}
+          {opponentTableaus.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
+              {opponentTableaus}
+            </div>
+          )}
+        </div>
+      }
+      bottomStrip={
+        <div className="flex flex-col gap-3 w-full">
+          {myTableau}
+          {isOver && view.finalScores && (
+            <GameOverPanel view={view} playersById={playersById} me={me} />
+          )}
+        </div>
+      }
+      containerMaxWidth={1200}
+    />
   );
 }
 

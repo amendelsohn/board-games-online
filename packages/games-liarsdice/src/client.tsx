@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  HandActionLayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   DIE_FACES,
   LIARS_DICE_TYPE,
@@ -157,43 +161,27 @@ function LiarsDiceBoard({
     await sendMove({ kind: "startNextRound" });
   };
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full">
-      <Scoreboard
-        view={view}
-        playersById={playersById}
-        me={me}
-      />
-
-      <div
-        className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold"
-      >
-        Dice still in play:{" "}
-        <span className="text-base-content font-bold tabular">{totalDice}</span>
-      </div>
-
+  const handPanel = (
+    <div className="flex flex-col items-center gap-3 w-full">
       {currentBid && !inReveal && (
-        <CurrentBidCard
-          bid={currentBid}
-          name={nameOf(currentBid.by)}
-        />
+        <CurrentBidCard bid={currentBid} name={nameOf(currentBid.by)} />
       )}
-
       {!currentBid && inBidding && (
-        <div className="text-sm text-base-content/65 italic">
+        <div className="text-sm text-base-content/65 italic text-center">
           Opening round — {nameOf(view.current)} makes the first bid.
         </div>
       )}
-
-      {!iAmOut && !isOver && (
-        <MyCup dice={myDice} />
-      )}
+      {!iAmOut && !isOver && <MyCup dice={myDice} />}
       {iAmOut && !isOver && (
         <div className="text-sm text-base-content/55 italic">
           You're out. Spectate to the finish.
         </div>
       )}
+    </div>
+  );
 
+  const actionsPanel = (
+    <div className="flex flex-col items-center gap-3 w-full">
       {inBidding && isMyTurn && !iAmOut && (
         <BidForm
           currentBid={currentBid}
@@ -207,9 +195,8 @@ function LiarsDiceBoard({
           totalDice={totalDice}
         />
       )}
-
       {inBidding && !isMyTurn && !isOver && (
-        <div className="text-sm text-base-content/65">
+        <div className="text-sm text-base-content/65 text-center px-3 py-4">
           Waiting on{" "}
           <span className="font-semibold text-base-content">
             {nameOf(view.current)}
@@ -217,7 +204,6 @@ function LiarsDiceBoard({
           …
         </div>
       )}
-
       {(inReveal || isOver) && view.lastReveal && (
         <RevealPanel
           reveal={view.lastReveal}
@@ -227,14 +213,33 @@ function LiarsDiceBoard({
           onNextRound={submitNextRound}
         />
       )}
-
       {isOver && view.winner && (
-        <div className="text-sm text-base-content/80">
+        <div className="text-sm text-base-content/80 text-center">
           <span className="font-semibold">{nameOf(view.winner)}</span> is the
           last with dice.
         </div>
       )}
     </div>
+  );
+
+  return (
+    <HandActionLayout
+      opponents={
+        <div className="flex flex-col items-center gap-2">
+          <Scoreboard view={view} playersById={playersById} me={me} />
+          <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
+            Dice still in play:{" "}
+            <span className="text-base-content font-bold tabular">
+              {totalDice}
+            </span>
+          </div>
+        </div>
+      }
+      hand={handPanel}
+      actions={actionsPanel}
+      splitRatio={[45, 55]}
+      containerMaxWidth={1200}
+    />
   );
 }
 
