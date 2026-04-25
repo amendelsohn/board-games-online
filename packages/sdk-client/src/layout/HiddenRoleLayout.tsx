@@ -20,6 +20,8 @@ export interface HiddenRoleLayoutProps {
   privateWidth?: number;
   /** Pixel width of context rail. Default 300. */
   contextWidth?: number;
+  /** Optional cap on the decision slot width. Centers the slot when set. */
+  mainMaxWidth?: number;
   /** Container max width. Default 1500. */
   containerMaxWidth?: number | "none";
   gap?: number;
@@ -51,6 +53,7 @@ export function HiddenRoleLayout({
   log,
   privateWidth = 300,
   contextWidth = 300,
+  mainMaxWidth,
   containerMaxWidth = 1500,
   gap,
   unfoldAt,
@@ -79,9 +82,13 @@ export function HiddenRoleLayout({
       bottomStrip={log}
       leftRailWidth={privateWidth}
       rightRailWidth={contextWidth}
+      mainMaxWidth={mainMaxWidth}
       containerMaxWidth={containerMaxWidth}
       gap={gap}
       unfoldAt={unfoldAt}
+      // Private info is the player's anchor — show it before the decision
+      // on mobile so they don't have to scroll to glance at their role.
+      mobileOrder={["topStrip", "leftRail", "main", "rightRail", "bottomStrip"]}
       className={className}
       style={style}
     />

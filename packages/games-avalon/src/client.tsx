@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import type {
-  BoardProps,
-  ClientGameModule,
-  SummaryProps,
+import {
+  HiddenRoleLayout,
+  type BoardProps,
+  type ClientGameModule,
+  type SummaryProps,
 } from "@bgo/sdk-client";
 import {
   AVALON_TYPE,
@@ -83,66 +84,80 @@ function AvalonBoard({
     }
   };
 
+  if (isOver) {
+    return (
+      <div className="flex flex-col items-center gap-5 w-full max-w-3xl mx-auto">
+        <QuestTokens view={view} />
+        <GameOverPanel view={view} playersById={playersById} />
+      </div>
+    );
+  }
+
+  let decision: React.ReactNode = null;
+  if (isProposal) {
+    decision = (
+      <ProposalPanel
+        view={view}
+        playersById={playersById}
+        me={me}
+        amLeader={amLeader}
+        proposal={proposal}
+        onToggle={toggleProposal}
+        onSubmit={submitProposal}
+      />
+    );
+  } else if (isVote) {
+    decision = (
+      <VotePanel
+        view={view}
+        playersById={playersById}
+        me={me}
+        iHaveVoted={iHaveVoted}
+        myVote={myVote}
+        onVote={castVote}
+      />
+    );
+  } else if (isQuest) {
+    decision = (
+      <QuestPanel
+        view={view}
+        playersById={playersById}
+        me={me}
+        iAmOnQuest={iAmOnQuest}
+        myRole={view.viewerRole}
+        mySubmittedQuest={mySubmittedQuest}
+        onSubmit={castQuest}
+      />
+    );
+  } else if (isMerlinGuess) {
+    decision = (
+      <MerlinGuessPanel
+        view={view}
+        playersById={playersById}
+        me={me}
+        onAccuse={(target) => sendMove({ kind: "accuseMerlin", target })}
+      />
+    );
+  } else if (!isMyTurn) {
+    decision = (
+      <div className="text-xs text-base-content/55 italic">
+        Waiting on other players…
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center gap-5 w-full">
-      <QuestTokens view={view} />
-
-      <RoleCard view={view} playersById={playersById} />
-
-      <LeaderBanner view={view} playersById={playersById} me={me} />
-
-      {isProposal && (
-        <ProposalPanel
-          view={view}
-          playersById={playersById}
-          me={me}
-          amLeader={amLeader}
-          proposal={proposal}
-          onToggle={toggleProposal}
-          onSubmit={submitProposal}
-        />
-      )}
-
-      {isVote && (
-        <VotePanel
-          view={view}
-          playersById={playersById}
-          me={me}
-          iHaveVoted={iHaveVoted}
-          myVote={myVote}
-          onVote={castVote}
-        />
-      )}
-
-      {isQuest && (
-        <QuestPanel
-          view={view}
-          playersById={playersById}
-          me={me}
-          iAmOnQuest={iAmOnQuest}
-          myRole={view.viewerRole}
-          mySubmittedQuest={mySubmittedQuest}
-          onSubmit={castQuest}
-        />
-      )}
-
-      {isMerlinGuess && (
-        <MerlinGuessPanel
-          view={view}
-          playersById={playersById}
-          me={me}
-          onAccuse={(target) => sendMove({ kind: "accuseMerlin", target })}
-        />
-      )}
-
-      {isOver && <GameOverPanel view={view} playersById={playersById} />}
-
-      {!isOver && !isMyTurn && (
-        <div className="text-xs text-base-content/55 italic">
-          Waiting on other players…
+    <HiddenRoleLayout
+      phaseBar={
+        <div className="flex flex-col items-center gap-3">
+          <QuestTokens view={view} />
+          <LeaderBanner view={view} playersById={playersById} me={me} />
         </div>
-      )}
-    </div>
+      }
+      privatePanel={<RoleCard view={view} playersById={playersById} />}
+      decision={decision}
+      mainMaxWidth={640}
+    />
   );
 }
 
