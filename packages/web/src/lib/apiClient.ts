@@ -32,6 +32,11 @@ function toWsUrl(httpUrl: string): string {
   return httpUrl;
 }
 
+function isJsonResponse(res: Response): boolean {
+  const contentType = res.headers.get("content-type") ?? "";
+  return contentType.includes("application/json");
+}
+
 async function request<T>(
   path: string,
   init?: RequestInit,
@@ -46,16 +51,28 @@ async function request<T>(
   });
   if (!res.ok) {
     let message = `${res.status} ${res.statusText}`;
-    try {
-      const body = (await res.json()) as ErrorResponse | { message?: string };
-      if ("error" in body && body.error?.message) message = body.error.message;
-      else if ("message" in body && body.message) message = body.message;
-    } catch {
-      // ignore parse error
+    if (isJsonResponse(res)) {
+      try {
+        const body = (await res.json()) as ErrorResponse | { message?: string };
+        if ("error" in body && body.error?.message) message = body.error.message;
+        else if ("message" in body && body.message) message = body.message;
+      } catch {
+        // ignore parse error
+      }
     }
     throw new Error(message);
   }
-  return (await res.json()) as T;
+  if (!isJsonResponse(res)) {
+    throw new Error(
+      `Unexpected non-JSON response from ${path} (status ${res.status}). ` +
+        `Check that NEXT_PUBLIC_API_URL points to the API server.`,
+    );
+  }
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new Error(`Invalid JSON response from ${path}`);
+  }
 }
 
 export const api = {
