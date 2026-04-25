@@ -338,20 +338,66 @@ function useOfflineElapsed(
 }
 
 function DisconnectModal({ onLeave }: { onLeave: () => void }) {
-  // Trap focus to the Leave button on mount so keyboard users can still
-  // act. Restore focus to the previously-focused element on unmount when
-  // the socket recovers.
+  // Trap focus inside the dialog so Tab can't drift to the underlying
+  // page. Bind Escape to Leave so keyboard users have a dismiss path.
+  // Restore focus to the previously-focused element on unmount when the
+  // socket recovers.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const leaveRef = useRef<HTMLButtonElement | null>(null);
+
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     leaveRef.current?.focus();
+
+    const FOCUSABLE_SELECTOR =
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onLeave();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const root = dialogRef.current;
+      if (!root) return;
+      const focusables = Array.from(
+        root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter((el) => !el.hasAttribute("aria-hidden"));
+      if (focusables.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      // If focus has escaped the dialog (e.g. browser autofocus quirks),
+      // pull it back to the first focusable rather than letting Tab
+      // continue out into the underlying page.
+      if (!active || !root.contains(active)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
     return () => {
+      document.removeEventListener("keydown", onKeyDown);
       prev?.focus?.();
     };
-  }, []);
+  }, [onLeave]);
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="disconnect-title"
