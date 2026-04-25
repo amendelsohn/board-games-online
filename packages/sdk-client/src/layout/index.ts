@@ -10,6 +10,10 @@ export {
   type HandActionLayoutProps,
 } from "./HandActionLayout";
 export {
+  HandStripLayout,
+  type HandStripLayoutProps,
+} from "./HandStripLayout";
+export {
   HiddenRoleLayout,
   type HiddenRoleLayoutProps,
 } from "./HiddenRoleLayout";
