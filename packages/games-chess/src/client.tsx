@@ -238,29 +238,33 @@ function ChessBoard({
   const opponentColor: Color | null =
     myColor === "w" ? "b" : myColor === "b" ? "w" : null;
 
-  // Side panel for one seat. The on-screen "top" rail is the opponent
-  // (board is flipped so my pieces sit on the near rank), so material
-  // captured FROM that side appears in their rail under their name.
-  const sidePanel = (
-    side: "top" | "bottom",
+  // Compact horizontal seat chip for the top strip. Color square + label
+  // + name, plus a +N material delta when this seat is ahead. The active
+  // mover gets a colored ring so a glance reveals whose turn it is.
+  const seatChip = (
     color: Color | null,
     name: string,
     isYou: boolean,
+    align: "start" | "end",
   ) => {
     if (!color) return null;
-    const captures = captured[color];
-    const total = Object.values(captures).reduce((s, n) => s + n, 0);
     const advantage =
-      (color === "w" && materialDiff < 0)
-        ? -materialDiff
-        : color === "b" && materialDiff > 0
-          ? materialDiff
+      color === "w" && materialDiff > 0
+        ? materialDiff
+        : color === "b" && materialDiff < 0
+          ? -materialDiff
           : 0;
-    const isTheirTurn =
-      !isOver && view.colors[view.current] === color;
+    const isTheirTurn = !isOver && view.colors[view.current] === color;
+    const colorLabel = color === "w" ? "White" : "Black";
+    const swatchFill = color === "w" ? PIECE_WHITE_FILL : PIECE_BLACK_FILL;
+    const swatchStroke =
+      color === "w" ? PIECE_WHITE_STROKE : PIECE_BLACK_STROKE;
     return (
       <div
-        className="rounded-2xl p-4 flex flex-col gap-3"
+        className={[
+          "rounded-2xl px-3 py-2 flex items-center gap-3 min-w-0 max-w-full",
+          align === "end" ? "flex-row-reverse text-right" : "flex-row",
+        ].join(" ")}
         style={{
           background:
             "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
@@ -269,55 +273,43 @@ function ChessBoard({
             : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
         }}
       >
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55">
-            {color === "w" ? "White" : "Black"}
+        <span
+          aria-hidden
+          className="rounded-md shrink-0"
+          style={{
+            width: 28,
+            height: 28,
+            background: swatchFill,
+            boxShadow: `inset 0 0 0 1.5px ${swatchStroke}`,
+          }}
+        />
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 leading-tight">
+            {colorLabel}
             {isTheirTurn ? " · to move" : ""}
           </span>
           <span
-            className="font-display tracking-tight truncate"
-            style={{ fontSize: "1.125rem", lineHeight: 1.1 }}
+            className="font-display tracking-tight truncate leading-tight"
+            style={{ fontSize: "1rem" }}
           >
             {name}
             {isYou && (
-              <span className="text-base-content/55 font-sans text-sm ml-1">
+              <span className="text-base-content/55 font-sans text-xs ml-1">
                 (you)
+              </span>
+            )}
+            {advantage > 0 && (
+              <span
+                className="ml-2 font-mono tabular-nums text-xs font-semibold text-base-content/70"
+                aria-label={`material advantage +${advantage}`}
+              >
+                +{advantage}
               </span>
             )}
           </span>
         </div>
-        {(total > 0 || advantage > 0) && (
-          <div className="flex flex-col gap-1.5">
-            <div className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/45">
-              Captured by {color === "w" ? "Black" : "White"}
-            </div>
-            <div className="flex flex-wrap gap-[2px]">
-              {CAPTURED_ORDER.flatMap((kind) => {
-                const n = captures[kind] ?? 0;
-                const piece: Piece = (color === "w"
-                  ? kind.toUpperCase()
-                  : kind) as Piece;
-                return Array.from({ length: n }).map((_, i) => (
-                  <span
-                    key={`${kind}-${i}`}
-                    className="inline-flex items-center justify-center"
-                    style={{ width: "1.4rem", height: "1.4rem" }}
-                  >
-                    <PieceGlyph piece={piece} size="captured" />
-                  </span>
-                ));
-              })}
-            </div>
-            {advantage > 0 && (
-              <div className="text-[11px] font-mono tabular-nums font-semibold text-base-content/70">
-                +{advantage}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     );
-    void side;
   };
 
   const board = (
@@ -526,36 +518,26 @@ function ChessBoard({
     <>
       <BoardLayout
         statusBar={
-          <div className="flex items-center justify-center gap-3 text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold">
-            {!isOver && (
-              <span>
-                {isMyTurn ? (
-                  <span className="text-primary">
-                    {view.inCheck ? "Check — defend your king" : "Your move"}
-                  </span>
-                ) : (
-                  <span>
-                    {view.inCheck
-                      ? "Opponent in check"
-                      : "Opponent thinking…"}
-                  </span>
-                )}
-              </span>
-            )}
-            {isOver && <span>{statusLine}</span>}
+          <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_1fr] items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+            {seatChip(opponentColor, opponentName, false, "start")}
+            <div className="text-[10px] sm:text-xs uppercase tracking-[0.22em] font-semibold text-center px-2">
+              {isOver ? (
+                <span>{statusLine}</span>
+              ) : isMyTurn ? (
+                <span className="text-primary">
+                  {view.inCheck ? "Check" : "Your move"}
+                </span>
+              ) : (
+                <span className="text-base-content/55">
+                  {view.inCheck ? "Opponent in check" : "Opponent thinking…"}
+                </span>
+              )}
+            </div>
+            {seatChip(myColor ?? null, myName, true, "end")}
           </div>
         }
-        leftRail={sidePanel(
-          "top",
-          opponentColor,
-          opponentName,
-          false,
-        )}
         board={board}
-        rightRail={sidePanel("bottom", myColor ?? null, myName, true)}
-        boardMaxSize="min(75vh, 90vw)"
-        leftRailWidth={220}
-        rightRailWidth={220}
+        boardMaxSize="min(75vh, 100%)"
       />
 
       {pendingPromo && myColor && (
