@@ -8,7 +8,7 @@
     "dev:shared": "pnpm --parallel --filter @bgo/sdk --filter @bgo/contracts --filter @bgo/sdk-client dev",
     "dev:web": "pnpm --filter @bgo/web dev",
     "dev:server": "pnpm --filter @bgo/server start:dev",
-    "dev": "pnpm build:shared && concurrently -n shared,server,web -c cyan,blue,magenta \"pnpm dev:shared\" \"pnpm dev:server\" \"pnpm dev:web\"",
+    "dev": "pnpm build:shared && node scripts/dev.mjs",
     "build": "pnpm build:shared && pnpm --filter @bgo/server --filter @bgo/web build",
     "typecheck": "pnpm -r --parallel typecheck",
     "test": "pnpm -r test",
