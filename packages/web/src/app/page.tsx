@@ -169,6 +169,7 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <input
                   id="code-input"
+                  data-testid="join-code-input"
                   type="text"
                   placeholder="ABCD"
                   className={[
@@ -188,6 +189,7 @@ export default function Home() {
                 />
                 <button
                   type="button"
+                  data-testid="join-submit"
                   className="btn btn-primary btn-sm rounded-full px-4 font-semibold tracking-wide"
                   onClick={joinExisting}
                   disabled={pending !== null}
@@ -448,6 +450,7 @@ function GameCard({
     <div className="relative">
       <button
         type="button"
+        data-testid={`new-game-${game.type}`}
         onClick={onStart}
         disabled={disabled}
         className={[
@@ -500,6 +503,7 @@ function GameCard({
       {onDebug && (
         <button
           type="button"
+          data-testid={`debug-${game.type}`}
           onClick={(e) => {
             e.stopPropagation();
             onDebug();
