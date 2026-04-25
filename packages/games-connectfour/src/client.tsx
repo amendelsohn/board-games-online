@@ -84,15 +84,19 @@ function ConnectFourBoard({
       ) ?? null
     : null;
 
-  const seatPanel = (
+  const seatChip = (
     name: string,
     color: "R" | "Y" | undefined | null,
     isYou: boolean,
     isTheirTurn: boolean,
     showLastMoveCol: number | null,
+    align: "start" | "end",
   ) => (
     <div
-      className="rounded-2xl p-4 flex flex-col gap-2"
+      className={[
+        "rounded-2xl px-3 py-2 flex items-center gap-3 min-w-0 max-w-full",
+        align === "end" ? "flex-row-reverse text-right" : "flex-row",
+      ].join(" ")}
       style={{
         background:
           "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
@@ -101,40 +105,41 @@ function ConnectFourBoard({
           : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
       }}
     >
-      <div className="flex items-center gap-2">
+      <span
+        className="rounded-full shrink-0"
+        style={{
+          width: 22,
+          height: 22,
+          background: colorVar(color),
+          boxShadow:
+            "inset 0 -2px 0 oklch(0% 0 0 / 0.18), inset 0 1px 0 oklch(100% 0 0 / 0.18)",
+        }}
+      />
+      <div className="flex flex-col min-w-0">
         <span
-          className="rounded-full"
-          style={{
-            width: 16,
-            height: 16,
-            background: colorVar(color),
-            boxShadow: "inset 0 -1px 0 oklch(0% 0 0 / 0.2)",
-          }}
-        />
-        <span
-          className="text-[10px] uppercase tracking-[0.22em] font-semibold"
+          className="text-[10px] uppercase tracking-[0.22em] font-semibold leading-tight"
           style={{ color: colorVar(color) }}
         >
           {colorLabel(color)}
           {isTheirTurn ? " · to drop" : ""}
         </span>
-      </div>
-      <span
-        className="font-display tracking-tight truncate"
-        style={{ fontSize: "1.125rem", lineHeight: 1.1 }}
-      >
-        {name}
-        {isYou && (
-          <span className="text-base-content/55 font-sans text-sm ml-1">
-            (you)
-          </span>
-        )}
-      </span>
-      {showLastMoveCol != null && (
-        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 tabular-nums">
-          last col: {showLastMoveCol + 1}
+        <span
+          className="font-display tracking-tight truncate leading-tight"
+          style={{ fontSize: "1rem" }}
+        >
+          {name}
+          {isYou && (
+            <span className="text-base-content/55 font-sans text-xs ml-1">
+              (you)
+            </span>
+          )}
+          {showLastMoveCol != null && (
+            <span className="ml-2 text-[10px] uppercase tracking-[0.18em] font-semibold text-base-content/55 tabular-nums">
+              col {showLastMoveCol + 1}
+            </span>
+          )}
         </span>
-      )}
+      </div>
     </div>
   );
 
@@ -221,41 +226,44 @@ function ConnectFourBoard({
   return (
     <BoardLayout
       statusBar={
-        <div
-          className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.22em] font-semibold"
-          style={{
-            color:
-              status.tone === "primary"
-                ? "var(--color-primary)"
-                : status.tone === "success"
-                  ? "var(--color-success)"
-                  : status.tone === "error"
-                    ? "var(--color-error)"
-                    : "var(--color-base-content)",
-          }}
-        >
-          {status.label}
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_1fr] items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+          {seatChip(
+            opponentName,
+            opponentColor,
+            false,
+            !isOver && !isMyTurn,
+            opponentId === lastFrom ? view.lastMove?.col ?? null : null,
+            "start",
+          )}
+          <div
+            className="text-[10px] sm:text-xs uppercase tracking-[0.22em] font-semibold text-center px-2"
+            style={{
+              color:
+                status.tone === "primary"
+                  ? "var(--color-primary)"
+                  : status.tone === "success"
+                    ? "var(--color-success)"
+                    : status.tone === "error"
+                      ? "var(--color-error)"
+                      : "var(--color-base-content)",
+            }}
+          >
+            {status.label}
+          </div>
+          {seatChip(
+            myName,
+            myColor,
+            true,
+            isMyTurn && !isOver,
+            me === lastFrom ? view.lastMove?.col ?? null : null,
+            "end",
+          )}
         </div>
       }
-      leftRail={seatPanel(
-        opponentName,
-        opponentColor,
-        false,
-        !isOver && !isMyTurn,
-        opponentId === lastFrom ? view.lastMove?.col ?? null : null,
-      )}
       board={board}
-      rightRail={seatPanel(
-        myName,
-        myColor,
-        true,
-        isMyTurn && !isOver,
-        me === lastFrom ? view.lastMove?.col ?? null : null,
-      )}
-      // 7x6 board grows to fill available width but stays manageable
-      boardMaxSize="min(70vh, 600px)"
-      leftRailWidth={200}
-      rightRailWidth={200}
+      // Lets the board fill the play area, capped on widescreen so cells
+      // don't end up unreasonably large.
+      boardMaxSize="min(75vh, 100%)"
       toolbar={
         !isOver ? (
           <div className="text-xs text-base-content/50 tracking-wide text-center">
