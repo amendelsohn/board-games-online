@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import type { BoardProps, ClientGameModule } from "@bgo/sdk-client";
+import {
+  BoardLayout,
+  type BoardProps,
+  type ClientGameModule,
+} from "@bgo/sdk-client";
 import {
   BOARD_SIZE,
   PENTAGO_TYPE,
@@ -112,20 +116,65 @@ function PentagoBoard_({
 
   const cells = view.board;
 
-  return (
-    <div className="flex flex-col items-center gap-5 w-full max-w-3xl">
-      <Header
-        view={view}
-        playersById={playersById}
-        me={me}
-        isMyTurn={isMyTurn}
-        myStone={myStone}
-        currentName={currentName}
-      />
+  const opponentId =
+    Object.keys(view.colors).find((id) => id !== me) ?? null;
+  const opponentStone = opponentId ? view.colors[opponentId] : null;
+  const opponentName = opponentId ? nameOf(opponentId) : "Opponent";
+  const myName = nameOf(me);
 
-      {/* Board */}
+  const seatChip = (
+    name: string,
+    stone: Stone | null,
+    isYou: boolean,
+    isTheirTurn: boolean,
+    align: "start" | "end",
+  ) => (
+    <div
+      className={[
+        "rounded-2xl px-3 py-2 flex items-center gap-3 min-w-0 max-w-full",
+        align === "end" ? "flex-row-reverse text-right" : "flex-row",
+      ].join(" ")}
+      style={{
+        background:
+          "color-mix(in oklch, var(--color-base-100) 85%, transparent)",
+        boxShadow: isTheirTurn
+          ? "inset 0 0 0 2px var(--color-primary), 0 6px 16px color-mix(in oklch, var(--color-primary) 18%, transparent)"
+          : "inset 0 1px 0 oklch(100% 0 0 / 0.1), inset 0 -1px 0 oklch(0% 0 0 / 0.05)",
+      }}
+    >
+      <StoneVisual stone={stone} size={22} />
+      <div className="flex flex-col min-w-0">
+        <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-base-content/55 leading-tight">
+          {stone ?? "—"}
+          {isTheirTurn ? ` · to ${view.phase === "rotate" ? "twist" : "place"}` : ""}
+        </span>
+        <span
+          className="font-display tracking-tight truncate leading-tight"
+          style={{ fontSize: "1rem" }}
+        >
+          {name}
+          {isYou && (
+            <span className="text-base-content/55 font-sans text-xs ml-1">
+              (you)
+            </span>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+
+  const phaseLabel = (() => {
+    if (isOver) return "Game over";
+    if (view.phase === "place") {
+      return isMyTurn ? "Place a marble" : `${currentName} placing…`;
+    }
+    return isMyTurn ? "Twist any quadrant" : `${currentName} twisting…`;
+  })();
+
+  const board = (
+    <div className="w-full flex flex-col items-center">
       <div
-        className="relative rounded-2xl p-3"
+        className="relative rounded-2xl p-3 w-full"
         style={{
           background:
             "color-mix(in oklch, var(--color-base-300) 65%, transparent)",
@@ -133,7 +182,10 @@ function PentagoBoard_({
             "inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(0% 0 0 / 0.18)",
         }}
       >
-        <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div
+          className="grid w-full"
+          style={{ gridTemplateColumns: "1fr 1fr", gap: 8 }}
+        >
           {([0, 1, 2, 3] as Quadrant[]).map((q) => (
             <QuadrantBox
               key={q}
@@ -152,88 +204,52 @@ function PentagoBoard_({
           ))}
         </div>
       </div>
-
-      {/* Status */}
-      {isOver ? (
-        <GameOver
-          view={view}
-          playersById={playersById}
-          me={me}
-        />
-      ) : (
-        <PhaseBanner
-          phase={view.phase}
-          isMyTurn={isMyTurn}
-          currentName={currentName}
-        />
-      )}
     </div>
   );
-}
 
-function Header({
-  view,
-  playersById,
-  me,
-  isMyTurn,
-  myStone,
-  currentName,
-}: {
-  view: PentagoView;
-  playersById: Record<string, { id: string; name: string }>;
-  me: string;
-  isMyTurn: boolean;
-  myStone: Stone | null;
-  currentName: string;
-}) {
   return (
-    <div className="flex items-center gap-4 flex-wrap justify-center">
-      {view.players.map((id) => {
-        const stone = view.colors[id];
-        const active = view.current === id && view.phase !== "gameOver";
-        const isMe = id === me;
-        return (
+    <BoardLayout
+      statusBar={
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_1fr] items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+          {seatChip(
+            opponentName,
+            opponentStone ?? null,
+            false,
+            !isOver && !isMyTurn,
+            "start",
+          )}
           <div
-            key={id}
             className={[
-              "rounded-xl px-3 py-2 flex items-center gap-2 border transition-colors",
-              active
-                ? "border-primary/55 bg-primary/10"
-                : "border-base-300/80 bg-base-100",
+              "text-[10px] sm:text-xs uppercase tracking-[0.22em] font-semibold text-center px-2",
+              isMyTurn && !isOver ? "text-primary" : "text-base-content/55",
             ].join(" ")}
           >
-            <StoneVisual stone={stone ?? null} size={20} />
-            <div className="flex flex-col">
-              <span
-                className={[
-                  "text-sm font-semibold truncate max-w-[160px]",
-                  active ? "text-primary" : "",
-                ].join(" ")}
-              >
-                {playersById[id]?.name ?? id}
-                {isMe && (
-                  <span className="text-[9px] uppercase tracking-[0.18em] text-base-content/50 ml-1">
-                    you
-                  </span>
-                )}
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.18em] text-base-content/55">
-                {stone}
-              </span>
-            </div>
+            {phaseLabel}{" "}
+            <span className="text-base-content/45 font-mono tabular-nums normal-case ml-1">
+              · turn {view.turn}
+            </span>
           </div>
-        );
-      })}
-      <div className="text-[10px] uppercase tracking-[0.22em] text-base-content/50">
-        Turn {view.turn}
-        {!isMyTurn && view.phase !== "gameOver" && (
-          <> · waiting on {currentName}</>
-        )}
-        {isMyTurn && myStone && (
-          <> · you ({myStone})</>
-        )}
-      </div>
-    </div>
+          {seatChip(
+            myName,
+            myStone ?? null,
+            true,
+            isMyTurn && !isOver,
+            "end",
+          )}
+        </div>
+      }
+      board={board}
+      // Bottom of each quadrant box has absolutely-positioned rotate
+      // buttons that extend below — give the slot room to breathe.
+      toolbar={
+        isOver ? (
+          <GameOver view={view} playersById={playersById} me={me} />
+        ) : view.phase === "rotate" ? (
+          <div className="h-8" aria-hidden />
+        ) : undefined
+      }
+      boardMaxSize="min(75vh, 100%)"
+    />
   );
 }
 
@@ -355,43 +371,6 @@ function QuadrantBox({
             ↻
           </button>
         </div>
-      )}
-    </div>
-  );
-}
-
-function PhaseBanner({
-  phase,
-  isMyTurn,
-  currentName,
-}: {
-  phase: PentagoView["phase"];
-  isMyTurn: boolean;
-  currentName: string;
-}) {
-  if (phase === "place") {
-    return (
-      <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold pb-6">
-        {isMyTurn ? (
-          <span className="text-primary font-bold">Place a marble</span>
-        ) : (
-          <>
-            Waiting on{" "}
-            <span className="text-base-content font-bold">{currentName}</span> to place
-          </>
-        )}
-      </div>
-    );
-  }
-  return (
-    <div className="text-xs uppercase tracking-[0.22em] text-base-content/55 font-semibold pb-6">
-      {isMyTurn ? (
-        <span className="text-primary font-bold">Twist any quadrant</span>
-      ) : (
-        <>
-          Waiting on{" "}
-          <span className="text-base-content font-bold">{currentName}</span> to twist
-        </>
       )}
     </div>
   );
