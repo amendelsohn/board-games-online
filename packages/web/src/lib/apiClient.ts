@@ -18,8 +18,19 @@ import type {
   UpdateMeBody,
 } from "@bgo/contracts";
 
-const BASE_URL =
+export const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+
+/**
+ * Derive a WebSocket URL from the HTTP API URL so a single env var
+ * (`NEXT_PUBLIC_API_URL`) drives both. socket.io is happy with either
+ * scheme, but callers that use raw WebSocket need `ws://` / `wss://`.
+ */
+function toWsUrl(httpUrl: string): string {
+  if (httpUrl.startsWith("https://")) return "wss://" + httpUrl.slice(8);
+  if (httpUrl.startsWith("http://")) return "ws://" + httpUrl.slice(7);
+  return httpUrl;
+}
 
 async function request<T>(
   path: string,
@@ -109,6 +120,6 @@ export const api = {
     }),
 };
 
-export const BASE_WS_URL = BASE_URL;
+export const BASE_WS_URL = toWsUrl(BASE_URL);
 
 export type { TableWire };

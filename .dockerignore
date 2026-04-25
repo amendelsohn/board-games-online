@@ -1,0 +1,49 @@
+# Version control & editor scratch
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# Claude Code harness + per-session scratch space
+.claude
+.todos
+.verify
+vault
+.impeccable.md
+AGENTS.md
+AGENT_BRIEF.md
+architecture-analysis.md
+
+# Build outputs & caches
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/.nyc_output
+**/test-results
+**/playwright-report
+**/playwright/.cache
+
+# Logs
+**/*.log
+logs
+
+# OS noise
+.DS_Store
+
+# Root screenshots (Playwright MCP artifacts often land here)
+/*.png
+.playwright-mcp
+
+# Misc local state
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+
+# Docker itself
+Dockerfile
+**/Dockerfile
+docker-compose.yml
+.dockerignore

@@ -1,6 +1,24 @@
+const fs = require("fs");
+const path = require("path");
+
+/** Derive `@bgo/games-*` workspace packages from the monorepo layout so
+ * every game is transpiled by Next without hand-maintaining a list. */
+function discoverGamePackages() {
+  const packagesDir = path.resolve(__dirname, "..");
+  const entries = fs.readdirSync(packagesDir, { withFileTypes: true });
+  return entries
+    .filter((e) => e.isDirectory() && e.name.startsWith("games-"))
+    .map((e) => `@bgo/${e.name}`);
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone",
+  // Ensure the standalone bundle traces across the whole pnpm workspace,
+  // not just packages/web/. Required for the docker runner to find the
+  // @bgo/sdk / @bgo/sdk-client / @bgo/games-* siblings.
+  outputFileTracingRoot: path.join(__dirname, "..", ".."),
   experimental: {
     forceSwcTransforms: true,
   },
@@ -8,36 +26,7 @@ const nextConfig = {
     "@bgo/sdk",
     "@bgo/sdk-client",
     "@bgo/contracts",
-    "@bgo/games-avalon",
-    "@bgo/games-battleship",
-    "@bgo/games-checkers",
-    "@bgo/games-chess",
-    "@bgo/games-codenames",
-    "@bgo/games-connectfour",
-    "@bgo/games-coup",
-    "@bgo/games-dotsandboxes",
-    "@bgo/games-forsale",
-    "@bgo/games-gomoku",
-    "@bgo/games-hanabi",
-    "@bgo/games-hearts",
-    "@bgo/games-liarsdice",
-    "@bgo/games-loveletter",
-    "@bgo/games-mancala",
-    "@bgo/games-mastermind",
-    "@bgo/games-memory",
-    "@bgo/games-nim",
-    "@bgo/games-nothanks",
-    "@bgo/games-pentago",
-    "@bgo/games-quoridor",
-    "@bgo/games-reversi",
-    "@bgo/games-rps",
-    "@bgo/games-secrethitler",
-    "@bgo/games-skull",
-    "@bgo/games-splendor",
-    "@bgo/games-spyfall",
-    "@bgo/games-sushigo",
-    "@bgo/games-tictactoe",
-    "@bgo/games-yahtzee",
+    ...discoverGamePackages(),
   ],
 };
 
