@@ -19,7 +19,6 @@ import { yahtzeeServerModule } from '@bgo/games-yahtzee/server';
 import { avalonServerModule } from '@bgo/games-avalon/server';
 import { coupServerModule } from '@bgo/games-coup/server';
 import { loveLetterServerModule } from '@bgo/games-loveletter/server';
-import { secretHitlerServerModule } from '@bgo/games-secrethitler/server';
 import { skullServerModule } from '@bgo/games-skull/server';
 import { quoridorServerModule } from '@bgo/games-quoridor/server';
 import { forSaleServerModule } from '@bgo/games-forsale/server';
@@ -28,7 +27,6 @@ import { noThanksServerModule } from '@bgo/games-nothanks/server';
 import { pentagoServerModule } from '@bgo/games-pentago/server';
 import { sushiGoServerModule } from '@bgo/games-sushigo/server';
 import { hanabiServerModule } from '@bgo/games-hanabi/server';
-import { bloodClocktowerServerModule } from '@bgo/games-bloodclocktower/server';
 import { goFishServerModule } from '@bgo/games-gofish/server';
 import type { GamesRegistry } from './games-registry.service';
 
@@ -55,7 +53,6 @@ export function registerAllGames(registry: GamesRegistry): void {
   registry.register(avalonServerModule);
   registry.register(coupServerModule);
   registry.register(loveLetterServerModule);
-  registry.register(secretHitlerServerModule);
   registry.register(skullServerModule);
   registry.register(quoridorServerModule);
   registry.register(forSaleServerModule);
@@ -64,6 +61,5 @@ export function registerAllGames(registry: GamesRegistry): void {
   registry.register(pentagoServerModule);
   registry.register(sushiGoServerModule);
   registry.register(hanabiServerModule);
-  registry.register(bloodClocktowerServerModule);
   registry.register(goFishServerModule);
 }

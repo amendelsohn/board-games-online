@@ -41,9 +41,8 @@ export interface HiddenRoleLayoutProps {
  * constantly), the live decision surface in the middle, round history /
  * player roster on the right. Phase bar above, log strip below.
  *
- * Built for Avalon, Secret Hitler, Blood on the Clocktower, Spyfall,
- * Codenames, etc. Composes PlayerUILayout — fall back to that primitive if
- * a game needs a non-standard shape.
+ * Built for Avalon, Spyfall, Codenames, etc. Composes PlayerUILayout —
+ * fall back to that primitive if a game needs a non-standard shape.
  */
 export function HiddenRoleLayout({
   privatePanel,

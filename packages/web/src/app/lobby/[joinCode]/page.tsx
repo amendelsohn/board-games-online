@@ -363,14 +363,12 @@ function gameLabel(type: string): string {
   if (type === "connect-four") return "Connect Four";
   if (type === "codenames") return "Codenames";
   if (type === "spyfall") return "Spyfall";
-  if (type === "blood-on-the-clocktower") return "Blood on the Clocktower";
   return type;
 }
 
 function moduleMinPlayers(type: string): number {
   if (type === "codenames") return 4;
   if (type === "spyfall") return 3;
-  if (type === "blood-on-the-clocktower") return 5;
   return 2;
 }
 

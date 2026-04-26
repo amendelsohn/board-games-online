@@ -27,7 +27,6 @@ COPY packages/web/package.json            ./packages/web/package.json
 # manifest present at install time.
 COPY packages/games-avalon/package.json          ./packages/games-avalon/package.json
 COPY packages/games-battleship/package.json      ./packages/games-battleship/package.json
-COPY packages/games-bloodclocktower/package.json ./packages/games-bloodclocktower/package.json
 COPY packages/games-checkers/package.json        ./packages/games-checkers/package.json
 COPY packages/games-chess/package.json           ./packages/games-chess/package.json
 COPY packages/games-codenames/package.json       ./packages/games-codenames/package.json
@@ -49,7 +48,6 @@ COPY packages/games-pentago/package.json         ./packages/games-pentago/packag
 COPY packages/games-quoridor/package.json        ./packages/games-quoridor/package.json
 COPY packages/games-reversi/package.json         ./packages/games-reversi/package.json
 COPY packages/games-rps/package.json             ./packages/games-rps/package.json
-COPY packages/games-secrethitler/package.json    ./packages/games-secrethitler/package.json
 COPY packages/games-skull/package.json           ./packages/games-skull/package.json
 COPY packages/games-splendor/package.json        ./packages/games-splendor/package.json
 COPY packages/games-spyfall/package.json         ./packages/games-spyfall/package.json
@@ -67,7 +65,6 @@ COPY packages/contracts   ./packages/contracts
 COPY packages/server      ./packages/server
 COPY packages/games-avalon          ./packages/games-avalon
 COPY packages/games-battleship      ./packages/games-battleship
-COPY packages/games-bloodclocktower ./packages/games-bloodclocktower
 COPY packages/games-checkers        ./packages/games-checkers
 COPY packages/games-chess           ./packages/games-chess
 COPY packages/games-codenames       ./packages/games-codenames
@@ -89,7 +86,6 @@ COPY packages/games-pentago         ./packages/games-pentago
 COPY packages/games-quoridor        ./packages/games-quoridor
 COPY packages/games-reversi         ./packages/games-reversi
 COPY packages/games-rps             ./packages/games-rps
-COPY packages/games-secrethitler    ./packages/games-secrethitler
 COPY packages/games-skull           ./packages/games-skull
 COPY packages/games-splendor        ./packages/games-splendor
 COPY packages/games-spyfall         ./packages/games-spyfall

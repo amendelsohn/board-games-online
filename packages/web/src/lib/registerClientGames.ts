@@ -22,7 +22,6 @@ import { yahtzeeClientModule } from "@bgo/games-yahtzee/client";
 import { avalonClientModule } from "@bgo/games-avalon/client";
 import { coupClientModule } from "@bgo/games-coup/client";
 import { loveLetterClientModule } from "@bgo/games-loveletter/client";
-import { secretHitlerClientModule } from "@bgo/games-secrethitler/client";
 import { skullClientModule } from "@bgo/games-skull/client";
 import { quoridorClientModule } from "@bgo/games-quoridor/client";
 import { forSaleClientModule } from "@bgo/games-forsale/client";
@@ -31,7 +30,6 @@ import { noThanksClientModule } from "@bgo/games-nothanks/client";
 import { pentagoClientModule } from "@bgo/games-pentago/client";
 import { sushiGoClientModule } from "@bgo/games-sushigo/client";
 import { hanabiClientModule } from "@bgo/games-hanabi/client";
-import { bloodClocktowerClientModule } from "@bgo/games-bloodclocktower/client";
 import { goFishClientModule } from "@bgo/games-gofish/client";
 
 let registered = false;
@@ -60,7 +58,6 @@ export function registerAllClientGames(): void {
   registerClientModule(avalonClientModule);
   registerClientModule(coupClientModule);
   registerClientModule(loveLetterClientModule);
-  registerClientModule(secretHitlerClientModule);
   registerClientModule(skullClientModule);
   registerClientModule(quoridorClientModule);
   registerClientModule(forSaleClientModule);
@@ -69,7 +66,6 @@ export function registerAllClientGames(): void {
   registerClientModule(pentagoClientModule);
   registerClientModule(sushiGoClientModule);
   registerClientModule(hanabiClientModule);
-  registerClientModule(bloodClocktowerClientModule);
   registerClientModule(goFishClientModule);
   registered = true;
 }
