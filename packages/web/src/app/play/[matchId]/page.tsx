@@ -193,11 +193,6 @@ export default function PlayPage() {
           sessionPlayerId={player.id}
           activeSeat={effectiveSeat}
           currentActors={currentActors}
-          hostPlayerId={table.hostPlayerId}
-          hostIsPlayer={table.hostIsPlayer}
-          hostName={
-            player.id === table.hostPlayerId ? player.name : undefined
-          }
           onPick={(seatId) =>
             setDebugSeat(seatId === player.id ? null : seatId)
           }
@@ -635,26 +630,14 @@ function DebugSeatBar({
   sessionPlayerId,
   activeSeat,
   currentActors,
-  hostPlayerId,
-  hostIsPlayer,
-  hostName,
   onPick,
 }: {
   players: PlayerWire[];
   sessionPlayerId: string;
   activeSeat: string;
   currentActors: string[];
-  hostPlayerId: string;
-  hostIsPlayer: boolean;
-  hostName?: string;
   onPick: (seatId: string) => void;
 }) {
-  // For Storyteller-style tables, the non-playing host (ST) isn't in
-  // the seats list — but they're still a viewer/actor we can switch
-  // to. Surface them as a leading chip so debug mode can round-trip
-  // ST ↔ player seats.
-  const showStorytellerChip = !hostIsPlayer && hostName;
-  const stIsActive = hostPlayerId === activeSeat;
   return (
     <div
       className="mt-3 flex items-center gap-2 flex-wrap rounded-md border border-dashed border-warning/50 bg-warning/5 px-3 py-2 text-xs"
@@ -664,25 +647,6 @@ function DebugSeatBar({
       <span className="font-mono uppercase tracking-[0.22em] text-warning-content/70 shrink-0">
         🐞 seat
       </span>
-      {showStorytellerChip && (
-        <button
-          type="button"
-          onClick={() => onPick(hostPlayerId)}
-          className={[
-            "rounded-full px-2.5 py-1 font-medium transition-colors",
-            stIsActive
-              ? "bg-warning text-warning-content"
-              : "bg-base-200 text-base-content/70 hover:bg-base-300",
-          ].join(" ")}
-        >
-          {hostName} (ST)
-          {hostPlayerId === sessionPlayerId && (
-            <span className="ml-1 text-[10px] uppercase tracking-[0.18em] opacity-60">
-              self
-            </span>
-          )}
-        </button>
-      )}
       {players.map((p) => {
         const isActive = p.id === activeSeat;
         const isTurn = currentActors.includes(p.id);

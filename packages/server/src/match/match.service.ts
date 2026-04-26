@@ -15,9 +15,9 @@ import type {
   MatchId,
   MoveResult,
   PlayerId,
-  RuntimeViewer,
   StateStore,
   Versioned,
+  Viewer,
   Outcome,
 } from '@bgo/sdk';
 import { createRng, seedFromString } from '@bgo/sdk';
@@ -106,8 +106,7 @@ export class MatchService implements OnModuleInit {
 
     const matchId = uuidv4();
     const seed = seedFromString(matchId);
-    const storytellerId = table.hostIsPlayer ? undefined : table.hostPlayerId;
-    const ctx = this.makeContext(matchId, 0, seed, storytellerId);
+    const ctx = this.makeContext(matchId, 0, seed);
     const cfg = mod.validateConfig(table.config ?? mod.defaultConfig());
     const initialState = mod.createInitialState(players, cfg, ctx);
 
@@ -137,10 +136,7 @@ export class MatchService implements OnModuleInit {
     if (!meta) throw new NotFoundException(`Match ${matchId} not found`);
     const table = this.lobby.getTable(meta.tableId);
     if (!table) throw new NotFoundException('Parent table vanished');
-    const isPlayer = table.playerIds.includes(actor);
-    const isStoryteller =
-      !table.hostIsPlayer && actor === table.hostPlayerId;
-    if (!isPlayer && !isStoryteller) {
+    if (!table.playerIds.includes(actor)) {
       throw new ForbiddenException('Not a participant in this match');
     }
 
@@ -148,13 +144,7 @@ export class MatchService implements OnModuleInit {
     const current = await this.store.get(matchId);
     if (!current) throw new NotFoundException('No state for match');
 
-    const storytellerId = table.hostIsPlayer ? undefined : table.hostPlayerId;
-    const ctx = this.makeContext(
-      matchId,
-      current.version + 1,
-      meta.seed,
-      storytellerId,
-    );
+    const ctx = this.makeContext(matchId, current.version + 1, meta.seed);
     const result = this.safeHandleMove(mod, current.state, move, actor, ctx);
     if (!result.ok) return { ok: false, reason: result.reason };
 
@@ -184,15 +174,7 @@ export class MatchService implements OnModuleInit {
     if (!mod.onTimer) return;
     const current = await this.store.get(matchId);
     if (!current) return;
-    const table = this.lobby.getTable(meta.tableId);
-    const storytellerId =
-      table && !table.hostIsPlayer ? table.hostPlayerId : undefined;
-    const ctx = this.makeContext(
-      matchId,
-      current.version + 1,
-      meta.seed,
-      storytellerId,
-    );
+    const ctx = this.makeContext(matchId, current.version + 1, meta.seed);
     const result: MoveResult<unknown> = mod.onTimer(
       current.state,
       key,
@@ -227,7 +209,7 @@ export class MatchService implements OnModuleInit {
 
   async getView(
     matchId: MatchId,
-    viewer: RuntimeViewer,
+    viewer: Viewer,
   ): Promise<MatchView | null> {
     const meta = this.metaByMatch.get(matchId);
     if (!meta) return null;
@@ -240,21 +222,10 @@ export class MatchService implements OnModuleInit {
   private computeView(
     mod: GameModule<unknown, unknown, unknown, unknown>,
     versioned: Versioned<unknown>,
-    viewer: RuntimeViewer,
+    viewer: Viewer,
   ): MatchView {
-    let view: unknown;
-    if (viewer === 'storyteller') {
-      if (!mod.storytellerView) {
-        throw new Error(
-          `Game module ${mod.type} received storyteller viewer but has no storytellerView()`,
-        );
-      }
-      view = mod.storytellerView(versioned.state);
-    } else {
-      view = mod.view(versioned.state, viewer);
-    }
     return {
-      view,
+      view: mod.view(versioned.state, viewer),
       phase: mod.phase(versioned.state),
       currentActors: mod.currentActors(versioned.state),
       isTerminal: mod.isTerminal(versioned.state),
@@ -266,7 +237,7 @@ export class MatchService implements OnModuleInit {
   /** Gateway uses this to watch a match and re-project on every change. */
   subscribeViews(
     matchId: MatchId,
-    viewer: RuntimeViewer,
+    viewer: Viewer,
     onView: (v: MatchView) => void,
   ): () => void {
     const meta = this.metaByMatch.get(matchId);
@@ -309,7 +280,6 @@ export class MatchService implements OnModuleInit {
     matchId: MatchId,
     nextVersion: number,
     seed: number,
-    storytellerId: PlayerId | undefined,
   ): GameContext {
     const store = this.store;
     const rng = createRng(seed + nextVersion); // deterministic per version
@@ -318,7 +288,6 @@ export class MatchService implements OnModuleInit {
       version: nextVersion,
       now: Date.now(),
       rng,
-      storytellerId,
       scheduleTimer(key: string, at: number) {
         void store.scheduleTimer(matchId, key, at);
       },

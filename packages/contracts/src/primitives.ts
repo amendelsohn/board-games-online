@@ -28,11 +28,6 @@ export const tableSchema = z.object({
   joinCode: joinCodeSchema,
   gameType: z.string(),
   hostPlayerId: playerIdSchema,
-  /**
-   * Whether the host occupies one of the seats. False for Storyteller-style
-   * games where the host runs the table without playing.
-   */
-  hostIsPlayer: z.boolean(),
   players: z.array(playerSchema),
   status: tableStatusSchema,
   matchId: matchIdSchema.nullable(),
@@ -57,11 +52,5 @@ export const gameMetaSchema = z.object({
   category: gameCategorySchema,
   minPlayers: z.number().int().positive(),
   maxPlayers: z.number().int().positive(),
-  /**
-   * False for Storyteller-style games (host runs the table, doesn't play).
-   * The web client uses this to render appropriate "create table" copy
-   * (e.g. "You'll be the Storyteller").
-   */
-  hostSeated: z.boolean(),
 });
 export type GameMetaWire = z.infer<typeof gameMetaSchema>;

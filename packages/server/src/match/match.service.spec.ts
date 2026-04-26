@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import type { MatchId, PlayerId, RuntimeViewer } from '@bgo/sdk';
+import type { MatchId, PlayerId, Viewer } from '@bgo/sdk';
 
 import { MatchService } from './match.service';
 import { GamesRegistry } from '../games/games-registry.service';
@@ -87,7 +87,7 @@ async function startCounterMatch(
 async function getView(
   fx: Fixture,
   matchId: MatchId,
-  viewer: RuntimeViewer,
+  viewer: Viewer,
 ): Promise<{
   view: CounterView;
   phase: string;

@@ -115,7 +115,6 @@ export class TablesController {
       joinCode: table.joinCode,
       gameType: table.gameType,
       hostPlayerId: table.hostPlayerId,
-      hostIsPlayer: table.hostIsPlayer,
       players: storedPlayers.map((p) => this.players.toWire(p)),
       status: table.status,
       matchId: table.matchId,

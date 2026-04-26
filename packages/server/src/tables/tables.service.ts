@@ -18,14 +18,12 @@ export class TablesService {
 
   create(gameType: string, hostPlayerId: PlayerId): StoredTable {
     const mod = this.games.get(gameType);
-    const hostIsPlayer = mod.hostSeated !== false;
     const table: StoredTable = {
       id: uuidv4(),
       joinCode: this.generateJoinCode(),
       gameType,
       hostPlayerId,
-      hostIsPlayer,
-      playerIds: hostIsPlayer ? [hostPlayerId] : [],
+      playerIds: [hostPlayerId],
       status: 'waiting',
       matchId: null,
       config: mod.defaultConfig(),
@@ -47,10 +45,6 @@ export class TablesService {
     // Important because the lobby page re-calls join on mount after the
     // home page already joined — without this the second call fails "full".
     if (table.playerIds.includes(playerId)) return table;
-    // Storyteller-style tables: the host is not a seated player, so the
-    // host re-visiting the lobby (which always re-calls join) must be a
-    // no-op rather than auto-seating them as a player.
-    if (!table.hostIsPlayer && playerId === table.hostPlayerId) return table;
     const mod = this.games.get(table.gameType);
     if (table.playerIds.length >= mod.maxPlayers) {
       throw new BadRequestException(
@@ -148,16 +142,7 @@ export class TablesService {
     if (!table.playerIds.includes(playerId)) return table;
     const remaining = table.playerIds.filter((id) => id !== playerId);
 
-    // For Storyteller-style tables (host not seated): the ST owns the table
-    // even when no players remain, so just empty the seat list — don't
-    // delete. For player-as-host tables, the empty case means everyone has
-    // left, so delete.
     if (remaining.length === 0) {
-      if (!table.hostIsPlayer) {
-        const next: StoredTable = { ...table, playerIds: [] };
-        this.lobby.saveTable(next);
-        return next;
-      }
       this.lobby.deleteTable(tableId);
       return null;
     }

@@ -207,12 +207,6 @@ export default function LobbyPage() {
             {minPlayers === 2 ? "+ needed" : " min"}
           </span>
         </div>
-        {!table.hostIsPlayer && (
-          <StorytellerCard
-            isMe={isHost}
-            myName={me.name}
-          />
-        )}
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {table.players.map((p, i) => (
             <li
@@ -372,25 +366,3 @@ function moduleMinPlayers(type: string): number {
   return 2;
 }
 
-function StorytellerCard({ isMe, myName }: { isMe: boolean; myName: string }) {
-  return (
-    <div className="surface-ivory p-4 flex items-center gap-3 border-l-2 border-primary/60">
-      <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center text-primary font-display text-lg">
-        ★
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-base-content/55">
-          Storyteller
-        </div>
-        <div className="font-display text-lg leading-tight truncate">
-          {isMe ? `${myName} · you` : "Set"}
-        </div>
-        <div className="text-xs text-base-content/55 mt-0.5">
-          {isMe
-            ? "You'll run the game and adjudicate every ability."
-            : "Sets up the game and runs the night order — not playing."}
-        </div>
-      </div>
-    </div>
-  );
-}
